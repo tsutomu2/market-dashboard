@@ -180,8 +180,81 @@ def best_balance(n: list) -> tuple | None:
     return best
 
 
+# 横持ち形式（2026年時点のJPXの実ファイル）での見出し名。
+# 「自己」「個人」「海外投資家」は 現金/信用・法人/個人 の小計列に分かれているので合算する。
+WIDE_LABELS = {
+    "foreign": ("海外投資家",),
+    "individual": ("個人",),
+    "inv_trust": ("投資信託",),
+    "trust_bank": ("信託銀行",),
+    "proprietary": ("自己計", "自己"),
+    "business": ("事業法人",),
+}
+
+
+def parse_investor_wide(ws) -> dict | None:
+    """投資主体が列方向に並ぶ形式。
+    見出し行（売/買/差引/合計 が並ぶ行）より上の行を、結合セルを展開して列ごとの見出しにする。
+    各主体は「その名前が最初に現れる見出し行」で範囲を決める
+    （例：海外投資家の下にある『個人』ではなく、委託の下の『個人』を使う）。
+    値は「二市場」の「金額」行の差引き（千円）。"""
+    grid = [list(r) for r in ws.iter_rows(values_only=True)]
+    if not grid:
+        return None
+    width = max(len(r) for r in grid)
+    for r in grid:
+        r.extend([None] * (width - len(r)))
+    for mr in ws.merged_cells.ranges:  # 結合セルの値を範囲全体に広げる
+        v = grid[mr.min_row - 1][mr.min_col - 1]
+        for rr in range(mr.min_row - 1, mr.max_row):
+            for cc in range(mr.min_col - 1, mr.max_col):
+                grid[rr][cc] = v
+    head = next((i for i, r in enumerate(grid) if sum(jp_only(str(v)) == "差引" for v in r if isinstance(v, str)) >= 3), None)
+    if head is None:
+        return None
+    bal_cols = [c for c in range(width) if isinstance(grid[head][c], str) and jp_only(grid[head][c]) == "差引"]
+    labels = [[jp_only(v) if isinstance(v, str) else "" for v in grid[i]] for i in range(head)]
+    target = None
+    for r in grid[head + 1:]:
+        text = [jp_only(v) for v in r if isinstance(v, str)]
+        if any("二市場" in t for t in text) and any(t.startswith("金額") for t in text):
+            target = r
+            break
+    if target is None:
+        return None
+    res = {}
+    for key, names in WIDE_LABELS.items():
+        cols = None
+        for name in names:
+            for lv in range(head):
+                hit = [c for c in bal_cols if labels[lv][c] == name]
+                if hit:
+                    cols = hit
+                    break
+            if cols:
+                break
+        if not cols:
+            res[key] = None
+            continue
+        total = 0
+        for c in cols:
+            s, b, d = target[c - 2], target[c - 1], target[c]
+            if not all(isinstance(x, (int, float)) for x in (s, b, d)) or abs((b - s) - d) > 2:
+                raise ValueError(f"{key}: 列{c + 1}の 売/買/差引 が合わない ({s}, {b}, {d})")
+            total += d
+        res[key] = int(round(total / 1000))
+    if res.get("foreign") is None or res.get("individual") is None:
+        return None
+    return res
+
+
 def parse_investor(content: bytes) -> dict | None:
     wb = load_workbook(io.BytesIO(content), data_only=True)
+    for ws in wb.worksheets:
+        res = parse_investor_wide(ws)
+        if res:
+            return res
+    # 以下は主体が行方向に並ぶ形式（旧形式）向けの予備
     found: dict[str, tuple] = {}
     for ws in wb.worksheets:
         for r in ws.iter_rows(values_only=True):

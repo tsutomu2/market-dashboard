@@ -8,7 +8,7 @@
 "src": "sheet",
 "eval": -0.68,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 66588.12
 },
 {
 "date": "2026-06-12",
@@ -19,7 +19,7 @@
 "src": "sheet",
 "eval": -3.86,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 66020.04
 },
 {
 "date": "2026-06-19",
@@ -30,7 +30,7 @@
 "src": "sheet",
 "eval": 1.47,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 71250.06
 },
 {
 "date": "2026-06-26",
@@ -41,7 +41,7 @@
 "src": "sheet",
 "eval": -3.09,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 69360.88
 },
 {
 "date": "2026-07-03",
@@ -52,7 +52,7 @@
 "src": "sheet",
 "eval": -2.78,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 69744.07
 },
 {
 "date": "2026-07-10",
@@ -63,7 +63,7 @@
 "src": "sheet",
 "eval": -4.95,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 68557.73
 },
 {
 "date": "2026-07-17",
@@ -74,7 +74,7 @@
 "src": "sheet",
 "eval": -10.45,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 64141.12
 },
 {
 "date": "2026-07-24",
@@ -85,7 +85,7 @@
 "src": "sheet",
 "eval": -8.24,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 64611.15
 },
 {
 "date": "2026-07-31",
@@ -96,7 +96,7 @@
 "src": "sheet",
 "eval": -8.44,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 64362.02
 },
 {
 "date": "2026-08-07",
@@ -107,7 +107,7 @@
 "src": "sheet",
 "eval": -6.19,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 65606.71
 },
 {
 "date": "2026-08-14",
@@ -118,7 +118,7 @@
 "src": "sheet",
 "eval": -3.29,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 68713.8
 },
 {
 "date": "2026-08-21",
@@ -129,7 +129,7 @@
 "src": "sheet",
 "eval": -5.27,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 66016.36
 },
 {
 "date": "2026-08-28",
@@ -140,7 +140,7 @@
 "src": "sheet",
 "eval": -4.68,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 66405.56
 },
 {
 "date": "2026-09-04",
@@ -151,7 +151,7 @@
 "src": "sheet",
 "eval": -5.34,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 65020.94
 },
 {
 "date": "2026-09-11",
@@ -162,7 +162,7 @@
 "src": "sheet",
 "eval": -6.5,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 64011.34
 },
 {
 "date": "2026-09-18",
@@ -173,7 +173,7 @@
 "src": "sheet",
 "eval": -5.24,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 65018.95
 },
 {
 "date": "2026-09-25",
@@ -184,7 +184,7 @@
 "src": "sheet",
 "eval": -5.48,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 66364.2
 },
 {
 "date": "2026-10-02",
@@ -195,28 +195,61 @@
 "src": "sheet",
 "eval": -5.56,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 68309.46
 },
 {
 "date": "2026-10-09",
 "sell": 762053,
 "buy": 6708057,
-"sell_shares": null,
-"buy_shares": null,
-"src": "sheet",
+"sell_shares": 366905,
+"buy_shares": 3830621,
+"src": "jpx",
 "eval": -6.58,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 69030.92
 },
 {
 "date": "2026-10-16",
 "sell": 667054,
 "buy": 6664007,
-"sell_shares": null,
-"buy_shares": null,
-"src": "sheet",
+"sell_shares": 366263,
+"buy_shares": 3734445,
+"src": "jpx",
 "eval": -10.41,
 "eval_type": "actual",
-"nikkei": null
+"nikkei": 65324.29
+},
+{
+"date": "2026-10-23",
+"sell": 688573,
+"buy": 6534069,
+"sell_shares": 375064,
+"buy_shares": 3660529,
+"src": "jpx",
+"eval": -14.02,
+"eval_type": "est",
+"nikkei": 62693.16
+},
+{
+"date": "2026-10-30",
+"sell": 643859,
+"buy": 6505887,
+"sell_shares": 349230,
+"buy_shares": 3654854,
+"src": "jpx",
+"eval": -13.2,
+"eval_type": "est",
+"nikkei": 63290.11
+},
+{
+"date": "2026-11-06",
+"sell": 613486,
+"buy": 5880994,
+"sell_shares": 332419,
+"buy_shares": 3460691,
+"src": "jpx",
+"eval": -21.23,
+"eval_type": "est",
+"nikkei": 57434.77
 }
 ]

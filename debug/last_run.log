@@ -1,0 +1,13 @@
+2026-11-17 08:48 JST
+fred: 19240 closes
+margin 2026-10-09: sell=762053 buy=6708057
+margin 2026-10-16: sell=667054 buy=6664007
+margin 2026-10-23: sell=688573 buy=6534069
+margin 2026-10-30: sell=643859 buy=6505887
+margin 2026-11-06: sell=613486 buy=5880994
+investor 2026-10-09: {'foreign': 1431801, 'individual': 88097, 'inv_trust': -155562, 'trust_bank': -35990, 'proprietary': -1268541, 'business': 177979}
+investor 2026-10-16: {'foreign': -365401, 'individual': 219263, 'inv_trust': 137907, 'trust_bank': -77238, 'proprietary': -10260, 'business': 184984}
+investor 2026-10-23: {'foreign': 24421, 'individual': -71631, 'inv_trust': 39162, 'trust_bank': -224283, 'proprietary': 66467, 'business': 119908}
+investor 2026-10-30: {'foreign': -217624, 'individual': -33240, 'inv_trust': 156831, 'trust_bank': -56531, 'proprietary': 275004, 'business': -66975}
+investor 2026-11-06: {'foreign': -71402, 'individual': -480257, 'inv_trust': 105228, 'trust_bank': 230603, 'proprietary': 87893, 'business': 310006}
+nikkei: 11 rows updated
