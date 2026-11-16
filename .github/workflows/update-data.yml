@@ -1,0 +1,45 @@
+name: update-data
+
+on:
+  schedule:
+    - cron: "35 8 * * 1-5"   # 17:35 JST（火曜の信用残・木曜の投資主体別・日次PERを取得）
+    - cron: "35 12 * * 1-5"  # 21:35 JST（公表が遅れた日の取り直し）
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "docs/data/manual_eval.csv"
+      - ".github/workflows/update-data.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - run: pip install -r scripts/requirements.txt
+      - run: python scripts/fetch.py
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data debug
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "data: auto update $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M')"
+            git pull --rebase origin main
+            git push
+          fi

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>マーケット需給ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f7f7f5;--panel:#fff;--fg:#1d1d1b;--muted:#6b6b66;--line:#e3e2dc;--pos:#1f7a4d;--neg:#c0392b;--posbg:#e3f3e8;--negbg:#fbe4e1;--warn:#fff1d6;--warnfg:#9a5b00;--accent:#2f5d9e;--hl:#fff7e0}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--fg:#ecebe6;--muted:#a3a29b;--line:#34332f;--pos:#5cc48a;--neg:#ff7a6b;--posbg:#1c3326;--negbg:#3a1f1c;--warn:#3a2e16;--warnfg:#f0b65a;--accent:#7aa7e6;--hl:#2c2717}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;font-size:15px;line-height:1.5}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px 0}
+h1{font-size:18px;margin:0}
+.sub{font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px;margin-top:8px;overflow-x:auto}
+.tab{border:0;background:none;color:var(--muted);padding:8px 12px;font-size:14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit}
+.tab.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
+main{max-width:1200px;margin:0 auto;padding:14px}
+section.page{display:none}
+section.page.on{display:block}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;font-size:13px}
+.controls select,.controls input[type=text]{font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font-family:inherit}
+.controls label{display:inline-flex;align-items:center;gap:4px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card .l{font-size:12px;color:var(--muted)}
+.card .v{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.card .s{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px}
+.box h2{font-size:15px;margin:0 0 4px}
+.note{font-size:12px;color:var(--muted);margin:0 0 8px}
+.chart{position:relative;height:300px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:600;font-size:12px}
+td:first-child,th:first-child{text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}
+th:first-child{z-index:2}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+td.cpos{background:var(--posbg)}td.cneg{background:var(--negbg)}
+td.warn{background:var(--warn);color:var(--warnfg);font-weight:600}
+tr.hl td{background:var(--hl)}
+tfoot td{font-weight:600;border-top:2px solid var(--line)}
+.badge{display:inline-block;font-size:10px;padding:1px 5px;border-radius:6px;margin-left:4px;vertical-align:middle}
+.b-act{background:var(--posbg);color:var(--pos)}.b-est{background:var(--warn);color:var(--warnfg)}
+.btn{font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);cursor:pointer;font-family:inherit}
+details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
+.err{background:var(--negbg);color:var(--neg);padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>マーケット需給ダッシュボード</h1>
+  <div class="sub">データ更新: <span id="updated">—</span>（JPX・日経公表値を自動取得）</div>
+  <nav class="tabs">
+    <button class="tab on" data-page="margin">信用残</button>
+    <button class="tab" data-page="nikkei">日経理論値</button>
+    <button class="tab" data-page="investor">投資主体別</button>
+  </nav>
+</header>
+<main>
+<div class="err" id="err"></div>
+<div class="controls">
+  <label>期間 <select id="period">
+    <option value="13">直近13週</option><option value="26" selected>直近26週</option><option value="52">直近52週</option><option value="9999">全期間</option>
+  </select></label>
+</div>
+
+<!-- ============ 信用残 ============ -->
+<section class="page on" id="p-margin">
+  <div class="cards" id="m-cards"></div>
+  <div class="box"><h2>信用倍率と信用評価損益率</h2>
+    <p class="note">評価損益率は-10%前後で追証売りが一巡しやすく「底」、0%近辺で「天井」の目安とされます。オレンジ＝倍率9.5倍以上／評価損益率-10%以下。</p>
+    <div class="chart"><canvas id="m-chart1"></canvas></div></div>
+  <div class="box"><h2>売り残・買い残（百万円）</h2>
+    <div class="chart"><canvas id="m-chart2"></canvas></div></div>
+  <div class="box"><h2>週次マトリックス</h2>
+    <p class="note">二市場（東京・名古屋）合計、金額ベース。<span class="badge b-act">実績</span>はシート/公表値、<span class="badge b-est">推計</span>は自動計算。</p>
+    <div class="wrap"><table id="m-table"></table></div>
+    <p><button class="btn" data-csv="margin">CSVダウンロード</button></p></div>
+</section>
+
+<!-- ============ 日経理論値 ============ -->
+<section class="page" id="p-nikkei">
+  <div class="controls">
+    <label>EPSの基準 <select id="n-base"><option value="w">加重平均（日経朝刊）</option><option value="i">指数ベース</option></select></label>
+    <label>理論値のPER <input type="text" id="n-pers" value="11,12,13,14,15,16,17,18" size="18"></label>
+    <label>グラフのPERバンド <input type="text" id="n-bands" value="14,16,18" size="8"></label>
+  </div>
+  <div class="cards" id="n-cards"></div>
+  <div class="box"><h2>日経平均とPERバンド</h2>
+    <p class="note">点線＝予想EPS×PER。日経平均がどの倍率の線の近くにあるかで割高・割安を判断します。</p>
+    <div class="chart"><canvas id="n-chart1"></canvas></div></div>
+  <div class="box"><h2>PER：加重平均と指数ベース</h2>
+    <div class="chart" style="height:240px"><canvas id="n-chart2"></canvas></div></div>
+  <div class="box"><h2>日次マトリックス</h2>
+    <p class="note">EPS＝日経平均÷PER、BPS＝日経平均÷PBR、右側の列＝EPS×各PER（理論株価）。網掛け＝現在のPERに最も近い倍率。</p>
+    <div class="wrap"><table id="n-table"></table></div>
+    <p><button class="btn" data-csv="nikkei">CSVダウンロード</button></p></div>
+</section>
+
+<!-- ============ 投資主体別 ============ -->
+<section class="page" id="p-investor">
+  <div class="controls" id="i-checks"></div>
+  <div class="controls">
+    <label>表示 <select id="i-mode"><option value="week">週次</option><option value="cum">累積</option></select></label>
+    <label>単位 <select id="i-unit"><option value="1">百万円</option><option value="100">億円</option></select></label>
+  </div>
+  <div class="cards" id="i-cards"></div>
+  <div class="box"><h2 id="i-chart-title">週次の差引き（買越し＋／売越し−）</h2>
+    <div class="chart" style="height:340px"><canvas id="i-chart"></canvas></div></div>
+  <div class="box"><h2>週次マトリックス</h2>
+    <p class="note">JPX「投資部門別売買状況」二市場・内国普通株式・総合証券ベース。週末日付で表示。</p>
+    <div class="wrap"><table id="i-table"></table></div>
+    <p><button class="btn" data-csv="investor">CSVダウンロード</button></p></div>
+</section>
+
+<details class="box"><summary>データの出どころと計算方法</summary>
+<ul>
+<li>信用残：JPX「信用取引現在高」二市場合計（毎週火曜公表）。信用倍率＝買い残÷売り残（金額）。</li>
+<li>信用評価損益率：JPXは公表していないため、<b>実績</b>は手入力（docs/data/manual_eval.csv）、<b>推計</b>は「買い残金額（＝約定代金）を日経平均の値動きで時価に引き直す」方法で直近の実績値を起点に計算。誤差の目安は±1〜2ポイント。</li>
+<li>日経PER/PBR/EPS：日経平均プロフィルの公表値（stock-marketdata.com経由で取得）。終値はFRED（NIKKEI225）。</li>
+<li>投資主体別：JPX「投資部門別売買状況」二市場の金額差引き（千円）を百万円に換算（毎週木曜公表）。</li>
+</ul></details>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const fmt0 = new Intl.NumberFormat('ja-JP', {maximumFractionDigits: 0});
+const fmt2 = new Intl.NumberFormat('ja-JP', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const sgn = (v, f = fmt0) => v == null || isNaN(v) ? '—' : (v > 0 ? '+' : '') + f.format(v);
+const md = d => { const [y, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
+const ymd = d => d.replaceAll('-', '/');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const PALETTE = ['#2f5d9e', '#d9822b', '#3a9e6f', '#b2457a', '#7b61b8', '#8a8a82'];
+const D = {margin: [], nikkei: [], investor: [], meta: {}};
+const charts = {};
+
+async function load() {
+  const get = async f => { const r = await fetch(`data/${f}?v=${Date.now()}`); if (!r.ok) throw new Error(f); return r.json(); };
+  try {
+    [D.margin, D.nikkei, D.investor, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'meta.json'].map(f => get(f).catch(() => f === 'meta.json' ? {} : [])));
+  } catch (e) { showErr('データの読み込みに失敗しました: ' + e.message); }
+  $('#updated').textContent = D.meta.updated ? D.meta.updated + (/^\d{4}-/.test(D.meta.updated) ? ' JST' : '') : '—';
+  renderAll();
+}
+function showErr(t) { const e = $('#err'); e.textContent = t; e.style.display = 'block'; }
+function weeks() { return +$('#period').value; }
+function lastN(rows, n) { return rows.slice(Math.max(0, rows.length - n)); }
+function card(label, value, sub, cls = '') { return `<div class="card"><div class="l">${label}</div><div class="v ${cls}">${value}</div><div class="s">${sub || ''}</div></div>`; }
+function mkChart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  const grid = css('--line'), tick = css('--muted');
+  cfg.options = Object.assign({responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+    plugins: {legend: {labels: {color: tick, boxWidth: 14, font: {size: 11}}}}, animation: false}, cfg.options || {});
+  cfg.options.scales = cfg.options.scales || {};
+  for (const k of Object.keys(cfg.options.scales)) {
+    const s = cfg.options.scales[k];
+    s.grid = Object.assign({color: grid}, s.grid || {});
+    s.ticks = Object.assign({color: tick, font: {size: 11}}, s.ticks || {});
+  }
+  charts[id] = new Chart(document.getElementById(id), cfg);
+}
+function download(name, header, rows) {
+  const csv = '﻿' + [header, ...rows].map(r => r.map(v => v == null ? '' : `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+  a.download = `${name}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+}
+
+/* ---------------- 信用残 ---------------- */
+function marginRows() {
+  return D.margin.map((r, i, a) => {
+    const p = a[i - 1];
+    return {...r, ratio: r.sell ? r.buy / r.sell : null, dsell: p ? r.sell - p.sell : null, dbuy: p ? r.buy - p.buy : null};
+  });
+}
+function renderMargin() {
+  const all = marginRows(); const rows = lastN(all, weeks());
+  if (!rows.length) return;
+  const z = rows[rows.length - 1];
+  const badge = t => t === 'actual' ? '<span class="badge b-act">実績</span>' : t === 'est' ? '<span class="badge b-est">推計</span>' : '';
+  $('#m-cards').innerHTML =
+    card('信用倍率', z.ratio ? fmt2.format(z.ratio) + '倍' : '—', ymd(z.date) + ' 申込') +
+    card('評価損益率', z.eval != null ? fmt2.format(z.eval) + '%' + badge(z.eval_type) : '—', '', z.eval != null && z.eval <= -10 ? 'neg' : '') +
+    card('買い残', fmt0.format(z.buy), '前週比 ' + sgn(z.dbuy)) +
+    card('売り残', fmt0.format(z.sell), '前週比 ' + sgn(z.dsell));
+  const labels = rows.map(r => md(r.date));
+  mkChart('m-chart1', {type: 'line', data: {labels, datasets: [
+    {label: '信用倍率（倍）', data: rows.map(r => r.ratio && +r.ratio.toFixed(2)), borderColor: PALETTE[0], backgroundColor: PALETTE[0], yAxisID: 'y', tension: 0, pointRadius: 2},
+    {label: '評価損益率（%）', data: rows.map(r => r.eval), borderColor: PALETTE[1], backgroundColor: PALETTE[1], yAxisID: 'y1', tension: 0, pointRadius: rows.map(r => r.eval_type === 'est' ? 4 : 2), pointStyle: rows.map(r => r.eval_type === 'est' ? 'rectRot' : 'circle'), segment: {borderDash: c => rows[c.p1DataIndex] && rows[c.p1DataIndex].eval_type === 'est' ? [5, 4] : undefined}}]},
+    options: {scales: {x: {}, y: {position: 'left', title: {display: true, text: '倍'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: '%'}}}}});
+  mkChart('m-chart2', {data: {labels, datasets: [
+    {type: 'line', label: '買い残', data: rows.map(r => r.buy), borderColor: PALETTE[2], backgroundColor: PALETTE[2], yAxisID: 'y', pointRadius: 2, tension: 0},
+    {type: 'bar', label: '売り残', data: rows.map(r => r.sell), backgroundColor: PALETTE[3] + '99', yAxisID: 'y1'}]},
+    options: {scales: {x: {}, y: {position: 'left', ticks: {callback: v => (v / 1e6).toFixed(2) + '兆'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, ticks: {callback: v => fmt0.format(v / 100) + '億'}}}}});
+  const t = $('#m-table');
+  t.innerHTML = '<thead><tr><th>申込日</th><th>売り残</th><th>前週比</th><th>買い残</th><th>前週比</th><th>信用倍率</th><th>評価損益率</th><th>日経平均</th></tr></thead>';
+  const tb = document.createElement('tbody');
+  rows.slice().reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${ymd(r.date)}</td><td>${fmt0.format(r.sell)}</td><td class="${r.dsell < 0 ? 'neg' : 'pos'}">${sgn(r.dsell)}</td><td>${fmt0.format(r.buy)}</td><td class="${r.dbuy < 0 ? 'neg' : 'pos'}">${sgn(r.dbuy)}</td>` +
+      `<td class="${r.ratio >= 9.5 ? 'warn' : ''}">${r.ratio ? fmt2.format(r.ratio) : '—'}</td>` +
+      `<td class="${r.eval != null && r.eval <= -10 ? 'warn' : r.eval > 0 ? 'pos' : ''}">${r.eval != null ? fmt2.format(r.eval) + badge(r.eval_type) : '—'}</td><td>${r.nikkei ? fmt0.format(r.nikkei) : '—'}</td>`;
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+}
+
+/* ---------------- 日経理論値 ---------------- */
+const parseList = s => s.split(/[,\s、]+/).map(Number).filter(v => v > 0 && v < 100);
+function renderNikkei() {
+  const days = weeks() >= 9999 ? 99999 : weeks() * 5;
+  const base = $('#n-base').value;
+  const pers = parseList($('#n-pers').value), bands = parseList($('#n-bands').value);
+  const all = D.nikkei.map((r, i, a) => {
+    const p = a[i - 1]; const eps = base === 'w' ? r.eps_w : r.eps_i; const per = base === 'w' ? r.per_w : r.per_i;
+    return {...r, eps, per, bps: r.pbr_w ? r.close / r.pbr_w : null, deps: p && p.eps_w ? (r.eps_w / p.eps_w - 1) * 100 : null};
+  });
+  const rows = lastN(all, days); if (!rows.length) return;
+  const z = rows[rows.length - 1], a0 = rows[0];
+  $('#n-cards').innerHTML =
+    card('日経平均', fmt2.format(z.close), ymd(z.date) + '　期間 ' + sgn((z.close / a0.close - 1) * 100, fmt2) + '%') +
+    card('PER（加重平均）', fmt2.format(z.per_w) + '倍', '期間初 ' + fmt2.format(a0.per_w) + '倍') +
+    card('PER（指数ベース）', z.per_i ? fmt2.format(z.per_i) + '倍' : '—', '期間初 ' + (a0.per_i ? fmt2.format(a0.per_i) : '—') + '倍') +
+    card('予想EPS（' + (base === 'w' ? '加重' : '指数') + '）', fmt2.format(z.eps), '期間 ' + sgn((z.eps / a0.eps - 1) * 100, fmt2) + '%');
+  const labels = rows.map(r => md(r.date));
+  const ds = [{label: '日経平均', data: rows.map(r => r.close), borderColor: PALETTE[0], backgroundColor: PALETTE[0], borderWidth: 2.5, pointRadius: 0, tension: 0}];
+  bands.forEach((b, i) => ds.push({label: `EPS×${b}倍`, data: rows.map(r => r.eps ? Math.round(r.eps * b) : null), borderColor: PALETTE[(i + 1) % PALETTE.length], backgroundColor: PALETTE[(i + 1) % PALETTE.length], borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, tension: 0}));
+  mkChart('n-chart1', {type: 'line', data: {labels, datasets: ds}, options: {scales: {x: {ticks: {maxTicksLimit: 8}}, y: {ticks: {callback: v => fmt0.format(v)}}}}});
+  mkChart('n-chart2', {type: 'line', data: {labels, datasets: [
+    {label: 'PER 加重平均', data: rows.map(r => r.per_w), borderColor: PALETTE[0], backgroundColor: PALETTE[0], pointRadius: 0, tension: 0},
+    {label: 'PER 指数ベース', data: rows.map(r => r.per_i), borderColor: PALETTE[1], backgroundColor: PALETTE[1], pointRadius: 0, tension: 0}]},
+    options: {scales: {x: {ticks: {maxTicksLimit: 8}}, y: {ticks: {callback: v => v + '倍'}}}}});
+  const near = pers.reduce((b, p) => Math.abs(p - z.per) < Math.abs(b - z.per) ? p : b, pers[0]);
+  const t = $('#n-table');
+  t.innerHTML = '<thead><tr><th>日付</th><th>日経平均</th><th>PER</th><th>PBR</th><th>EPS</th><th>EPS前日比</th><th>BPS</th><th>PER指数</th><th>EPS指数</th>' + pers.map(p => `<th${p === near ? ' style="color:var(--fg)"' : ''}>×${p}</th>`).join('') + '</tr></thead>';
+  const tb = document.createElement('tbody');
+  rows.slice().reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${ymd(r.date)}</td><td>${fmt2.format(r.close)}</td><td>${fmt2.format(r.per_w)}</td><td>${fmt2.format(r.pbr_w)}</td><td>${fmt2.format(r.eps_w)}</td>` +
+      `<td class="${r.deps < 0 ? 'neg' : 'pos'}">${r.deps == null ? '—' : sgn(r.deps, fmt2) + '%'}</td><td>${r.bps ? fmt2.format(r.bps) : '—'}</td><td>${r.per_i ? fmt2.format(r.per_i) : '—'}</td><td>${r.eps_i ? fmt2.format(r.eps_i) : '—'}</td>` +
+      pers.map(p => { const v = r.eps * p; return `<td class="${p === near ? 'warn' : v > r.close ? 'pos' : ''}">${r.eps ? '¥' + fmt0.format(v) : '—'}</td>`; }).join('');
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+}
+
+/* ---------------- 投資主体別 ---------------- */
+const ENT = [['foreign', '海外'], ['individual', '個人'], ['inv_trust', '投資信託'], ['trust_bank', '信託銀行'], ['proprietary', '証券自己'], ['business', '事業法人']];
+function selectedEnt() { return ENT.filter(([k]) => { const c = document.getElementById('chk-' + k); return c && c.checked; }); }
+function renderInvestor() {
+  const unit = +$('#i-unit').value, mode = $('#i-mode').value;
+  const rows = lastN(D.investor, weeks()); if (!rows.length) return;
+  const z = rows[rows.length - 1];
+  const fmtU = v => v == null ? '—' : sgn(Math.round(v / unit));
+  $('#i-cards').innerHTML = ENT.slice(0, 5).map(([k, l]) => card(l + '（' + md(z.week_end) + '週）', fmtU(z[k]), '期間累計 ' + fmtU(rows.reduce((s, r) => s + (r[k] || 0), 0)), z[k] < 0 ? 'neg' : 'pos')).join('');
+  const sel = selectedEnt();
+  const labels = rows.map(r => md(r.week_end));
+  const ds = sel.map(([k, l]) => {
+    const i = ENT.findIndex(e => e[0] === k); let acc = 0;
+    const data = rows.map(r => { const v = r[k] == null ? null : r[k] / unit; if (mode === 'cum') { acc += v || 0; return Math.round(acc); } return v == null ? null : Math.round(v); });
+    return mode === 'cum' ? {type: 'line', label: l, data, borderColor: PALETTE[i], backgroundColor: PALETTE[i], pointRadius: 2, tension: 0}
+      : {type: 'bar', label: l, data, backgroundColor: PALETTE[i]};
+  });
+  $('#i-chart-title').textContent = mode === 'cum' ? '期間累積の差引き' : '週次の差引き（買越し＋／売越し−）';
+  mkChart('i-chart', {data: {labels, datasets: ds}, options: {scales: {x: {}, y: {ticks: {callback: v => fmt0.format(v)}}}}});
+  const t = $('#i-table');
+  t.innerHTML = '<thead><tr><th>週末</th>' + ENT.map(([, l]) => `<th>${l}</th>`).join('') + '</tr></thead>';
+  const tb = document.createElement('tbody');
+  rows.slice().reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${ymd(r.week_end)}</td>` + ENT.map(([k]) => `<td class="${r[k] == null ? '' : r[k] < 0 ? 'cneg' : 'cpos'}">${fmtU(r[k])}</td>`).join('');
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  const sum = (rs, k) => rs.every(r => r[k] == null) ? null : rs.reduce((s, r) => s + (r[k] || 0), 0);
+  const last4 = rows.slice(-4);
+  const tf = document.createElement('tfoot');
+  tf.innerHTML = [['期間合計', rows, 1], ['直近4週合計', last4, 1], ['週平均', rows, rows.length]].map(([l, rs, div]) =>
+    `<tr><td>${l}</td>` + ENT.map(([k]) => { const v = sum(rs, k); return `<td class="${v == null ? '' : v < 0 ? 'neg' : 'pos'}">${v == null ? '—' : fmtU(v / div)}</td>`; }).join('') + '</tr>').join('');
+  t.appendChild(tf);
+}
+
+function renderAll() { renderMargin(); renderNikkei(); renderInvestor(); }
+
+/* ---------------- UI ---------------- */
+$('#i-checks').innerHTML = ENT.map(([k, l], i) => `<label><input type="checkbox" id="chk-${k}" ${i < 3 ? 'checked' : ''}> ${l}</label>`).join('');
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.page));
+  location.hash = b.dataset.page; renderAll();
+}));
+['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
+$('#i-checks').addEventListener('change', renderInvestor);
+document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.csv;
+  if (k === 'margin') download('信用残', ['申込日', '売り残(百万円)', '買い残(百万円)', '信用倍率', '評価損益率(%)', '種別', '日経平均'], marginRows().map(r => [r.date, r.sell, r.buy, r.ratio && r.ratio.toFixed(2), r.eval, r.eval_type === 'est' ? '推計' : r.eval_type === 'actual' ? '実績' : '', r.nikkei]));
+  if (k === 'nikkei') download('日経理論値', ['日付', '日経平均', 'PER', 'PBR', 'EPS', 'PER指数', 'EPS指数', 'PBR指数'], D.nikkei.map(r => [r.date, r.close, r.per_w, r.pbr_w, r.eps_w, r.per_i, r.eps_i, r.pbr_i]));
+  if (k === 'investor') download('投資主体別', ['週末', ...ENT.map(e => e[1] + '(百万円)')], D.investor.map(r => [r.week_end, ...ENT.map(([k2]) => r[k2])]));
+}));
+if (location.hash) { const b = document.querySelector(`.tab[data-page="${location.hash.slice(1)}"]`); if (b) b.click(); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+load();
+</script>
+</body>
+</html>

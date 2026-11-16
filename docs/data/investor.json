@@ -1,0 +1,222 @@
+[
+{
+"week_end": "2026-06-26",
+"week_start": null,
+"foreign": -1237822,
+"individual": 950368,
+"inv_trust": 330555,
+"trust_bank": 27302,
+"proprietary": 290885,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-07-03",
+"week_start": null,
+"foreign": 366243,
+"individual": -636850,
+"inv_trust": 66152,
+"trust_bank": 9209,
+"proprietary": 56192,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-07-10",
+"week_start": null,
+"foreign": 492966,
+"individual": -63791,
+"inv_trust": -627341,
+"trust_bank": 231516,
+"proprietary": -42026,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-07-17",
+"week_start": null,
+"foreign": -286302,
+"individual": 407479,
+"inv_trust": -75484,
+"trust_bank": 58800,
+"proprietary": -117133,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-07-24",
+"week_start": null,
+"foreign": 351462,
+"individual": -456810,
+"inv_trust": 40813,
+"trust_bank": 193277,
+"proprietary": -148864,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-07-31",
+"week_start": null,
+"foreign": -492156,
+"individual": -416736,
+"inv_trust": 11601,
+"trust_bank": -318290,
+"proprietary": 938842,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-08-07",
+"week_start": null,
+"foreign": -382782,
+"individual": -156673,
+"inv_trust": -78148,
+"trust_bank": 169744,
+"proprietary": -438432,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-08-14",
+"week_start": null,
+"foreign": 213469,
+"individual": -655795,
+"inv_trust": 25582,
+"trust_bank": -82399,
+"proprietary": 465438,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-08-21",
+"week_start": null,
+"foreign": -437811,
+"individual": 697751,
+"inv_trust": -63912,
+"trust_bank": -508289,
+"proprietary": 147435,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-08-28",
+"week_start": null,
+"foreign": -131939,
+"individual": -115575,
+"inv_trust": -54522,
+"trust_bank": -191599,
+"proprietary": 316646,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-09-04",
+"week_start": null,
+"foreign": 689343,
+"individual": -1868,
+"inv_trust": -303832,
+"trust_bank": -446922,
+"proprietary": -82187,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-09-11",
+"week_start": null,
+"foreign": -303683,
+"individual": 449139,
+"inv_trust": 84480,
+"trust_bank": -550671,
+"proprietary": 315078,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-09-18",
+"week_start": null,
+"foreign": -642509,
+"individual": -311747,
+"inv_trust": -141664,
+"trust_bank": -294303,
+"proprietary": 1512040,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-09-25",
+"week_start": null,
+"foreign": -93008,
+"individual": -8642,
+"inv_trust": -50157,
+"trust_bank": -367301,
+"proprietary": 652045,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-10-02",
+"week_start": null,
+"foreign": 955912,
+"individual": 222928,
+"inv_trust": -14320,
+"trust_bank": 176425,
+"proprietary": -1222573,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-10-09",
+"week_start": null,
+"foreign": 1431801,
+"individual": 88097,
+"inv_trust": -155562,
+"trust_bank": -35990,
+"proprietary": -1268541,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-10-16",
+"week_start": null,
+"foreign": -365401,
+"individual": 219263,
+"inv_trust": 137907,
+"trust_bank": -77238,
+"proprietary": -10260,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-10-23",
+"week_start": null,
+"foreign": 24421,
+"individual": -71631,
+"inv_trust": 39162,
+"trust_bank": -224283,
+"proprietary": 66467,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-10-30",
+"week_start": null,
+"foreign": -217624,
+"individual": -33240,
+"inv_trust": 156831,
+"trust_bank": -56531,
+"proprietary": 275004,
+"business": null,
+"src": "sheet"
+},
+{
+"week_end": "2026-11-06",
+"week_start": null,
+"foreign": -71402,
+"individual": -480257,
+"inv_trust": 105228,
+"trust_bank": 230603,
+"proprietary": 87893,
+"business": null,
+"src": "sheet"
+}
+]
