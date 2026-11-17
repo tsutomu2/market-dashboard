@@ -439,14 +439,15 @@ def update_daily(closes: dict[str, float]) -> None:
         if r.get("close") and r["date"] not in nk and r["date"] >= since:
             nk[r["date"]] = r["close"]
     out = {"nikkei": [[d, nk[d]] for d in sorted(nk)]}
+    old = json.loads((DATA / "daily.json").read_text(encoding="utf-8")) if (DATA / "daily.json").exists() else {}
     for key, sid in DAILY_SERIES.items():
+        # FRED は系列によって直近1年分しか返さないことがある（SP500 など）ので、保存済みの履歴に足していく
+        merged = dict(old.get(key, []))
         try:
-            s = fred_series(sid)
-            out[key] = [[d, s[d]] for d in sorted(s) if d >= since]
+            merged.update(fred_series(sid))
         except Exception as e:  # noqa: BLE001
             log(f"daily {key} error: {e}")
-            old = json.loads((DATA / "daily.json").read_text(encoding="utf-8")) if (DATA / "daily.json").exists() else {}
-            out[key] = old.get(key, [])
+        out[key] = [[d, merged[d]] for d in sorted(merged) if d >= since]
     (DATA / "daily.json").write_text(json.dumps(out, separators=(",", ":")) + "\n", encoding="utf-8")
     log("daily: " + ", ".join(f"{k}={len(v)}" for k, v in out.items()))
 
