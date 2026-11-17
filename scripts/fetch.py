@@ -6,6 +6,7 @@
 - 日経PER/EPS/PBR: stock-marketdata.com（日経平均プロフィルの公表値を掲載）
 - 日経平均終値  : FRED (NIKKEI225)。VIX・ドル円・ナスダックも FRED
 - 空売り比率    : JPX「空売り集計（日次）」PDF
+- 1570信用残    : JPX「銘柄別信用取引残高」PDF（日経レバレッジETFの信用倍率）。S&P500 も FRED（NS倍率用）
 - 信用評価損益率: 公開データでは取得できないため推計（docs/data/manual_eval.csv の実績値を起点）
 
 取得に失敗しても既存データは壊さず、原因を debug/ に書き出す。
@@ -355,8 +356,67 @@ def update_short() -> None:
     save_json("short.json", [by_date[k] for k in sorted(by_date)])
 
 
+# ---------------------------------------------------------------- 日経レバレッジ(1570)の信用残
+LEV_ISIN = "JP3047460005"  # NEXT FUNDS 日経平均レバレッジ・インデックス連動型上場投信
+
+
+def _row_values(line: str, tag: str) -> list[int] | None:
+    """『株数 Shs.』『金額 Val.』の後ろの数値列を取り出す（▲は負数、* と - と % は上場比の欄なので除く）"""
+    i = line.find(tag)
+    if i < 0:
+        return None
+    toks = re.findall(r"▲\s*[\d,]+|[\d,.]+%|[\d,]+|\*|(?<=\s)-(?=\s|$)", line[i + len(tag):])
+    vals = [(-1 if t.startswith("▲") else 1) * int(re.sub(r"[^\d]", "", t)) for t in toks if t not in ("*", "-") and not t.endswith("%")]
+    # 並び：売残, 前日比, 買残, 前日比, 一般売, 前日比, 制度売, 前日比, 一般買, 前日比, 制度買, 前日比
+    return vals if len(vals) >= 12 else None
+
+
+def parse_lev_pdf(content: bytes) -> dict | None:
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for page in pdf.pages:
+            lines = (page.extract_text() or "").splitlines()
+            for j, line in enumerate(lines):
+                if LEV_ISIN in line and "Val." in line:
+                    val = _row_values(line, "Val.")
+                    shs = next((_row_values(lines[k], "Shs.") for k in (j - 1, j - 2) if k >= 0 and "Shs." in lines[k]), None)
+                    if not val or not shs:
+                        return None
+                    if shs[0] != shs[6] + shs[4] or shs[2] != shs[8] + shs[10]:
+                        return None  # 一般＋制度＝合計 が合わなければ読み違い
+                    return {"sell": shs[0], "buy": shs[2], "sell_seido": shs[6], "buy_seido": shs[10],
+                            "sell_amt": val[0], "buy_amt": val[2],
+                            "ratio": round(shs[2] / shs[0], 2) if shs[0] else None,
+                            "ratio_seido": round(shs[10] / shs[6], 2) if shs[6] else None}
+    return None
+
+
+def update_lev() -> None:
+    rows = load_json("lev1570.json")
+    by_date = {r["date"]: r for r in rows}
+    html = get(f"{JPX}/markets/statistics-equities/margin/01.html").text
+    links = sorted(set(re.findall(r'href="([^"]*?/(\d{8})_mtall\.pdf)"', html)), key=lambda x: x[1])
+    added = 0
+    for href, ymd in links:
+        d = iso(ymd)
+        if d in by_date:
+            continue
+        try:
+            res = parse_lev_pdf(get(href if href.startswith("http") else JPX + href).content)
+            if not res:
+                log(f"lev1570 parse failed {d}")
+                continue
+            by_date[d] = {"date": d, **res}
+            added += 1
+        except Exception as e:  # noqa: BLE001
+            log(f"lev1570 error {d}: {e}")
+    log(f"lev1570: {added} days added")
+    save_json("lev1570.json", [by_date[k] for k in sorted(by_date)])
+
+
 # ---------------------------------------------------------------- 日次（テクニカル用）
-DAILY_SERIES = {"vix": "VIXCLS", "usdjpy": "DEXJPUS", "nasdaq": "NASDAQCOM"}
+DAILY_SERIES = {"vix": "VIXCLS", "usdjpy": "DEXJPUS", "nasdaq": "NASDAQCOM", "sp500": "SP500"}
 DAILY_YEARS = 3
 
 
@@ -504,7 +564,7 @@ def estimate_eval(closes: dict[str, float]) -> None:
 def main() -> int:
     errors = 0
     closes: dict[str, float] = {}
-    for name, fn in (("fred", None), ("margin", update_margin), ("investor", update_investor), ("short", update_short)):
+    for name, fn in (("fred", None), ("margin", update_margin), ("investor", update_investor), ("short", update_short), ("lev1570", update_lev)):
         try:
             if name == "fred":
                 closes = fred_closes()

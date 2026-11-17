@@ -1,0 +1,57 @@
+[
+{
+"date": "2026-11-09",
+"sell": 118671,
+"buy": 2464633,
+"sell_seido": 118027,
+"buy_seido": 1682057,
+"sell_amt": 7134228690,
+"buy_amt": 160032206605,
+"ratio": 20.77,
+"ratio_seido": 14.25
+},
+{
+"date": "2026-11-10",
+"sell": 120722,
+"buy": 2416012,
+"sell_seido": 120441,
+"buy_seido": 1635768,
+"sell_amt": 7326665610,
+"buy_amt": 157612699225,
+"ratio": 20.01,
+"ratio_seido": 13.58
+},
+{
+"date": "2026-11-11",
+"sell": 133143,
+"buy": 2398611,
+"sell_seido": 132734,
+"buy_seido": 1621446,
+"sell_amt": 8066694970,
+"buy_amt": 156819309395,
+"ratio": 18.02,
+"ratio_seido": 12.22
+},
+{
+"date": "2026-11-12",
+"sell": 152644,
+"buy": 2419681,
+"sell_seido": 152296,
+"buy_seido": 1625157,
+"sell_amt": 9208101910,
+"buy_amt": 158050909975,
+"ratio": 15.85,
+"ratio_seido": 10.67
+},
+{
+"date": "2026-11-13",
+"sell": 154598,
+"buy": 2344805,
+"sell_seido": 154284,
+"buy_seido": 1569069,
+"sell_amt": 9348452600,
+"buy_amt": 153753510765,
+"ratio": 15.17,
+"ratio_seido": 10.17
+}
+]
