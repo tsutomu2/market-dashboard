@@ -4,7 +4,8 @@
 - 信用残        : JPX「信用取引現在高」(毎週火曜 16:00 公表, 単位 百万円)
 - 投資主体別    : JPX「投資部門別売買状況」二市場・金額の差引き (毎週木曜公表, 千円→百万円)
 - 日経PER/EPS/PBR: stock-marketdata.com（日経平均プロフィルの公表値を掲載）
-- 日経平均終値  : FRED (NIKKEI225)
+- 日経平均終値  : FRED (NIKKEI225)。VIX・ドル円・ナスダックも FRED
+- 空売り比率    : JPX「空売り集計（日次）」PDF
 - 信用評価損益率: 公開データでは取得できないため推計（docs/data/manual_eval.csv の実績値を起点）
 
 取得に失敗しても既存データは壊さず、原因を debug/ に書き出す。
@@ -37,10 +38,20 @@ def log(msg: str) -> None:
     LOG.append(msg)
 
 
-def get(url: str) -> requests.Response:
-    r = requests.get(url, headers=UA, timeout=60)
-    r.raise_for_status()
-    return r
+def get(url: str, tries: int = 3) -> requests.Response:
+    """接続が一時的に切れることがあるので、少し待って取り直す"""
+    import time
+
+    for n in range(tries):
+        try:
+            r = requests.get(url, headers=UA, timeout=60)
+            r.raise_for_status()
+            return r
+        except (requests.ConnectionError, requests.Timeout):
+            if n == tries - 1:
+                raise
+            time.sleep(5 * (n + 1))
+    raise RuntimeError("unreachable")
 
 
 def load_json(name: str) -> list:
@@ -297,6 +308,88 @@ def update_investor() -> None:
     save_json("investor.json", [by_week[k] for k in sorted(by_week)])
 
 
+# ---------------------------------------------------------------- 空売り比率
+def parse_short_pdf(content: bytes) -> dict | None:
+    """JPX「空売り集計（日次）」PDFの1行：実注文・空売り(規制あり)・空売り(規制なし)・合計（百万円）"""
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+    for line in text.splitlines():
+        m = re.match(r"\s*(\d{4})年(\d{1,2})月(\d{1,2})日\s+(.*)", line)
+        if not m:
+            continue
+        vals = [float(v.replace(",", "")) for v in re.findall(r"[\d,]+(?:\.\d+)?(?=%|\s|$)", m[4])]
+        # 並び：実注文, 比率, 規制あり, 比率, 規制なし, 比率, 合計
+        if len(vals) < 7:
+            continue
+        a, b, c, d = vals[0], vals[2], vals[4], vals[6]
+        if not d or abs((a + b + c) - d) > d * 0.01:
+            continue
+        return {"date": f"{m[1]}-{int(m[2]):02d}-{int(m[3]):02d}", "short": int(b + c), "total": int(d),
+                "ratio": round((b + c) / d * 100, 1), "ratio_noreg": round(c / d * 100, 1)}
+    return None
+
+
+def update_short() -> None:
+    rows = load_json("short.json")
+    by_date = {r["date"]: r for r in rows}
+    html = get(f"{JPX}/markets/statistics-equities/short-selling/index.html").text
+    links = sorted(set(re.findall(r'href="([^"]*?/(\d{6})-m\.pdf)"', html)), key=lambda x: x[1])
+    added = 0
+    for href, yymmdd in links:
+        d = f"20{yymmdd[:2]}-{yymmdd[2:4]}-{yymmdd[4:]}"
+        if d in by_date:
+            continue
+        url = href if href.startswith("http") else JPX + href
+        try:
+            res = parse_short_pdf(get(url).content)
+            if not res or res["date"] != d:
+                log(f"short parse failed {d}")
+                continue
+            by_date[d] = res
+            added += 1
+        except Exception as e:  # noqa: BLE001
+            log(f"short error {d}: {e}")
+    log(f"short: {added} days added")
+    save_json("short.json", [by_date[k] for k in sorted(by_date)])
+
+
+# ---------------------------------------------------------------- 日次（テクニカル用）
+DAILY_SERIES = {"vix": "VIXCLS", "usdjpy": "DEXJPUS", "nasdaq": "NASDAQCOM"}
+DAILY_YEARS = 3
+
+
+def fred_series(series_id: str) -> dict[str, float]:
+    text = get(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}").text
+    out = {}
+    for row in csv.reader(io.StringIO(text)):
+        if len(row) == 2 and re.match(r"\d{4}-\d{2}-\d{2}", row[0]) and row[1] not in (".", ""):
+            out[row[0]] = float(row[1])
+    return out
+
+
+def update_daily(closes: dict[str, float]) -> None:
+    """日経平均の終値（FRED＋未反映日は nikkei.json の値）と VIX・ドル円・ナスダックを直近数年分保存。
+    テクニカル指標（ボリンジャー・MACD・RSIなど）は画面側で計算する。"""
+    since = (dt.date.today() - dt.timedelta(days=365 * DAILY_YEARS)).isoformat()
+    nk = {d: v for d, v in closes.items() if d >= since}
+    for r in load_json("nikkei.json"):
+        if r.get("close") and r["date"] not in nk and r["date"] >= since:
+            nk[r["date"]] = r["close"]
+    out = {"nikkei": [[d, nk[d]] for d in sorted(nk)]}
+    for key, sid in DAILY_SERIES.items():
+        try:
+            s = fred_series(sid)
+            out[key] = [[d, s[d]] for d in sorted(s) if d >= since]
+        except Exception as e:  # noqa: BLE001
+            log(f"daily {key} error: {e}")
+            old = json.loads((DATA / "daily.json").read_text(encoding="utf-8")) if (DATA / "daily.json").exists() else {}
+            out[key] = old.get(key, [])
+    (DATA / "daily.json").write_text(json.dumps(out, separators=(",", ":")) + "\n", encoding="utf-8")
+    log("daily: " + ", ".join(f"{k}={len(v)}" for k, v in out.items()))
+
+
 # ---------------------------------------------------------------- 日経平均
 def fred_closes() -> dict[str, float]:
     text = get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=NIKKEI225").text
@@ -411,7 +504,7 @@ def estimate_eval(closes: dict[str, float]) -> None:
 def main() -> int:
     errors = 0
     closes: dict[str, float] = {}
-    for name, fn in (("fred", None), ("margin", update_margin), ("investor", update_investor)):
+    for name, fn in (("fred", None), ("margin", update_margin), ("investor", update_investor), ("short", update_short)):
         try:
             if name == "fred":
                 closes = fred_closes()
@@ -421,7 +514,7 @@ def main() -> int:
         except Exception:  # noqa: BLE001
             errors += 1
             log(f"{name} failed:\n{traceback.format_exc()}")
-    for name, fn in (("nikkei", update_nikkei), ("eval", estimate_eval)):
+    for name, fn in (("nikkei", update_nikkei), ("eval", estimate_eval), ("daily", update_daily)):
         try:
             fn(closes)
         except Exception:  # noqa: BLE001

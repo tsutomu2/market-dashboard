@@ -1,0 +1,72 @@
+[
+{
+"date": "2026-11-02",
+"short": 3078262,
+"total": 8352102,
+"ratio": 36.9,
+"ratio_noreg": 7.0
+},
+{
+"date": "2026-11-04",
+"short": 4635916,
+"total": 11956505,
+"ratio": 38.8,
+"ratio_noreg": 7.3
+},
+{
+"date": "2026-11-05",
+"short": 4516580,
+"total": 12709314,
+"ratio": 35.5,
+"ratio_noreg": 6.7
+},
+{
+"date": "2026-11-06",
+"short": 4841639,
+"total": 13722985,
+"ratio": 35.3,
+"ratio_noreg": 8.4
+},
+{
+"date": "2026-11-09",
+"short": 3468399,
+"total": 9698328,
+"ratio": 35.8,
+"ratio_noreg": 7.7
+},
+{
+"date": "2026-11-10",
+"short": 4216566,
+"total": 9884344,
+"ratio": 42.7,
+"ratio_noreg": 7.5
+},
+{
+"date": "2026-11-11",
+"short": 3974664,
+"total": 9356951,
+"ratio": 42.5,
+"ratio_noreg": 7.5
+},
+{
+"date": "2026-11-12",
+"short": 4113968,
+"total": 9725572,
+"ratio": 42.3,
+"ratio_noreg": 6.9
+},
+{
+"date": "2026-11-13",
+"short": 3936257,
+"total": 9086090,
+"ratio": 43.3,
+"ratio_noreg": 9.1
+},
+{
+"date": "2026-11-16",
+"short": 3627637,
+"total": 8607667,
+"ratio": 42.1,
+"ratio_noreg": 7.9
+}
+]

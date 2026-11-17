@@ -46,6 +46,19 @@ tfoot td{font-weight:600;border-top:2px solid var(--line)}
 .b-act{background:var(--posbg);color:var(--pos)}.b-est{background:var(--warn);color:var(--warnfg)}
 .btn{font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);cursor:pointer;font-family:inherit}
 details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
+.sig{display:grid;grid-template-columns:minmax(120px,1.1fr) minmax(110px,1fr) auto;gap:4px 12px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)}
+.sig:last-child{border-bottom:0}
+.sig .n{font-weight:600;font-size:14px}.sig .n small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.sig .val{font-variant-numeric:tabular-nums;text-align:right;font-size:14px}
+.sig .c{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;text-align:center;min-width:80px}
+.st-buy{background:var(--posbg);color:var(--pos)}.st-sell{background:var(--negbg);color:var(--neg)}.st-neutral{background:var(--line);color:var(--muted)}.st-na{background:none;color:var(--muted);border:1px dashed var(--line)}
+.sig .val{white-space:nowrap}
+@media (max-width:480px){.pill{min-width:0;padding:2px 7px;font-size:11px}.sig{gap:4px 8px}}
+.grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
+.meter{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line)}
+.meter span{display:block;height:100%}
+code{font-size:12px}
 .err{background:var(--negbg);color:var(--neg);padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none}
 </style>
 </head>
@@ -54,21 +67,56 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
   <h1>マーケット需給ダッシュボード</h1>
   <div class="sub">データ更新: <span id="updated">—</span>（JPX・日経公表値を自動取得）</div>
   <nav class="tabs">
-    <button class="tab on" data-page="margin">信用残</button>
+    <button class="tab on" data-page="signal">シグナル</button>
+    <button class="tab" data-page="margin">信用残</button>
+    <button class="tab" data-page="tech">テクニカル</button>
     <button class="tab" data-page="nikkei">日経理論値</button>
     <button class="tab" data-page="investor">投資主体別</button>
   </nav>
 </header>
 <main>
 <div class="err" id="err"></div>
-<div class="controls">
+<div class="controls" id="period-box">
   <label>期間 <select id="period">
     <option value="13">直近13週</option><option value="26" selected>直近26週</option><option value="52">直近52週</option><option value="9999">全期間</option>
   </select></label>
 </div>
 
+<!-- ============ シグナル ============ -->
+<section class="page on" id="p-signal">
+  <div class="cards" id="s-summary"></div>
+  <div class="box"><h2>需給・テクニカルのチェックリスト</h2>
+    <p class="note">信用残・空売り・海外勢の売買・テクニカル指標を、それぞれのしきい値で「買い場サイン／警戒サイン／中立」に振り分けます。売買の判断はご自身で行ってください。</p>
+    <div id="s-list"></div></div>
+  <div class="cards" id="s-ref"></div>
+  <details class="box"><summary>判定に使っているしきい値</summary><div class="wrap"><table id="s-th"></table></div>
+    <p class="note">しきい値は index.html 冒頭の <code>TH</code> で変更できます。</p></details>
+</section>
+
+<!-- ============ テクニカル ============ -->
+<section class="page" id="p-tech">
+  <div class="cards" id="t-cards"></div>
+  <div class="box"><h2>日経平均・ボリンジャーバンド（20日±2σ）・移動平均</h2>
+    <p class="note">終値ベース（FRED）。±2σの外側は行き過ぎ、25日線から±5%以上の乖離も行き過ぎの目安。</p>
+    <div class="chart" style="height:340px"><canvas id="t-chart1"></canvas></div></div>
+  <div class="box"><h2>MACD（12, 26, 9）</h2>
+    <p class="note">MACD線がシグナル線を上抜け＝ゴールデンクロス、下抜け＝デッドクロス。棒はその差（ヒストグラム）。</p>
+    <div class="chart" style="height:200px"><canvas id="t-chart2"></canvas></div></div>
+  <div class="box"><h2>RSI（14日）</h2>
+    <p class="note">70以上＝買われ過ぎ、30以下＝売られ過ぎ。</p>
+    <div class="chart" style="height:180px"><canvas id="t-chart3"></canvas></div></div>
+  <div class="box"><h2>空売り比率（東証・日次）</h2>
+    <p class="note">空売り（価格規制あり＋なし）÷売買代金。高い＝弱気が積み上がり買い戻しで反発しやすい、急低下＝買い戻しの燃料が減り「騙し上げ」に注意。</p>
+    <div class="chart" style="height:220px"><canvas id="t-chart4"></canvas></div></div>
+  <div class="box"><h2>VIX（米国株の恐怖指数）</h2>
+    <p class="note">30以上はパニック（逆張りの目安）、14以下は楽観。</p>
+    <div class="chart" style="height:200px"><canvas id="t-chart5"></canvas></div></div>
+  <div class="box"><h2>ドル円・ナスダック</h2>
+    <div class="chart" style="height:220px"><canvas id="t-chart6"></canvas></div></div>
+</section>
+
 <!-- ============ 信用残 ============ -->
-<section class="page on" id="p-margin">
+<section class="page" id="p-margin">
   <div class="cards" id="m-cards"></div>
   <div class="box"><h2>信用倍率と信用評価損益率</h2>
     <p class="note">評価損益率は-10%前後で追証売りが一巡しやすく「底」、0%近辺で「天井」の目安とされます。オレンジ＝倍率9.5倍以上／評価損益率-10%以下。</p>
@@ -76,7 +124,7 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
   <div class="box"><h2>売り残・買い残（百万円）</h2>
     <div class="chart"><canvas id="m-chart2"></canvas></div></div>
   <div class="box"><h2>週次マトリックス</h2>
-    <p class="note">二市場（東京・名古屋）合計、金額ベース。<span class="badge b-act">実績</span>はシート/公表値、<span class="badge b-est">推計</span>は自動計算。</p>
+    <p class="note">二市場（東京・名古屋）合計、金額ベース。<span class="badge b-act">実績</span>はシート/公表値、<span class="badge b-est">推計</span>は自動計算。前週比の網掛け＝激減・急増（しきい値はシグナル画面に記載）。</p>
     <div class="wrap"><table id="m-table"></table></div>
     <p><button class="btn" data-csv="margin">CSVダウンロード</button></p></div>
 </section>
@@ -122,6 +170,9 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 <li>信用評価損益率：JPXは公表していないため、<b>実績</b>は手入力（docs/data/manual_eval.csv）、<b>推計</b>は「買い残金額（＝約定代金）を日経平均の値動きで時価に引き直す」方法で直近の実績値を起点に計算。誤差の目安は±1〜2ポイント。</li>
 <li>日経PER/PBR/EPS：日経平均プロフィルの公表値（stock-marketdata.com経由で取得）。終値はFRED（NIKKEI225）。</li>
 <li>投資主体別：JPX「投資部門別売買状況」二市場の金額差引き（千円）を百万円に換算（毎週木曜公表）。</li>
+<li>空売り比率：JPX「空売り集計（日次）」（価格規制あり＋なし）÷売買代金。毎営業日公表。</li>
+<li>テクニカル：日経平均の終値（FRED）から計算。ボリンジャーバンド＝20日移動平均±2σ、MACD＝12日EMA−26日EMA（シグナル9日）、RSI＝14日（ワイルダー方式）。高値・安値が無いため一目均衡表・パラボリック・ストキャスティクスは未対応。</li>
+<li>VIX・ドル円・ナスダック：FRED（VIXCLS・DEXJPUS・NASDAQCOM）。米国の営業日ベースで1日遅れ。</li>
 </ul></details>
 </main>
 
@@ -134,13 +185,41 @@ const md = d => { const [y, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
 const ymd = d => d.replaceAll('-', '/');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const PALETTE = ['#2f5d9e', '#d9822b', '#3a9e6f', '#b2457a', '#7b61b8', '#8a8a82'];
-const D = {margin: [], nikkei: [], investor: [], meta: {}};
+const D = {margin: [], nikkei: [], investor: [], short: [], daily: {}, meta: {}};
 const charts = {};
+
+/* 判定のしきい値（ここを書き換えると判定が変わります） */
+const TH = {
+  evalBottom: -10,  evalTop: -3,     // 信用評価損益率(%)：以下で「底」圏／以上で「天井」圏
+  ratioHigh: 9.5,   ratioLow: 7,     // 信用倍率(倍)：以上で買い残過多／以下で売り残が厚い
+  buyDrop: -5,      buyJump: 3,      // 信用買い残の前週比(%)：以下で「激減（投げ）」／以上で「急増（高値掴み）」
+  sellDrop: -10,    sellJump: 10,    // 信用売り残の前週比(%)：以下で「空売り激減」／以上で「空売り急増」
+  shortHigh: 45,    shortLow: 37,    // 空売り比率(%)：以上で売られ過ぎ／以下で楽観
+  foreignWeeks: 2,                   // 海外投資家：この週数以上連続で売り越し／買い越し
+  dev25: 5,                          // 25日線乖離率(±%)
+  rsiHigh: 70,      rsiLow: 30,      // RSI(14)
+  vixHigh: 30,      vixLow: 14,      // VIX
+  perLow: 14,       perHigh: 18,     // 日経平均PER(加重平均)
+};
+const TH_ROWS = [
+  ['信用評価損益率', `${TH.evalBottom}%以下`, `${TH.evalTop}%以上`, '-10%前後で追証売りが一巡しやすい'],
+  ['信用倍率', `${TH.ratioLow}倍以下`, `${TH.ratioHigh}倍以上`, '買い残が多いほど将来の売り圧力'],
+  ['信用買い残 前週比', `${TH.buyDrop}%以下（激減＝投げ）`, `+${TH.buyJump}%以上（急増）`, ''],
+  ['信用売り残 前週比', `+${TH.sellJump}%以上（踏み上げ余地）`, `${TH.sellDrop}%以下（空売り激減）`, '空売り激減は買い戻し燃料の減少＝騙し上げ注意'],
+  ['空売り比率', `${TH.shortHigh}%以上`, `${TH.shortLow}%以下`, ''],
+  ['海外投資家', `${TH.foreignWeeks}週以上連続の買い越し`, `${TH.foreignWeeks}週以上連続の売り越し`, ''],
+  ['25日線乖離率', `-${TH.dev25}%以下`, `+${TH.dev25}%以上`, ''],
+  ['ボリンジャーバンド', '-2σ以下', '+2σ以上', '20日'],
+  ['RSI(14)', `${TH.rsiLow}以下`, `${TH.rsiHigh}以上`, ''],
+  ['MACD', '直近3日でゴールデンクロス', '直近3日でデッドクロス', '12,26,9'],
+  ['VIX', `${TH.vixHigh}以上（パニック）`, `${TH.vixLow}以下（楽観）`, ''],
+  ['日経平均PER', `${TH.perLow}倍以下`, `${TH.perHigh}倍以上`, '加重平均'],
+];
 
 async function load() {
   const get = async f => { const r = await fetch(`data/${f}?v=${Date.now()}`); if (!r.ok) throw new Error(f); return r.json(); };
   try {
-    [D.margin, D.nikkei, D.investor, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'meta.json'].map(f => get(f).catch(() => f === 'meta.json' ? {} : [])));
+    [D.margin, D.nikkei, D.investor, D.short, D.daily, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'short.json', 'daily.json', 'meta.json'].map(f => get(f).catch(() => ['meta.json', 'daily.json'].includes(f) ? {} : [])));
   } catch (e) { showErr('データの読み込みに失敗しました: ' + e.message); }
   $('#updated').textContent = D.meta.updated ? D.meta.updated + (/^\d{4}-/.test(D.meta.updated) ? ' JST' : '') : '—';
   renderAll();
@@ -201,8 +280,10 @@ function renderMargin() {
   const tb = document.createElement('tbody');
   rows.slice().reverse().forEach(r => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${ymd(r.date)}</td><td>${fmt0.format(r.sell)}</td><td class="${r.dsell < 0 ? 'neg' : 'pos'}">${sgn(r.dsell)}</td><td>${fmt0.format(r.buy)}</td><td class="${r.dbuy < 0 ? 'neg' : 'pos'}">${sgn(r.dbuy)}</td>` +
-      `<td class="${r.ratio >= 9.5 ? 'warn' : ''}">${r.ratio ? fmt2.format(r.ratio) : '—'}</td>` +
+    const pb = r.dbuy != null ? r.dbuy / (r.buy - r.dbuy) * 100 : null, ps = r.dsell != null ? r.dsell / (r.sell - r.dsell) * 100 : null;
+    const flag = (pc, lo, hi) => pc == null ? '' : pc <= lo ? ' warn' : pc >= hi ? ' warn' : '';
+    tr.innerHTML = `<td>${ymd(r.date)}</td><td>${fmt0.format(r.sell)}</td><td class="${r.dsell < 0 ? 'neg' : 'pos'}${flag(ps, TH.sellDrop, TH.sellJump)}" title="${ps == null ? '' : sgn(ps, fmt2) + '%'}">${sgn(r.dsell)}</td><td>${fmt0.format(r.buy)}</td><td class="${r.dbuy < 0 ? 'neg' : 'pos'}${flag(pb, TH.buyDrop, TH.buyJump)}" title="${pb == null ? '' : sgn(pb, fmt2) + '%'}">${sgn(r.dbuy)}</td>` +
+      `<td class="${r.ratio >= TH.ratioHigh ? 'warn' : ''}">${r.ratio ? fmt2.format(r.ratio) : '—'}</td>` +
       `<td class="${r.eval != null && r.eval <= -10 ? 'warn' : r.eval > 0 ? 'pos' : ''}">${r.eval != null ? fmt2.format(r.eval) + badge(r.eval_type) : '—'}</td><td>${r.nikkei ? fmt0.format(r.nikkei) : '—'}</td>`;
     tb.appendChild(tr);
   });
@@ -284,7 +365,173 @@ function renderInvestor() {
   t.appendChild(tf);
 }
 
-function renderAll() { renderMargin(); renderNikkei(); renderInvestor(); }
+/* ---------------- テクニカル指標 ---------------- */
+function sma(a, n) { let s = 0; return a.map((v, i) => { s += v; if (i >= n) s -= a[i - n]; return i >= n - 1 ? s / n : null; }); }
+function stdev(a, n, m) { return a.map((v, i) => { if (i < n - 1) return null; let s = 0; for (let k = i - n + 1; k <= i; k++) s += (a[k] - m[i]) ** 2; return Math.sqrt(s / n); }); }
+function ema(a, n) { const k = 2 / (n + 1); let e = null; return a.map((v, i) => { if (v == null) return null; if (e == null) { if (i < n - 1 || a.slice(i - n + 1, i + 1).some(x => x == null)) return null; e = a.slice(i - n + 1, i + 1).reduce((s, x) => s + x, 0) / n; return e; } e = v * k + e * (1 - k); return e; }); }
+function rsi(a, n = 14) {
+  let g = 0, l = 0; return a.map((v, i) => {
+    if (i === 0) return null; const d = v - a[i - 1];
+    if (i <= n) { g += Math.max(d, 0); l += Math.max(-d, 0); if (i < n) return null; g /= n; l /= n; }
+    else { g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n; }
+    return l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  });
+}
+function techSeries() {
+  const nk = (D.daily.nikkei || []);
+  const dates = nk.map(r => r[0]), c = nk.map(r => r[1]);
+  const ma20 = sma(c, 20), sd = stdev(c, 20, ma20);
+  const e12 = ema(c, 12), e26 = ema(c, 26);
+  const macd = c.map((_, i) => e12[i] != null && e26[i] != null ? e12[i] - e26[i] : null);
+  const sig = ema(macd, 9);
+  return {dates, c, ma20, ma25: sma(c, 25), ma75: sma(c, 75),
+    up2: ma20.map((m, i) => m == null ? null : m + 2 * sd[i]), dn2: ma20.map((m, i) => m == null ? null : m - 2 * sd[i]), sd,
+    macd, sig, hist: macd.map((m, i) => m != null && sig[i] != null ? m - sig[i] : null), rsi: rsi(c)};
+}
+const r1 = v => v == null ? null : Math.round(v);
+const r2 = v => v == null ? null : Math.round(v * 100) / 100;
+const hline = (labels, y, color, label) => ({type: 'line', label, data: labels.map(() => y), borderColor: color, borderDash: [4, 4], borderWidth: 1, pointRadius: 0, fill: false});
+
+/* ---------------- シグナル ---------------- */
+const ST = {buy: '買い場サイン', sell: '警戒サイン', neutral: '中立', na: 'データなし'};
+function buildSignals() {
+  const out = [];
+  const add = (grp, name, asof, val, st, comment) => out.push({grp, name, asof, val, st, comment});
+  // --- 信用残
+  const m = marginRows(), z = m[m.length - 1], p = m[m.length - 2];
+  if (z) {
+    const asof = md(z.date) + '申込';
+    if (z.eval != null) add('信用残', '信用評価損益率', asof + (z.eval_type === 'est' ? '・推計' : '・実績'), fmt2.format(z.eval) + '%',
+      z.eval <= TH.evalBottom ? 'buy' : z.eval >= TH.evalTop ? 'sell' : 'neutral',
+      z.eval <= TH.evalBottom ? '追証売りが出やすい水準。投げが一巡すると底入れしやすい' : z.eval >= TH.evalTop ? '信用買い方に余裕があり天井圏に近い' : '底と天井の中間');
+    add('信用残', '信用倍率', asof, fmt2.format(z.ratio) + '倍',
+      z.ratio >= TH.ratioHigh ? 'sell' : z.ratio <= TH.ratioLow ? 'buy' : 'neutral',
+      z.ratio >= TH.ratioHigh ? '買い残が売り残に対して多く、戻り売り・投げの圧力が残る' : z.ratio <= TH.ratioLow ? '売り残が厚く、買い戻しが入りやすい' : '');
+    if (p) {
+      const bp = z.dbuy / p.buy * 100, sp = z.dsell / p.sell * 100;
+      add('信用残', '信用買い残の増減', asof, sgn(bp, fmt2) + '%',
+        bp <= TH.buyDrop ? 'buy' : bp >= TH.buyJump ? 'sell' : 'neutral',
+        '前週比 ' + sgn(z.dbuy) + '百万円。' + (bp <= TH.buyDrop ? '信用買い激減＝投げ（損切り）が出た。セリングクライマックスに近い' : bp >= TH.buyJump ? '信用買い急増＝高値掴みが増え、上値が重くなりやすい' : ''));
+      add('信用残', '信用売り残の増減', asof, sgn(sp, fmt2) + '%',
+        sp <= TH.sellDrop ? 'sell' : sp >= TH.sellJump ? 'buy' : 'neutral',
+        '前週比 ' + sgn(z.dsell) + '百万円。' + (sp <= TH.sellDrop ? '空売り激減＝買い戻しの燃料が減り、上げても騙し上げになりやすい' : sp >= TH.sellJump ? '空売り急増＝将来の買い戻し（踏み上げ）余地' : ''));
+    }
+  }
+  // --- 空売り比率
+  const s = D.short, sz = s[s.length - 1], sp1 = s[s.length - 2];
+  if (sz) {
+    const avg5 = s.slice(-5).reduce((a, r) => a + r.ratio, 0) / Math.min(5, s.length);
+    add('需給（日次）', '空売り比率', md(sz.date), sz.ratio.toFixed(1) + '%',
+      sz.ratio >= TH.shortHigh ? 'buy' : sz.ratio <= TH.shortLow ? 'sell' : 'neutral',
+      (sp1 ? `前日比 ${sgn(sz.ratio - sp1.ratio, fmt2)}pt、` : '') + `5日平均 ${avg5.toFixed(1)}%。` + (sz.ratio >= TH.shortHigh ? '弱気が積み上がり、買い戻しで反発しやすい' : sz.ratio <= TH.shortLow ? '空売りが少なく、上昇の燃料（買い戻し）が乏しい' : ''));
+  } else add('需給（日次）', '空売り比率', '', '—', 'na', '');
+  // --- 海外投資家
+  const inv = D.investor.filter(r => r.foreign != null), iz = inv[inv.length - 1];
+  if (iz) {
+    let streak = 0; const sign = Math.sign(iz.foreign);
+    for (let i = inv.length - 1; i >= 0 && Math.sign(inv[i].foreign) === sign; i--) streak++;
+    const l4 = inv.slice(-4).reduce((a, r) => a + r.foreign, 0);
+    add('投資主体別', '海外投資家', md(iz.week_end) + '週', sgn(Math.round(iz.foreign / 100)) + '億円',
+      streak >= TH.foreignWeeks ? (sign < 0 ? 'sell' : 'buy') : 'neutral',
+      `${streak}週連続の${sign < 0 ? '売り越し' : '買い越し'}。直近4週合計 ${sgn(Math.round(l4 / 100))}億円`);
+  }
+  // --- テクニカル
+  const t = techSeries(), i = t.c.length - 1;
+  if (i >= 75) {
+    const asof = md(t.dates[i]), c = t.c[i];
+    const dev = (c / t.ma25[i] - 1) * 100;
+    add('テクニカル（日経平均）', '25日線乖離率', asof, sgn(dev, fmt2) + '%', dev <= -TH.dev25 ? 'buy' : dev >= TH.dev25 ? 'sell' : 'neutral',
+      `25日線 ${fmt0.format(t.ma25[i])}円／75日線 ${fmt0.format(t.ma75[i])}円（${c > t.ma75[i] ? '上' : '下'}）`);
+    const z2 = (c - t.ma20[i]) / t.sd[i];
+    add('テクニカル（日経平均）', 'ボリンジャーバンド', asof, (z2 >= 0 ? '+' : '') + z2.toFixed(2) + 'σ', z2 <= -2 ? 'buy' : z2 >= 2 ? 'sell' : 'neutral',
+      `+2σ ${fmt0.format(t.up2[i])}円／-2σ ${fmt0.format(t.dn2[i])}円`);
+    add('テクニカル（日経平均）', 'RSI(14)', asof, t.rsi[i].toFixed(1), t.rsi[i] <= TH.rsiLow ? 'buy' : t.rsi[i] >= TH.rsiHigh ? 'sell' : 'neutral',
+      t.rsi[i] <= TH.rsiLow ? '売られ過ぎ' : t.rsi[i] >= TH.rsiHigh ? '買われ過ぎ' : '');
+    let cross = null;
+    for (let k = i; k > i - 3; k--) if (t.hist[k - 1] != null && Math.sign(t.hist[k]) !== Math.sign(t.hist[k - 1])) { cross = t.hist[k] > 0 ? 'gc' : 'dc'; break; }
+    add('テクニカル（日経平均）', 'MACD', asof, fmt0.format(t.macd[i]),
+      cross === 'gc' ? 'buy' : cross === 'dc' ? 'sell' : 'neutral',
+      `シグナル ${fmt0.format(t.sig[i])}。` + (cross === 'gc' ? '直近でゴールデンクロス' : cross === 'dc' ? '直近でデッドクロス' : (t.hist[i] > 0 ? 'MACDがシグナルより上（上昇基調）' : 'MACDがシグナルより下（下落基調）')));
+  }
+  const vx = D.daily.vix || [], vz = vx[vx.length - 1];
+  if (vz) add('海外市場', 'VIX', md(vz[0]), vz[1].toFixed(2), vz[1] >= TH.vixHigh ? 'buy' : vz[1] <= TH.vixLow ? 'sell' : 'neutral',
+    vz[1] >= TH.vixHigh ? 'パニック水準。逆張りの目安' : vz[1] <= TH.vixLow ? '楽観ムード。急落への備えが薄い' : vz[1] >= 20 ? 'やや不安定' : '');
+  const nz = D.nikkei[D.nikkei.length - 1];
+  if (nz) add('バリュエーション', '日経平均PER', md(nz.date), fmt2.format(nz.per_w) + '倍', nz.per_w <= TH.perLow ? 'buy' : nz.per_w >= TH.perHigh ? 'sell' : 'neutral',
+    `EPS ${fmt2.format(nz.eps_w)}円。PER${TH.perLow}倍＝${fmt0.format(nz.eps_w * TH.perLow)}円、${TH.perHigh}倍＝${fmt0.format(nz.eps_w * TH.perHigh)}円`);
+  return out;
+}
+function renderSignal() {
+  const sigs = buildSignals();
+  const n = k => sigs.filter(s => s.st === k).length;
+  const b = n('buy'), s = n('sell'), u = n('neutral'), tot = b + s + u || 1;
+  const verdict = b - s >= 2 ? ['買い場寄り', 'pos'] : s - b >= 2 ? ['警戒寄り', 'neg'] : ['拮抗', ''];
+  $('#s-summary').innerHTML =
+    `<div class="card" style="grid-column:1/-1"><div class="l">総合（${sigs.length}項目）</div><div class="v ${verdict[1]}">${verdict[0]}</div>` +
+    `<div class="s">買い場サイン ${b}　警戒サイン ${s}　中立 ${u}</div>` +
+    `<div class="meter"><span style="width:${b / tot * 100}%;background:var(--pos)"></span><span style="width:${u / tot * 100}%;background:var(--muted);opacity:.35"></span><span style="width:${s / tot * 100}%;background:var(--neg)"></span></div></div>`;
+  let html = '', g = null;
+  for (const x of sigs) {
+    if (x.grp !== g) { g = x.grp; html += `<div class="grp">${g}</div>`; }
+    html += `<div class="sig"><div class="n">${x.name}<small>${x.asof}</small></div><div class="val">${x.val}</div><div><span class="pill st-${x.st}">${ST[x.st]}</span></div>${x.comment ? `<div class="c">${x.comment}</div>` : ''}</div>`;
+  }
+  $('#s-list').innerHTML = html;
+  const ref = (label, arr, f, unit = '', color = true) => { if (!arr || arr.length < 2) return ''; const [d, v] = arr[arr.length - 1], pv = arr[arr.length - 2][1]; return card(label, f.format(v) + unit, md(d) + '　前日比 ' + sgn((v / pv - 1) * 100, fmt2) + '%', color ? (v >= pv ? 'pos' : 'neg') : ''); };
+  $('#s-ref').innerHTML = ref('日経平均', D.daily.nikkei, fmt2) + ref('ドル円', D.daily.usdjpy, fmt2, '円') + ref('ナスダック', D.daily.nasdaq, fmt2) + ref('VIX', D.daily.vix, fmt2, '', false);
+  $('#s-th').innerHTML = '<thead><tr><th>項目</th><th>買い場サイン</th><th>警戒サイン</th><th>メモ</th></tr></thead><tbody>' +
+    TH_ROWS.map(r => `<tr><td>${r[0]}</td><td style="text-align:left">${r[1]}</td><td style="text-align:left">${r[2]}</td><td style="text-align:left">${r[3]}</td></tr>`).join('') + '</tbody>';
+}
+
+/* ---------------- テクニカル画面 ---------------- */
+function renderTech() {
+  const t = techSeries(); if (t.c.length < 30) return;
+  const n = weeks() >= 9999 ? t.c.length : Math.min(t.c.length, weeks() * 5);
+  const s0 = t.c.length - n, sl = a => a.slice(s0);
+  const labels = sl(t.dates).map(md), from = t.dates[s0];
+  const i = t.c.length - 1;
+  $('#t-cards').innerHTML =
+    card('日経平均', fmt2.format(t.c[i]), md(t.dates[i]) + '　前日比 ' + sgn(t.c[i] - t.c[i - 1], fmt2)) +
+    card('25日線乖離率', sgn((t.c[i] / t.ma25[i] - 1) * 100, fmt2) + '%', '25日線 ' + fmt0.format(t.ma25[i])) +
+    card('ボリンジャー', ((t.c[i] - t.ma20[i]) / t.sd[i]).toFixed(2) + 'σ', '+2σ ' + fmt0.format(t.up2[i]) + '／-2σ ' + fmt0.format(t.dn2[i])) +
+    card('RSI(14)', t.rsi[i].toFixed(1), t.rsi[i] >= TH.rsiHigh ? '買われ過ぎ' : t.rsi[i] <= TH.rsiLow ? '売られ過ぎ' : '') +
+    card('MACD', fmt0.format(t.macd[i]), 'シグナル ' + fmt0.format(t.sig[i]), t.hist[i] > 0 ? 'pos' : 'neg');
+  const ln = (label, data, color, extra = {}) => Object.assign({type: 'line', label, data, borderColor: color, backgroundColor: color, pointRadius: 0, borderWidth: 1.5, tension: 0}, extra);
+  const xs = {ticks: {maxTicksLimit: 8, maxRotation: 0}};
+  mkChart('t-chart1', {data: {labels, datasets: [
+    ln('日経平均', sl(t.c).map(r2), PALETTE[0], {borderWidth: 2.5}),
+    ln('+2σ', sl(t.up2).map(r1), PALETTE[3], {borderDash: [5, 4], borderWidth: 1}),
+    ln('-2σ', sl(t.dn2).map(r1), PALETTE[3], {borderDash: [5, 4], borderWidth: 1, fill: '-1', backgroundColor: PALETTE[3] + '14'}),
+    ln('25日線', sl(t.ma25).map(r1), PALETTE[1]),
+    ln('75日線', sl(t.ma75).map(r1), PALETTE[2])]},
+    options: {scales: {x: xs, y: {ticks: {callback: v => fmt0.format(v)}}}}});
+  mkChart('t-chart2', {data: {labels, datasets: [
+    {type: 'bar', label: 'ヒストグラム', data: sl(t.hist).map(r1), backgroundColor: sl(t.hist).map(v => v >= 0 ? css('--pos') + '88' : css('--neg') + '88')},
+    ln('MACD', sl(t.macd).map(r1), PALETTE[0]), ln('シグナル', sl(t.sig).map(r1), PALETTE[1])]},
+    options: {scales: {x: xs, y: {ticks: {callback: v => fmt0.format(v)}}}}});
+  mkChart('t-chart3', {data: {labels, datasets: [ln('RSI', sl(t.rsi).map(r2), PALETTE[4], {borderWidth: 2}),
+    hline(labels, TH.rsiHigh, css('--neg'), String(TH.rsiHigh)), hline(labels, TH.rsiLow, css('--pos'), String(TH.rsiLow))]},
+    options: {plugins: {legend: {display: false}}, scales: {x: xs, y: {min: 0, max: 100}}}});
+  const ss = D.short.filter(r => r.date >= from), sl2 = ss.map(r => md(r.date));
+  mkChart('t-chart4', {data: {labels: sl2, datasets: [
+    {type: 'bar', label: '空売り比率(%)', data: ss.map(r => r.ratio), backgroundColor: ss.map(r => r.ratio >= TH.shortHigh ? css('--pos') : r.ratio <= TH.shortLow ? css('--neg') : PALETTE[5] + 'aa')},
+    hline(sl2, TH.shortHigh, css('--pos'), TH.shortHigh + '%'), hline(sl2, TH.shortLow, css('--neg'), TH.shortLow + '%')]},
+    options: {plugins: {legend: {display: false}}, scales: {x: xs, y: {min: 25, suggestedMax: 50, ticks: {callback: v => v + '%'}}}}});
+  const vx = (D.daily.vix || []).filter(r => r[0] >= from), vl = vx.map(r => md(r[0]));
+  mkChart('t-chart5', {data: {labels: vl, datasets: [ln('VIX', vx.map(r => r[1]), PALETTE[3], {borderWidth: 2}),
+    hline(vl, TH.vixHigh, css('--pos'), String(TH.vixHigh)), hline(vl, TH.vixLow, css('--neg'), String(TH.vixLow))]},
+    options: {plugins: {legend: {display: false}}, scales: {x: xs, y: {suggestedMin: 10}}}});
+  const fx = (D.daily.usdjpy || []).filter(r => r[0] >= from), nq = Object.fromEntries((D.daily.nasdaq || []).map(r => r));
+  mkChart('t-chart6', {data: {labels: fx.map(r => md(r[0])), datasets: [
+    ln('ドル円', fx.map(r => r[1]), PALETTE[1], {yAxisID: 'y', borderWidth: 2}),
+    ln('ナスダック', fx.map(r => nq[r[0]] ?? null), PALETTE[0], {yAxisID: 'y1', spanGaps: true})]},
+    options: {scales: {x: xs, y: {position: 'left', ticks: {callback: v => v + '円'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, ticks: {callback: v => fmt0.format(v)}}}}});
+}
+
+function renderAll() {
+  const on = (document.querySelector('.tab.on') || {}).dataset?.page;
+  $('#period-box').style.display = on === 'signal' ? 'none' : '';
+  ({signal: renderSignal, margin: renderMargin, tech: renderTech, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+}
 
 /* ---------------- UI ---------------- */
 $('#i-checks').innerHTML = ENT.map(([k, l], i) => `<label><input type="checkbox" id="chk-${k}" ${i < 3 ? 'checked' : ''}> ${l}</label>`).join('');

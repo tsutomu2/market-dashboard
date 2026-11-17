@@ -1,6 +1,6 @@
 # マーケット需給ダッシュボード
 
-信用残・日経平均の理論値（PER/EPS）・投資主体別売買動向を自動で集めて、表とグラフで見るWebアプリです。
+信用残・空売り比率・日経平均の理論値（PER/EPS）・投資主体別売買動向・テクニカル指標を自動で集めて、表とグラフで見るWebアプリです。「シグナル」画面で各指標の買い場／警戒サインを一覧できます。
 
 - アプリ本体：`docs/index.html`（GitHub Pagesで公開）
 - データ：`docs/data/*.json`（GitHub Actionsが平日17:35・21:35 JSTに自動更新）
@@ -14,6 +14,8 @@
 | 投資主体別 | JPX「投資部門別売買状況」二市場・金額差引き（千円→百万円） | 毎週木曜 |
 | 日経PER/EPS/PBR | 日経平均プロフィル公表値（stock-marketdata.com 経由） | 毎営業日 |
 | 日経平均終値 | FRED（NIKKEI225） | 毎営業日 |
+| 空売り比率 | JPX「空売り集計（日次）」 | 毎営業日 |
+| VIX・ドル円・ナスダック | FRED（VIXCLS・DEXJPUS・NASDAQCOM） | 毎営業日（米国） |
 | 信用評価損益率 | 公開データなし → 実績は手入力、それ以外は推計 | — |
 
 ## 信用評価損益率の入力（実績値）
@@ -24,6 +26,6 @@
 
 1. Settings → Pages → Source を「Deploy from a branch」、Branch を `main` / `/docs` にして保存
 2. Actions タブ → `update-data` → 「Run workflow」で初回取得
-3. `https://<ユーザー名>.github.io/market-dashboard/` を開く
+3. `https://tsutomu2.github.io/market-dashboard/` を開く
 
 取得に失敗した場合は `debug/last_run.log` と `debug/*.txt` に原因が書き出されます。
