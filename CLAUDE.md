@@ -30,6 +30,7 @@ Excelで手作業管理していた3種類の需給データを自動取得し�
 信用倍率・信用買い残の激減（投げ）・空売り激減/爆増（騙し上げ・踏み上げ）・海外勢の売り越し・ボリンジャー・MACD・RSI・VIX・ドル円・ナスダック。
 - しきい値は動画から取ったものではなく、一般的な目安（評価損益率-10%/倍率9.5倍は元のシートの値）。`index.html` 冒頭の `TH` で変更できる
 - 一目均衡表・パラボリック・ストキャスティクスも動画で扱われているが、高値・安値データが無い（FREDは終値のみ）ため未対応
+- 画面上部の相場の帯：TradingView の ticker-tape ウィジェット（`index.html` の `TAPE`）。無料ウィジェットで表示できない銘柄（TVC:NI225・TOPIX指数・COMEX:GC1!・NYMEX:CL1!）があるため、日経225＝OANDA:JP225USD（CFD）、日経先物＝OSE:NK2251!（20分遅れ）、TOPIX先物＝OSE:TOPIX1!（20分遅れ）、ドル円＝FX:USDJPY、金＝TVC:GOLD、WTI＝TVC:USOIL。INDEX:NKY は前日終値しか出ないので不採用（2026-11-17 に実表示で確認）
 - 追加データ：`docs/data/short.json`（JPX空売り集計PDF、日次）、`docs/data/daily.json`（日経・VIX・ドル円・ナスダックの日次終値3年分、FRED）
 
 ## 設定手順：GitHub と Claude Code（Web版）を PC・スマホの両方から使う

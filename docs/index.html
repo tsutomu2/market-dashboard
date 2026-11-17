@@ -55,6 +55,7 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .st-buy{background:var(--posbg);color:var(--pos)}.st-sell{background:var(--negbg);color:var(--neg)}.st-neutral{background:var(--line);color:var(--muted)}.st-na{background:none;color:var(--muted);border:1px dashed var(--line)}
 .sig .val{white-space:nowrap}
 @media (max-width:480px){.pill{min-width:0;padding:2px 7px;font-size:11px}.sig{gap:4px 8px}}
+.tape{margin:6px -14px 0;min-height:46px;overflow:hidden}
 .grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
 .meter{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line)}
 .meter span{display:block;height:100%}
@@ -66,6 +67,7 @@ code{font-size:12px}
 <header>
   <h1>マーケット需給ダッシュボード</h1>
   <div class="sub">データ更新: <span id="updated">—</span>（JPX・日経公表値を自動取得）</div>
+  <div class="tape" id="tape"></div>
   <nav class="tabs">
     <button class="tab on" data-page="signal">シグナル</button>
     <button class="tab" data-page="margin">信用残</button>
@@ -173,6 +175,7 @@ code{font-size:12px}
 <li>空売り比率：JPX「空売り集計（日次）」（価格規制あり＋なし）÷売買代金。毎営業日公表。</li>
 <li>テクニカル：日経平均の終値（FRED）から計算。ボリンジャーバンド＝20日移動平均±2σ、MACD＝12日EMA−26日EMA（シグナル9日）、RSI＝14日（ワイルダー方式）。高値・安値が無いため一目均衡表・パラボリック・ストキャスティクスは未対応。</li>
 <li>VIX・ドル円・ナスダック：FRED（VIXCLS・DEXJPUS・NASDAQCOM）。米国の営業日ベースで1日遅れ。</li>
+<li>画面上部の相場（TradingViewのウィジェット）：日経225＝CFD（OANDA、リアルタイム・24時間）、日経先物・TOPIX先物＝大阪取引所（20分遅れ）、ドル円＝リアルタイム、金・WTI原油＝TradingViewの価格（無料ウィジェットではCOMEX・NYMEXの先物そのものは表示できないため）。TOPIXの指数そのものも無料ウィジェットでは表示できないため先物で代用。</li>
 </ul></details>
 </main>
 
@@ -549,7 +552,27 @@ document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click',
   if (k === 'investor') download('投資主体別', ['週末', ...ENT.map(e => e[1] + '(百万円)')], D.investor.map(r => [r.week_end, ...ENT.map(([k2]) => r[k2])]));
 }));
 if (location.hash) { const b = document.querySelector(`.tab[data-page="${location.hash.slice(1)}"]`); if (b) b.click(); }
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+/* ---------------- 上部の相場（TradingView） ---------------- */
+const TAPE = [
+  {proName: 'OANDA:JP225USD', title: '日経225(CFD)'},
+  {proName: 'OSE:NK2251!', title: '日経先物'},
+  {proName: 'OSE:TOPIX1!', title: 'TOPIX先物'},
+  {proName: 'FX:USDJPY', title: 'ドル円'},
+  {proName: 'TVC:GOLD', title: '金'},
+  {proName: 'TVC:USOIL', title: 'WTI原油'},
+];
+function mountTape() {
+  const box = $('#tape'); box.innerHTML = '';
+  const c = document.createElement('div'); c.className = 'tradingview-widget-container';
+  const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; c.appendChild(w);
+  const s = document.createElement('script'); s.async = true;
+  s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
+  s.textContent = JSON.stringify({symbols: TAPE, showSymbolLogo: false, isTransparent: true, displayMode: 'compact',
+    colorTheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', locale: 'ja'});
+  c.appendChild(s); box.appendChild(c);
+}
+mountTape();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); });
 load();
 </script>
 </body>
