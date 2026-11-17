@@ -55,8 +55,11 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .st-buy{background:var(--posbg);color:var(--pos)}.st-sell{background:var(--negbg);color:var(--neg)}.st-neutral{background:var(--line);color:var(--muted)}.st-na{background:none;color:var(--muted);border:1px dashed var(--line)}
 .sig .val{white-space:nowrap}
 @media (max-width:480px){.pill{min-width:0;padding:2px 7px;font-size:11px}.sig{gap:4px 8px}}
-.tape{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));margin:0 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:76px}
-.tape>div{height:74px;overflow:hidden;border-bottom:1px solid var(--line)}
+/* 上部の相場：TradingView の文字は外から大きさを変えられないので、枠ごと拡大（zoom）する */
+.tape{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tape>div{height:108px;overflow:hidden;border-bottom:1px solid var(--line)}.tape .z{zoom:1.4}
+@media (max-width:900px){.tape{grid-template-columns:1fr 1fr}.tape>div{height:92px}.tape .z{zoom:1.2}}
+@media (max-width:600px){.tape>div{height:76px}.tape .z{zoom:1}}
 .seg{display:inline-flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
 .seg button{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;padding:6px 12px;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--accent);color:#fff;font-weight:600}
@@ -68,6 +71,7 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .step .no{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:2px}
 .step .sh{font-size:12px;color:var(--muted)}.step .sr{font-size:16px;font-weight:600;margin:1px 0 2px}.step .c{font-size:12px;color:var(--muted)}
 .stars{display:block;color:#d9a21b;font-size:13px;letter-spacing:1px;line-height:1.2}.snote{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-bottom:2px}
+.aibox{margin:6px 0 4px}.ailab{font-size:11px;color:var(--accent);font-weight:600;margin-bottom:2px}.aipts{margin:8px 0 6px;padding-left:20px;font-size:13px;line-height:1.6}.aipts li{margin-bottom:4px}.rulec{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:6px}
 .grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
 .meter{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line)}
 .meter span{display:block;height:100%}
@@ -259,7 +263,7 @@ const md = d => { const [y, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
 const ymd = d => d.replaceAll('-', '/');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const PALETTE = ['#2f5d9e', '#d9822b', '#3a9e6f', '#b2457a', '#7b61b8', '#8a8a82'];
-const D = {margin: [], nikkei: [], investor: [], short: [], lev: [], breadth: [], sho: [], daily: {}, meta: {}};
+const D = {margin: [], nikkei: [], investor: [], short: [], lev: [], breadth: [], sho: [], ai: {}, daily: {}, meta: {}};
 const charts = {};
 
 /* 判定のしきい値（ここを書き換えると判定が変わります）
@@ -301,7 +305,7 @@ const TH_ROWS = [
 async function load() {
   const get = async f => { const r = await fetch(`data/${f}?v=${Date.now()}`); if (!r.ok) throw new Error(f); return r.json(); };
   try {
-    [D.margin, D.nikkei, D.investor, D.short, D.lev, D.breadth, D.sho, D.daily, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'short.json', 'lev1570.json', 'breadth.json', 'sho_views.json', 'daily.json', 'meta.json'].map(f => get(f).catch(() => ['meta.json', 'daily.json'].includes(f) ? {} : [])));
+    [D.margin, D.nikkei, D.investor, D.short, D.lev, D.breadth, D.sho, D.ai, D.daily, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'short.json', 'lev1570.json', 'breadth.json', 'sho_views.json', 'ai_comment.json', 'daily.json', 'meta.json'].map(f => get(f).catch(() => ['meta.json', 'daily.json', 'ai_comment.json'].includes(f) ? {} : [])));
   } catch (e) { showErr('データの読み込みに失敗しました: ' + e.message); }
   $('#updated').textContent = D.meta.updated ? D.meta.updated + (/^\d{4}-/.test(D.meta.updated) ? ' JST' : '') : '—';
   renderAll();
@@ -1288,8 +1292,8 @@ function renderJudge(sig, V) {
   // ②' データ検証（過去3年で効いていた指標）
   const vb = V ? V.rows.filter(r => r.st === 'buy' && r.s.n >= 20) : [], vs = V ? V.rows.filter(r => r.st === 'sell' && r.s.n >= 20) : [];
   steps.push({h: 'データ検証（過去約3年で、今と同じ状態のあと）', r: `買い寄り ${vb.length}件／売り寄り ${vs.length}件`, cls: vb.length > vs.length ? 'pos' : vs.length > vb.length ? 'neg' : '',
-    c: (vb.length ? '買い寄り：' + vb.map(r => `${r.name}（${r.kind === 'state' ? `20日後 上昇${Math.round(r.s.p20)}%` : r.s.custom}）`).join('、') + '。' : '') +
-      (vs.length ? '売り寄り：' + vs.map(r => `${r.name}（${r.kind === 'state' ? `5日後 上昇${Math.round(r.s.p5)}%` : r.s.custom}）`).join('、') + '。' : '') +
+    c: (vb.length ? '買い寄り：' + vb.map(r => `${r.name}（${r.kind === 'state' ? `20日後 上昇${Math.round(r.s.p20)}%` : r.kind === 'corr' ? `相関 r=${(r.s.r >= 0 ? '+' : '') + r.s.r.toFixed(2)}・参考` : r.s.custom}）`).join('、') + '。' : '') +
+      (vs.length ? '売り寄り：' + vs.map(r => `${r.name}（${r.kind === 'state' ? `5日後 上昇${Math.round(r.s.p5)}%` : r.kind === 'corr' ? `相関 r=${(r.s.r >= 0 ? '+' : '') + r.s.r.toFixed(2)}・参考` : r.s.custom}）`).join('、') + '。' : '') +
       (!vb.length && !vs.length ? '今の状態で、過去にはっきり差が出ていた指標はありません。' : '') + '信頼度○△の指標のみ数えています（詳しくは下の「各画面の指標と日経平均の関係」）。'});
 
   // ②'' 動画の最新の結論
@@ -1344,7 +1348,11 @@ function renderJudge(sig, V) {
   if (stance === 'attack' && vs.length >= 2) concl += `。ただし過去約3年のデータでは、今と同じ状態のあとは伸びにくかった（${vs.slice(0, 2).map(r => r.name).join('・')}）`;
   if (yearEnd && stance !== 'attack') concl += '。年末（クリスマス頃〜大納会）の投げ一巡を分割で拾う準備';
   box.innerHTML = `<h2>今日の判断（自動）</h2><p class="note">基準：日経 ${ymd(asof)} 終値・データ更新 ${D.meta.updated || '—'}。決めたルールに当てはめた結果で、売買を勧めるものではありません。</p>` +
-    `<div class="concl ${ccls}">${concl}</div>` +
+    (D.ai && D.ai.headline && D.ai.asof === asof
+      ? `<div class="aibox"><div class="ailab">AIの判断（${D.ai.generated || ''} 作成・アプリの分析結果をもとに）</div><div class="concl ${D.ai.tone === 'pos' ? 'pos' : D.ai.tone === 'neg' ? 'neg' : ''}">${D.ai.headline}</div>` +
+        (D.ai.points && D.ai.points.length ? `<ul class="aipts">${D.ai.points.map(x => `<li>${x}</li>`).join('')}</ul>` : '') +
+        `<div class="rulec">ルールによる結論：${concl}</div></div>`
+      : `<div class="concl ${ccls}">${concl}</div>` + (D.ai && D.ai.headline ? `<p class="note">AIの判断は ${D.ai.asof ? ymd(D.ai.asof) : '—'} のデータで作成されたもので、最新データ（${ymd(asof)}）ではまだ作成されていません。上はルールによる結論です。</p>` : '')) +
     steps.map((s, k) => `<div class="step"><div class="no">${k + 1}</div><div><div class="sh">${s.h}</div><div class="sr ${s.cls}">${s.r}</div><div class="c">${s.c}</div></div></div>`).join('');
 }
 
@@ -1391,7 +1399,8 @@ function mountTape() {
     const s = document.createElement('script'); s.async = true;
     s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-tickers.js';
     s.textContent = JSON.stringify({symbols: [sym], showSymbolLogo: false, isTransparent: true, colorTheme: theme, locale: 'ja'});
-    c.appendChild(s); cell.appendChild(c); box.appendChild(cell);
+    const z = document.createElement('div'); z.className = 'z';
+    c.appendChild(s); z.appendChild(c); cell.appendChild(z); box.appendChild(cell);
   }
 }
 mountTape();
