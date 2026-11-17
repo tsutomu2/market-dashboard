@@ -62,6 +62,11 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .seg button.on{background:var(--accent);color:#fff;font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid2 .box{margin-bottom:14px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr;gap:0}}
+.concl{font-size:17px;font-weight:700;padding:10px 12px;margin:6px 0 4px;border-radius:10px;background:var(--hl)}
+.concl.pos{background:var(--posbg)}.concl.neg{background:var(--negbg)}
+.step{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:0}
+.step .no{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.step .sh{font-size:12px;color:var(--muted)}.step .sr{font-size:16px;font-weight:600;margin:1px 0 2px}.step .c{font-size:12px;color:var(--muted)}
 .grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
 .meter{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line)}
 .meter span{display:block;height:100%}
@@ -94,6 +99,7 @@ code{font-size:12px}
 
 <!-- ============ シグナル ============ -->
 <section class="page on" id="p-signal">
+  <div class="box" id="s-judge"></div>
   <div class="cards" id="s-summary"></div>
   <div class="box"><h2>急落・下落の8つのサイン</h2>
     <p class="note">解説動画（11/16回）で挙げられている急落パターンの8条件です。点灯が多いほど急落・下落しやすいとされます。売買の判断はご自身で行ってください。</p>
@@ -658,7 +664,8 @@ function sigRows(list) {
   return list.map(x => `<div class="sig"><div class="n">${x.name}${x.asof ? `<small>${x.asof}</small>` : ''}</div><div class="val">${x.val}</div><div><span class="pill st-${STC[x.st]}">${ST[x.st]}</span></div>${x.c ? `<div class="c">${x.c}</div>` : ''}</div>`).join('');
 }
 function renderSignal() {
-  const {crash, rebound, caution} = buildSignals();
+  const sigAll = buildSignals(), {crash, rebound, caution} = sigAll;
+  renderJudge(sigAll);
   const lit = crash.filter(x => x.st === 'on').length, okN = rebound.filter(x => x.st === 'ok').length, wN = caution.filter(x => x.st === 'warn').length;
   const lv = lit >= 6 ? ['高い', 'neg'] : lit >= 4 ? ['やや高い', 'neg'] : lit >= 2 ? ['低め', ''] : ['低い', 'pos'];
   $('#s-summary').innerHTML =
@@ -996,6 +1003,91 @@ function renderChart() {
     card(estAhead ? '連動指数（次の取引日の推定）' : '連動指数', estAhead ? fmt2.format(estAhead) : (pb.length ? fmt2.format(pb[pb.length - 1].v) : '—'), estAhead ? `${barLabel(L.dates[L.dates.length - 1], 'w')}の目安` : (pb.length ? barLabel(pb[pb.length - 1].d, 'w') : '')) +
     card('次の1本の予想レンジ（約68%）', r1x(1), `約95%：${r2x(1)}`) +
     card(`${H}本先の予想レンジ（約68%）`, r1x(H), `約95%：${r2x(H)}`);
+}
+
+/* ---------------- 今日の判断（自動） ---------------- */
+const JUDGE = {
+  defendCrash: 5,   // 急落サインがこの数以上 かつ 反発条件0 → 守り
+  attackCrash: 2,   // 急落サインがこの数以下 かつ 反発条件2以上 → 攻め
+  attackRebound: 2,
+  riskPct: 1,       // 1回の損切りで失ってよい資金の割合（%）
+  signalDays: 15,   // これより古い合図は「直近の合図なし」とみなす（営業日）
+};
+function nextWeekday(from, dow) { const d = new Date(from); d.setHours(0, 0, 0, 0); do d.setDate(d.getDate() + 1); while (d.getDay() !== dow); return d; }
+function renderJudge(sig) {
+  const box = $('#s-judge'); if (!box) return;
+  const t = techSeries(), L = linkSeries();
+  if (!L || t.c.length < 260) { box.innerHTML = '<h2>今日の判断（自動）</h2><p class="note">データが足りません</p>'; return; }
+  const i = t.c.length - 1, close = t.c[i], asof = t.dates[i];
+  const lit = sig.crash.filter(x => x.st === 'on').length, okN = sig.rebound.filter(x => x.st === 'ok').length;
+  const warns = sig.caution.filter(x => x.st === 'warn').map(x => x.name.replace(/（.*/, ''));
+  const steps = [];
+
+  // ① 朝の方向感（連動指数の推定）
+  const lastI = L.dates.length - 1, nI = L.ahead ? lastI - 1 : lastI;
+  let dir = 0;
+  if (L.ahead) {
+    const ch = (L.P[lastI] / L.N[nI] - 1) * 100; dir = ch >= 0.3 ? 1 : ch <= -0.3 ? -1 : 0;
+    steps.push({h: '朝の方向感', r: `${dir > 0 ? '上昇寄り' : dir < 0 ? '下落寄り' : 'ほぼ横ばい'}（推定 ${sgn(ch, fmt2)}%）`, cls: dir > 0 ? 'pos' : dir < 0 ? 'neg' : '',
+      c: `前夜の米国（S&P500・ナスダック・VIX）から計算した ${md(L.dates[lastI])} の日経の推定は ${fmt0.format(L.P[lastI])}円（前日終値 ${fmt0.format(L.N[nI])}円）。方向の一致率は約64%。`});
+  } else {
+    steps.push({h: '朝の方向感', r: '前夜の米国データが未反映', cls: '',
+      c: `米国の終値（FRED）がまだ届いていません。上の相場の「日経225（CFD）」「日経先物」の前日比で方向感を確認してください。データの基準日：日経 ${md(asof)}。`});
+  }
+
+  // ② 構え（シグナル画面）
+  const stance = lit >= JUDGE.defendCrash && okN === 0 ? 'defend' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? 'attack' : 'neutral';
+  const stanceTxt = {defend: '守り', attack: '攻め（押し目買い）', neutral: '中立'}[stance];
+  const yearEnd = warns.some(w => w.startsWith('信用期日'));
+  steps.push({h: '構え（地合い）', r: stanceTxt, cls: stance === 'defend' ? 'neg' : stance === 'attack' ? 'pos' : '',
+    c: `急落サイン ${lit}/8、反発条件 ${okN}/${sig.rebound.length}。` +
+      (stance === 'defend' ? '新規の買いは控えるか少量に。保有は戻りで減らす。' : stance === 'attack' ? '押し目で買う構え。' : '取引量は普段の半分程度。') +
+      (warns.length ? `注意点：${warns.join('、')}。` : '') + (yearEnd ? '年末は信用期日・損益通算売りが重なりやすく、出尽くした安値を分けて拾うのがSHO手法の考え方。' : '')});
+
+  // ③ タイミング（連動指数 → 日経の2段階）
+  const sn = crosses(L.N, LINK.slow).out, sc = crosses(L.P, LINK.fast, LINK.band).out;
+  const cL = sc[sc.length - 1], nL = sn[sn.length - 1];
+  const age = x => x ? lastI - x.i : 999;
+  let timing = 'none', tTxt = '直近に合図なし', tDet = '';
+  if (cL && age(cL) <= JUDGE.signalDays) {
+    const nSame = nL && nL.t === cL.t && nL.i >= cL.i - 10;
+    if (cL.t > 0) { timing = nSame ? 'buy2' : 'buy1'; tTxt = nSame ? '第2段階：日経も▲' : '第1段階：連動指数が▲'; }
+    else { timing = nSame ? 'sell2' : 'sell1'; tTxt = nSame ? '日経も▼（下落基調）' : '連動指数が▼（日経に先行の可能性）'; }
+  }
+  tDet = `連動指数の直近の合図：${cL ? (cL.t > 0 ? '▲' : '▼') + md(L.dates[cL.i]) + `（${age(cL)}営業日前）` : 'なし'}／日経の直近の合図：${nL ? (nL.t > 0 ? '▲' : '▼') + md(L.dates[nL.i]) + `（${age(nL)}営業日前）` : 'なし'}。連動指数の合図は約4回に1回ダマシ。`;
+  steps.push({h: 'タイミング（2段階）', r: tTxt, cls: timing.startsWith('buy') ? 'pos' : timing.startsWith('sell') ? 'neg' : '', c: tDet});
+
+  // ④ 損切り・利確・量（予測レンジ）
+  const rets = t.c.map((v, k) => k ? Math.log(v / t.c[k - 1]) : null).slice(1).slice(-250);
+  const sd = sdOf(rets), stop = close * Math.exp(-2 * sd), tp1 = close * Math.exp(sd), mid = t.ma25[i];
+  const stopPct = (1 - stop / close) * 100, alloc = Math.min(100, JUDGE.riskPct / stopPct * 100);
+  steps.push({h: '損切り・利確・量', r: `損切り ${fmt0.format(stop)}円（−${stopPct.toFixed(1)}%）`, cls: '',
+    c: `利確の目安：${fmt0.format(tp1)}円（濃い帯の上限）、25日線 ${fmt0.format(mid)}円${mid > close ? '（中央線への戻り＝SHO手法の修正の目標）' : ''}。1回の損失を資金の${JUDGE.riskPct}%に収めるなら、投入額は資金の約${Math.round(alloc)}%まで（信用・レバレッジなしの場合）。`});
+
+  // ⑤ 週1回の見直し
+  const now = new Date(), m = D.margin[D.margin.length - 1], inv = D.investor[D.investor.length - 1];
+  const wk = resample(t.dates, t.c, 'w'), wma = sma(wk.map(b => b.v), 13), wi = wk.length - 1;
+  const wTrend = wk[wi].v > wma[wi] && wma[wi] > wma[wi - 1] ? '上昇基調' : wk[wi].v < wma[wi] && wma[wi] < wma[wi - 1] ? '下落基調' : '横ばい・転換途中';
+  steps.push({h: '週1回の見直し', r: `週足：${wTrend}`, cls: wTrend === '上昇基調' ? 'pos' : wTrend === '下落基調' ? 'neg' : '',
+    c: `週足の終値 ${fmt0.format(wk[wi].v)}円、13週線 ${fmt0.format(wma[wi])}円。次の公表：信用残 ${jd(nextWeekday(now - 864e5, 2))}（火）〈現在 ${md(m.date)}申込分〉、投資主体別 ${jd(nextWeekday(now - 864e5, 4))}（木）〈現在 ${md(inv.week_end)}週分〉。`});
+
+  // 結論
+  let concl, ccls;
+  if (stance === 'defend') {
+    if (timing.startsWith('buy')) { concl = '買いの合図は出ているが地合いは守り。見送るか、打診（予定量の1/4程度）にとどめ、反発条件の成立を待つ'; ccls = ''; }
+    else if (timing.startsWith('sell')) { concl = '守り。新規の買いはせず、保有は戻りで減らす'; ccls = 'neg'; }
+    else { concl = '守り。新規の買いは見送り、反発条件の成立を待つ'; ccls = 'neg'; }
+  } else if (stance === 'attack') {
+    concl = timing === 'buy1' ? '攻め。予定量の半分を買い、日経の▲で残り半分' : timing === 'buy2' ? '攻め。日経も▲で、残り半分を買う段階' : timing.startsWith('sell') ? '地合いは良いが合図は▼。利確・様子見' : '攻め。押し目（予想レンジの下側）を待って買う';
+    ccls = timing.startsWith('sell') ? '' : 'pos';
+  } else {
+    concl = timing === 'buy1' ? '中立。普段の半分の量で、その半分を打診買い' : timing === 'buy2' ? '中立。普段の半分の量の残りを買う段階' : timing.startsWith('sell') ? '中立。様子見、保有の一部を減らす' : '中立。合図待ち';
+    ccls = '';
+  }
+  if (yearEnd && stance !== 'attack') concl += '。年末（クリスマス頃〜大納会）の投げ一巡を分割で拾う準備';
+  box.innerHTML = `<h2>今日の判断（自動）</h2><p class="note">基準：日経 ${ymd(asof)} 終値・データ更新 ${D.meta.updated || '—'}。決めたルールに当てはめた結果で、売買を勧めるものではありません。</p>` +
+    `<div class="concl ${ccls}">${concl}</div>` +
+    steps.map((s, k) => `<div class="step"><div class="no">${k + 1}</div><div><div class="sh">${s.h}</div><div class="sr ${s.cls}">${s.r}</div><div class="c">${s.c}</div></div></div>`).join('');
 }
 
 function renderAll() {
