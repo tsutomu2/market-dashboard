@@ -251,5 +251,16 @@
 "eval": -21.08,
 "eval_type": "actual",
 "nikkei": 57434.77
+},
+{
+"date": "2026-11-13",
+"sell": 660000,
+"buy": 5768159,
+"sell_shares": 356858,
+"buy_shares": 3396354,
+"src": "jpx",
+"eval": -15.99,
+"eval_type": "est",
+"nikkei": 61142.35
 }
 ]
