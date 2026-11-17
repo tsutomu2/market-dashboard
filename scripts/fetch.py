@@ -7,6 +7,7 @@
 - 日経平均終値  : FRED (NIKKEI225)。VIX・ドル円・ナスダックも FRED
 - 空売り比率    : JPX「空売り集計（日次）」PDF
 - 1570信用残    : JPX「銘柄別信用取引残高」PDF（日経レバレッジETFの信用倍率）。S&P500 も FRED（NS倍率用）
+- 騰落レシオ・TOPIX: stock-marketdata.com（東証プライムの5・25・75日騰落レシオ、TOPIX→NT倍率）
 - 信用評価損益率: 公開データでは取得できないため推計（docs/data/manual_eval.csv の実績値を起点）
 
 取得に失敗しても既存データは壊さず、原因を debug/ に書き出す。
@@ -450,6 +451,59 @@ def update_daily(closes: dict[str, float]) -> None:
     log("daily: " + ", ".join(f"{k}={len(v)}" for k, v in out.items()))
 
 
+# ---------------------------------------------------------------- 騰落レシオ・TOPIX（NT倍率）
+SMD = "https://stock-marketdata.com"
+
+
+def _smd_table(url: str, must: tuple[str, ...]) -> list[list[str]]:
+    """stock-marketdata.com の表（先頭行が見出し、1列目が『YYYY年M月D日』）を行のリストで返す"""
+    soup = BeautifulSoup(get(url).text, "lxml")
+    for t in soup.find_all("table"):
+        rows = [[c.get_text(strip=True) for c in tr.find_all(["th", "td"])] for tr in t.find_all("tr")]
+        if rows and all(any(m in h for h in rows[0]) for m in must):
+            return rows
+    return []
+
+
+def _ymd(s: str) -> str | None:
+    m = re.match(r"(\d{4})年(\d{1,2})月(\d{1,2})日", s)
+    return f"{m[1]}-{int(m[2]):02d}-{int(m[3]):02d}" if m else None
+
+
+def update_breadth() -> None:
+    """東証プライムの騰落レシオ（5・25・75日）と TOPIX を取得し、NT倍率（日経平均÷TOPIX）を計算。
+    サイトの表は直近30日ほどなので、毎回足して履歴を伸ばす。"""
+    import time
+
+    rows = load_json("breadth.json")
+    by_date = {r["date"]: r for r in rows}
+    adr = _smd_table(f"{SMD}/advance-decline-tse-prime-market", ("日付", "騰落レシオ"))
+    head = adr[0] if adr else []
+    col = {k: next((i for i, h in enumerate(head) if h.startswith(k)), None) for k in ("5日", "25日", "75日")}
+    for r in adr[1:]:
+        d = _ymd(r[0])
+        if not d:
+            continue
+        rec = by_date.setdefault(d, {"date": d})
+        for k, key in (("5日", "adr5"), ("25日", "adr25"), ("75日", "adr75")):
+            if col[k] is not None and col[k] < len(r):
+                rec[key] = to_num(r[col[k]])
+    time.sleep(3)  # 続けてアクセスすると接続を切られるため間をあける
+    idx = _smd_table(f"{SMD}/nikkei225.html", ("日付", "日経平均", "TOPIX"))
+    head = idx[0] if idx else []
+    ci = {k: next((i for i, h in enumerate(head) if h == k), None) for k in ("日経平均株価", "TOPIX")}
+    for r in idx[1:]:
+        d = _ymd(r[0])
+        if not d or ci["TOPIX"] is None:
+            continue
+        nkv, tpx = to_num(r[ci["日経平均株価"]]), to_num(r[ci["TOPIX"]])
+        rec = by_date.setdefault(d, {"date": d})
+        if nkv and tpx:
+            rec["nikkei"], rec["topix"], rec["nt"] = nkv, tpx, round(nkv / tpx, 3)
+    log(f"breadth: adr {len(adr) - 1 if adr else 0} rows, topix {len(idx) - 1 if idx else 0} rows")
+    save_json("breadth.json", [by_date[k] for k in sorted(by_date)])
+
+
 # ---------------------------------------------------------------- 日経平均
 def fred_closes() -> dict[str, float]:
     text = get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=NIKKEI225").text
@@ -574,7 +628,7 @@ def main() -> int:
         except Exception:  # noqa: BLE001
             errors += 1
             log(f"{name} failed:\n{traceback.format_exc()}")
-    for name, fn in (("nikkei", update_nikkei), ("eval", estimate_eval), ("daily", update_daily)):
+    for name, fn in (("nikkei", update_nikkei), ("eval", estimate_eval), ("daily", update_daily), ("breadth", lambda _c: update_breadth())):
         try:
             fn(closes)
         except Exception:  # noqa: BLE001

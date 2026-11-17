@@ -226,8 +226,8 @@
 "sell_shares": 375064,
 "buy_shares": 3660529,
 "src": "jpx",
-"eval": -14.02,
-"eval_type": "est",
+"eval": -13.5,
+"eval_type": "actual",
 "nikkei": 62693.16
 },
 {
@@ -237,8 +237,8 @@
 "sell_shares": 349230,
 "buy_shares": 3654854,
 "src": "jpx",
-"eval": -13.2,
-"eval_type": "est",
+"eval": -15.4,
+"eval_type": "actual",
 "nikkei": 63290.11
 },
 {
@@ -248,8 +248,8 @@
 "sell_shares": 332419,
 "buy_shares": 3460691,
 "src": "jpx",
-"eval": -21.23,
-"eval_type": "est",
+"eval": -21.08,
+"eval_type": "actual",
 "nikkei": 57434.77
 }
 ]
