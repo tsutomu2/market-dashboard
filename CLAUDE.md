@@ -1,6 +1,8 @@
 # 引き継ぎメモ（Claude Code 用）
 
-オーナー：山本 勉（GitHub: tsutomu2 ※旧メモの yamamototsu は誤り）。日本語で会話。Excel VBAに詳しい。
+オーナー：山本 勉（GitHub: tsutomu2 ※旧メモの yamamototsu は誤り）。Excel VBAに詳しい。
+
+**応答・説明・進捗報告はすべて日本語で行うこと（オーナーの指定。途中で英語に切り替えない）。**
 
 ## 目的
 Excelで手作業管理していた3種類の需給データを自動取得し、表（マトリックス計算）とグラフで見るHTMLアプリにする。GitHub Actionsで取得し、GitHub Pages（/docs）で公開する。
