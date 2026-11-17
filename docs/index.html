@@ -55,7 +55,11 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .st-buy{background:var(--posbg);color:var(--pos)}.st-sell{background:var(--negbg);color:var(--neg)}.st-neutral{background:var(--line);color:var(--muted)}.st-na{background:none;color:var(--muted);border:1px dashed var(--line)}
 .sig .val{white-space:nowrap}
 @media (max-width:480px){.pill{min-width:0;padding:2px 7px;font-size:11px}.sig{gap:4px 8px}}
-.tape{margin:6px -14px 0;min-height:46px;overflow:hidden}
+.tape{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));margin:0 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:76px}
+.tape>div{height:74px;overflow:hidden;border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;padding:6px 12px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff;font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid2 .box{margin-bottom:14px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr;gap:0}}
 .grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
@@ -69,9 +73,9 @@ code{font-size:12px}
 <header>
   <h1>マーケット需給ダッシュボード</h1>
   <div class="sub">データ更新: <span id="updated">—</span>（JPX・日経公表値を自動取得）</div>
-  <div class="tape" id="tape"></div>
   <nav class="tabs">
     <button class="tab on" data-page="signal">シグナル</button>
+    <button class="tab" data-page="chart">チャート</button>
     <button class="tab" data-page="margin">信用残</button>
     <button class="tab" data-page="tech">テクニカル</button>
     <button class="tab" data-page="corr">連動指数</button>
@@ -80,6 +84,7 @@ code{font-size:12px}
   </nav>
 </header>
 <main>
+<div class="tape" id="tape"></div>
 <div class="err" id="err"></div>
 <div class="controls" id="period-box">
   <label>期間 <select id="period">
@@ -102,6 +107,24 @@ code{font-size:12px}
   <div class="cards" id="s-ref"></div>
   <details class="box"><summary>判定の基準と出典</summary><div class="wrap"><table id="s-th"></table></div>
     <p class="note">基準は index.html 冒頭の <code>TH</code> で変更できます。「近似」は、動画の考え方（トレンドラインなど目で引くもの）を数値で判定するために決めた値です。パラボリックは高値・安値データが無いため終値で計算しています。一目均衡表・フィボナッチ・エリオット波動は未対応です。</p></details>
+</section>
+
+<!-- ============ チャート ============ -->
+<section class="page" id="p-chart">
+  <div class="seg" id="tf"></div>
+  <div id="ch-tv" class="box" style="display:none"><h2>日経225（1時間足・リアルタイム）</h2>
+    <p class="note">TradingView のチャート（日経225のCFD）。連動指数と予測は日足のデータで作っているため、1時間足では表示していません。チャート上で足の長さや描画の変更もできます。</p>
+    <div id="ch-tvbox" style="height:540px"></div></div>
+  <div id="ch-main">
+    <div class="cards" id="ch-cards"></div>
+    <div class="grid2">
+      <div class="box"><h2 id="ch-t1">日経平均</h2><div class="chart" style="height:300px"><canvas id="ch-c1"></canvas></div></div>
+      <div class="box"><h2 id="ch-t2">連動指数</h2><div class="chart" style="height:300px"><canvas id="ch-c2"></canvas></div></div>
+    </div>
+    <div class="box"><h2 id="ch-t3">予測</h2><p class="note" id="ch-n3"></p>
+      <div class="chart" style="height:360px"><canvas id="ch-c3"></canvas></div>
+      <p class="note" id="ch-bt" style="margin-top:8px"></p></div>
+  </div>
 </section>
 
 <!-- ============ テクニカル ============ -->
@@ -859,10 +882,126 @@ function renderCorr() {
     rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td>${cell(r[2])}${cell(r[3])}<td style="text-align:left;white-space:normal;min-width:180px">${r[4]}</td></tr>`).join('') + '</tbody>';
 }
 
+/* ---------------- チャート（足の切り替え・予測） ---------------- */
+const TF = {
+  h1: {label: '1時間足'},
+  d: {label: '1日足', bars: 120, past: 40, h: 10},
+  w: {label: '1週足', bars: 104, past: 30, h: 8},
+  w2: {label: '2週足', bars: 78, past: 26, h: 6},
+  m: {label: '1ヶ月足', bars: 36, past: 24, h: 6},
+};
+let curTF = 'd';
+try { const v = localStorage.getItem('tf'); if (v && TF[v]) curTF = v; } catch (e) { /* 保存できない環境では既定値 */ }
+const dayNum = s => Math.round(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 864e5);
+const isoOf = n => new Date(n * 864e5).toISOString().slice(0, 10);
+function periodKey(s, tf) {
+  if (tf === 'd') return s;
+  if (tf === 'm') return s.slice(0, 7);
+  const mon = dayNum(s) - ((new Date(s).getUTCDay() + 6) % 7);   // その週の月曜
+  return tf === 'w' ? mon : Math.floor((mon - 4) / 14);          // 2週足は1970-01-05起点で2週ずつ
+}
+function resample(dates, vals, tf) {
+  const out = [];
+  dates.forEach((d, i) => {
+    const v = vals[i]; if (v == null) return;
+    const k = periodKey(d, tf), last = out[out.length - 1];
+    if (last && last.k === k) { last.d = d; last.v = v; } else out.push({k, d, v});
+  });
+  return out;
+}
+function barLabel(d, tf) {
+  const [y, m, dd] = d.split('-');
+  return tf === 'm' ? `${y.slice(2)}/${+m}` : tf === 'd' ? `${+m}/${+dd}` : `${y.slice(2)}/${+m}/${+dd}`;
+}
+function futureDates(last, tf, k) {
+  const out = []; let n = dayNum(last);
+  for (let i = 0; i < k; i++) {
+    if (tf === 'd') { do n++; while ([0, 6].includes(new Date(n * 864e5).getUTCDay())); out.push(isoOf(n)); }
+    else if (tf === 'w') { n += 7; out.push(isoOf(n)); }
+    else if (tf === 'w2') { n += 14; out.push(isoOf(n)); }
+    else { const dt = new Date(last); out.push(new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + i + 2, 0)).toISOString().slice(0, 10)); }
+  }
+  return out;
+}
+function sdOf(a) { const m = a.reduce((s, v) => s + v, 0) / a.length; return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)); }
+function mountTv() {
+  const box = $('#ch-tvbox'); box.innerHTML = '';
+  const c = document.createElement('div'); c.className = 'tradingview-widget-container'; c.style.height = '100%';
+  const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; c.appendChild(w);
+  const s = document.createElement('script'); s.async = true;
+  s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.textContent = JSON.stringify({symbol: 'OANDA:JP225USD', interval: '60', timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true,
+    theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', allow_symbol_change: false, hide_side_toolbar: true, withdateranges: true});
+  c.appendChild(s); box.appendChild(c); box.dataset.mounted = '1';
+}
+function renderChart() {
+  $('#tf').innerHTML = Object.entries(TF).map(([k, v]) => `<button class="${k === curTF ? 'on' : ''}" data-tf="${k}">${v.label}</button>`).join('');
+  const hourly = curTF === 'h1';
+  $('#ch-tv').style.display = hourly ? '' : 'none';
+  $('#ch-main').style.display = hourly ? 'none' : '';
+  if (hourly) { if (!$('#ch-tvbox').dataset.mounted) mountTv(); return; }
+  const tf = TF[curTF], L = linkSeries(), nk = D.daily.nikkei || [];
+  if (!nk.length) return;
+  const nb = resample(nk.map(r => r[0]), nk.map(r => r[1]), curTF);
+  const pb = L ? resample(L.dates, L.P, curTF) : [];
+  const pMap = Object.fromEntries(pb.map(b => [b.k, b.v]));
+  // 日経平均・連動指数のグラフ
+  const show = nb.slice(-tf.bars), labels = show.map(b => barLabel(b.d, curTF));
+  const ln = (label, data, color, extra = {}) => Object.assign({type: 'line', label, data, borderColor: color, backgroundColor: color, pointRadius: 0, borderWidth: 2, tension: 0, spanGaps: true}, extra);
+  const xs = {ticks: {maxTicksLimit: 8, maxRotation: 0}};
+  const vals = [...show.map(b => b.v), ...show.map(b => pMap[b.k]).filter(v => v != null)];
+  const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.05;
+  const ys = {min: Math.floor((lo - pad) / 500) * 500, max: Math.ceil((hi + pad) / 500) * 500, ticks: {callback: v => fmt0.format(v)}};
+  const nkMa = sma(nb.map(b => b.v), curTF === 'd' ? 25 : 13).slice(-show.length);
+  mkChart('ch-c1', {data: {labels, datasets: [ln('日経平均', show.map(b => r2(b.v)), PALETTE[0]), ln(curTF === 'd' ? '25日線' : '13本線', nkMa.map(r1), PALETTE[5], {borderWidth: 1, borderDash: [4, 3]})]},
+    options: {scales: {x: xs, y: ys}}});
+  const extra = L && L.ahead && curTF === 'd' ? 1 : 0;   // 次の取引日の推定がある場合は1本先まで描く
+  const pLabels = extra ? [...labels, barLabel(L.dates[L.dates.length - 1], 'd')] : labels;
+  const pData = show.map(b => r2(pMap[b.k] ?? null));
+  if (extra) pData.push(r2(L.P[L.P.length - 1]));
+  mkChart('ch-c2', {data: {labels: pLabels, datasets: [ln('連動指数', pData, PALETTE[1], {pointRadius: pData.map((_, i) => extra && i === pData.length - 1 ? 6 : 0)}),
+    ln('日経平均（参考）', [...show.map(b => r2(b.v)), ...(extra ? [null] : [])], PALETTE[0] + '55', {borderWidth: 1})]},
+    options: {scales: {x: xs, y: ys}}});
+  $('#ch-t1').textContent = `日経平均（${tf.label}）`;
+  $('#ch-t2').textContent = `連動指数（${tf.label}）`;
+  // 予測：過去の値動きの大きさから、今後の予想レンジ（約68%・約95%）
+  const rets = nb.map((b, i) => i ? Math.log(b.v / nb[i - 1].v) : null).slice(1);
+  const look = curTF === 'd' ? 250 : curTF === 'w' ? 104 : 9999;
+  const sig = sdOf(rets.slice(-look));
+  let in1 = 0, in2 = 0, tot = 0;
+  for (let k = Math.min(30, Math.floor(rets.length / 3)); k < rets.length; k++) { const s = sdOf(rets.slice(Math.max(0, k - look), k)); tot++; if (Math.abs(rets[k]) <= s) in1++; if (Math.abs(rets[k]) <= 2 * s) in2++; }
+  const past = nb.slice(-tf.past), base = past[past.length - 1].v, fut = futureDates(past[past.length - 1].d, curTF, tf.h);
+  const fl = [...past.map(b => barLabel(b.d, curTF)), ...fut.map(d => barLabel(d, curTF))];
+  const K = past.length, H = fut.length;
+  const band = z => [...past.map((_, i) => i === K - 1 ? base : null), ...fut.map((_, j) => Math.round(base * Math.exp(z * sig * Math.sqrt(j + 1))))];
+  const estAhead = L && L.ahead && curTF === 'd' ? L.P[L.P.length - 1] : null;
+  mkChart('ch-c3', {data: {labels: fl, datasets: [
+    ln('日経平均', [...past.map(b => r2(b.v)), ...fut.map(() => null)], PALETTE[0], {borderWidth: 2.5}),
+    ln('連動指数', [...past.map(b => r2(pMap[b.k] ?? null)), ...fut.map((_, j) => j === 0 && estAhead ? r2(estAhead) : null)], PALETTE[1], {borderWidth: 1.5, pointRadius: [...past.map(() => 0), ...fut.map((_, j) => j === 0 && estAhead ? 6 : 0)]}),
+    ln('予想レンジ上限（約95%）', band(2), PALETTE[3] + '66', {borderWidth: 1, borderDash: [4, 3]}),
+    ln('予想レンジ下限（約95%）', band(-2), PALETTE[3] + '66', {borderWidth: 1, borderDash: [4, 3], fill: '-1', backgroundColor: PALETTE[3] + '14'}),
+    ln('予想レンジ上限（約68%）', band(1), PALETTE[3], {borderWidth: 1}),
+    ln('予想レンジ下限（約68%）', band(-1), PALETTE[3], {borderWidth: 1, fill: '-1', backgroundColor: PALETTE[3] + '26'}),
+    ln('中心（現在値）', band(0), PALETTE[5], {borderWidth: 1, borderDash: [2, 3]})]},
+    options: {plugins: {legend: {labels: {filter: it => !/下限/.test(it.text)}}}, scales: {x: xs, y: {ticks: {callback: v => fmt0.format(v)}}}}});
+  const r1x = j => [base * Math.exp(-sig * Math.sqrt(j)), base * Math.exp(sig * Math.sqrt(j))].map(v => fmt0.format(v)).join('〜');
+  const r2x = j => [base * Math.exp(-2 * sig * Math.sqrt(j)), base * Math.exp(2 * sig * Math.sqrt(j))].map(v => fmt0.format(v)).join('〜');
+  $('#ch-t3').textContent = `予測（${tf.label}・${H}本先までの予想レンジ）`;
+  $('#ch-n3').innerHTML = `上がる・下がるの方向は予想せず、過去の${tf.label}の値動きの大きさ（1本あたり標準偏差 ${(sig * 100).toFixed(2)}%）から、今後収まりやすい範囲を描いています。濃い帯＝約68%、薄い帯＝約95%。` +
+    (estAhead ? `オレンジの点＝前夜の米国から計算した次の取引日の推定（${fmt0.format(estAhead)}円）。` : '');
+  $('#ch-bt').innerHTML = `過去の実績：次の1本が濃い帯に収まった割合 <b>${Math.round(in1 / tot * 100)}%</b>（理論上68%）、薄い帯は <b>${Math.round(in2 / tot * 100)}%</b>（理論上95%）。${tot}本で検証。急落・急騰時は帯を外れやすい点に注意。`;
+  const lastN = nb[nb.length - 1], prevN = nb[nb.length - 2];
+  $('#ch-cards').innerHTML =
+    card('日経平均', fmt2.format(lastN.v), `${barLabel(lastN.d, 'w')}　前の足比 ${sgn((lastN.v / prevN.v - 1) * 100, fmt2)}%`, lastN.v >= prevN.v ? 'pos' : 'neg') +
+    card(estAhead ? '連動指数（次の取引日の推定）' : '連動指数', estAhead ? fmt2.format(estAhead) : (pb.length ? fmt2.format(pb[pb.length - 1].v) : '—'), estAhead ? `${barLabel(L.dates[L.dates.length - 1], 'w')}の目安` : (pb.length ? barLabel(pb[pb.length - 1].d, 'w') : '')) +
+    card('次の1本の予想レンジ（約68%）', r1x(1), `約95%：${r2x(1)}`) +
+    card(`${H}本先の予想レンジ（約68%）`, r1x(H), `約95%：${r2x(H)}`);
+}
+
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
-  $('#period-box').style.display = on === 'signal' ? 'none' : '';
-  ({signal: renderSignal, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  $('#period-box').style.display = on === 'signal' || on === 'chart' ? 'none' : '';
+  ({signal: renderSignal, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 /* ---------------- UI ---------------- */
@@ -874,6 +1013,7 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 }));
 ['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
 $('#i-checks').addEventListener('change', renderInvestor);
+$('#tf').addEventListener('click', e => { const b = e.target.closest('[data-tf]'); if (!b) return; curTF = b.dataset.tf; try { localStorage.setItem('tf', curTF); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.csv;
   if (k === 'margin') download('信用残', ['申込日', '売り残(百万円)', '買い残(百万円)', '信用倍率', '評価損益率(%)', '種別', '日経平均'], marginRows().map(r => [r.date, r.sell, r.buy, r.ratio && r.ratio.toFixed(2), r.eval, r.eval_type === 'est' ? '推計' : r.eval_type === 'actual' ? '実績' : '', r.nikkei]));
@@ -883,25 +1023,29 @@ document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click',
 if (location.hash) { const b = document.querySelector(`.tab[data-page="${location.hash.slice(1)}"]`); if (b) b.click(); }
 /* ---------------- 上部の相場（TradingView） ---------------- */
 const TAPE = [
-  {proName: 'OANDA:JP225USD', title: '日経225(CFD)'},
+  {proName: 'OANDA:JP225USD', title: '日経225'},
   {proName: 'OSE:NK2251!', title: '日経先物'},
   {proName: 'OSE:TOPIX1!', title: 'TOPIX先物'},
   {proName: 'FX:USDJPY', title: 'ドル円'},
   {proName: 'TVC:GOLD', title: '金'},
   {proName: 'TVC:USOIL', title: 'WTI原油'},
 ];
+/* 銘柄ごとに1つずつ並べる（流れない表示） */
 function mountTape() {
   const box = $('#tape'); box.innerHTML = '';
-  const c = document.createElement('div'); c.className = 'tradingview-widget-container';
-  const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; c.appendChild(w);
-  const s = document.createElement('script'); s.async = true;
-  s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
-  s.textContent = JSON.stringify({symbols: TAPE, showSymbolLogo: false, isTransparent: true, displayMode: 'compact',
-    colorTheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', locale: 'ja'});
-  c.appendChild(s); box.appendChild(c);
+  const theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  for (const sym of TAPE) {
+    const cell = document.createElement('div');
+    const c = document.createElement('div'); c.className = 'tradingview-widget-container';
+    const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; c.appendChild(w);
+    const s = document.createElement('script'); s.async = true;
+    s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-tickers.js';
+    s.textContent = JSON.stringify({symbols: [sym], showSymbolLogo: false, isTransparent: true, colorTheme: theme, locale: 'ja'});
+    c.appendChild(s); cell.appendChild(c); box.appendChild(cell);
+  }
 }
 mountTape();
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); });
 load();
 </script>
 </body>

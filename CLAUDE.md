@@ -9,7 +9,7 @@ Excelで手作業管理していた3種類の需給データを自動取得し�
 
 ## 構成
 - `scripts/fetch.py`：取得と推計。平日 17:35 / 21:35 JST に Actions から実行（`.github/workflows/update-data.yml`）
-- `docs/index.html`：アプリ（Chart.js、タブはシグナル・信用残・テクニカル・連動指数・日経理論値・投資主体別）
+- `docs/index.html`：アプリ（Chart.js、タブはシグナル・チャート・信用残・テクニカル・連動指数・日経理論値・投資主体別）
 - `docs/data/*.json`：データ。初期値はオーナーのExcel画面から転記したもの（src: "sheet"）
 - `docs/data/manual_eval.csv`：信用評価損益率の実績値（手入力）
 - `debug/`：取得失敗時のExcelダンプと `last_run.log`
@@ -35,8 +35,15 @@ YouTube「Sho's投資情報局」（@SHO1112）の手法にもとづく。YouTub
   - NS倍率は「日経平均÷S&P500」と解釈（動画で定義が明示されていない）
   - 未対応：一目均衡表・フィボナッチ・エリオット波動（高値安値データなし／主観的）。パラボリックは終値ベース
 - 「SHO最新100本分析」（Googleドキュメント、作成依頼中）：届いたら、指標の使用頻度・数値・動画の結論と当時のサインの対応を集計し、判定を調整する
-- 画面上部の相場の帯：TradingView の ticker-tape ウィジェット（`index.html` の `TAPE`）。無料ウィジェットで表示できない銘柄（TVC:NI225・TOPIX指数・COMEX:GC1!・NYMEX:CL1!）があるため、日経225＝OANDA:JP225USD（CFD）、日経先物＝OSE:NK2251!（20分遅れ）、TOPIX先物＝OSE:TOPIX1!（20分遅れ）、ドル円＝FX:USDJPY、金＝TVC:GOLD、WTI＝TVC:USOIL
+- 画面上部の相場：TradingView の tickers ウィジェットを銘柄ごとに並べる（`index.html` の `TAPE`）。無料ウィジェットで表示できない銘柄（TVC:NI225・TOPIX指数・COMEX:GC1!・NYMEX:CL1!）があるため、日経225＝OANDA:JP225USD（CFD）、日経先物＝OSE:NK2251!（20分遅れ）、TOPIX先物＝OSE:TOPIX1!（20分遅れ）、ドル円＝FX:USDJPY、金＝TVC:GOLD、WTI＝TVC:USOIL
 - 追加データ：`short.json`（空売り集計PDF）、`lev1570.json`（銘柄別信用取引残高PDFから1570のみ）、`daily.json`（日経・VIX・ドル円・ナスダック・S&P500の日次3年分、FRED）
+
+## チャートタブ（足の切り替え・予測）
+- 足：1時間足／1日足／1週足／2週足／1ヶ月足（`index.html` の `TF`）。日足（FRED）を週・2週（1970-01-05起点）・月にまとめ直して描く。選んだ足は localStorage に保存
+- 1時間足は手元に時間足データが無いため TradingView の advanced-chart ウィジェット（OANDA:JP225USD、60分）で表示。連動指数・予測は出さない
+- 予測＝方向は予想せず、その足の対数騰落の標準偏差（日足250本・週足104本・他は全期間）から ±1σ√h（約68%）・±2σ√h（約95%）の予想レンジを描く。過去の的中率（帯に収まった割合）を画面に表示（日足：68%帯に74%、95%帯に93%）
+- 日足で米国の最新値が日経より新しい場合、連動指数の「次の取引日の推定」を予測グラフの1本目に点で表示
+- 上部の相場：流れる ticker-tape をやめ、tickers ウィジェットを銘柄ごとに1つずつグリッドで並べた（固定表示、ヘッダーではなく本文の先頭）
 
 ## 連動指数タブ（日経平均と強く連動し、少し早めにシグナルを出す合成指数）
 - 連動指数＝前日の日経終値 × exp(前夜の S&P500・ナスダック・VIX の対数騰落を説明変数にした回帰の予測)。係数は過去250日の日次リターンで毎日推定（当日は学習に含めない）。`index.html` の `LINK`
