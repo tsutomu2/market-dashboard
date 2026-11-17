@@ -67,6 +67,7 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .step{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:0}
 .step .no{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:2px}
 .step .sh{font-size:12px;color:var(--muted)}.step .sr{font-size:16px;font-weight:600;margin:1px 0 2px}.step .c{font-size:12px;color:var(--muted)}
+.stars{display:block;color:#d9a21b;font-size:13px;letter-spacing:1px;line-height:1.2}.snote{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-bottom:2px}
 .grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
 .meter{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line)}
 .meter span{display:block;height:100%}
@@ -101,6 +102,7 @@ code{font-size:12px}
 <section class="page on" id="p-signal">
   <div class="box" id="s-judge"></div>
   <div class="cards" id="s-summary"></div>
+  <div class="box" id="s-verify"></div>
   <div class="box"><h2>急落・下落の8つのサイン</h2>
     <p class="note">解説動画（11/16回）で挙げられている急落パターンの8条件です。点灯が多いほど急落・下落しやすいとされます。売買の判断はご自身で行ってください。</p>
     <div id="s-crash"></div></div>
@@ -505,8 +507,8 @@ const r2 = v => v == null ? null : Math.round(v * 100) / 100;
 const hline = (labels, y, color, label) => ({type: 'line', label, data: labels.map(() => y), borderColor: color, borderDash: [4, 4], borderWidth: 1, pointRadius: 0, fill: false});
 
 /* バンドウォーク：直近 look 日の中で、±bandZσの外に bandDays 日以上続いた最後の区間 */
-function findWalk(t, dir, look = 60) {
-  const n = t.c.length; let run = 0, end = -1, start = -1, best = null;
+function findWalk(t, dir, look = 60, last = t.c.length - 1) {
+  const n = last + 1; let run = 0, end = -1, start = -1, best = null;
   for (let i = Math.max(0, n - look); i < n; i++) {
     const hit = t.z[i] != null && (dir > 0 ? t.z[i] >= TH.bandZ : t.z[i] <= -TH.bandZ);
     if (hit) { if (!run) start = i; run++; end = i; if (run >= TH.bandDays) best = {start, end}; } else run = 0;
@@ -514,9 +516,9 @@ function findWalk(t, dir, look = 60) {
   return best;
 }
 /* バンドウォーク終了サイン：ウォークの後に パラボリック転換＋MACDクロス がどちらも出たか */
-function walkEnd(t, dir) {
-  const w = findWalk(t, dir); if (!w) return {walk: null};
-  const n = t.c.length, ongoing = w.end >= n - 2;
+function walkEnd(t, dir, last = t.c.length - 1) {
+  const w = findWalk(t, dir, 60, last); if (!w) return {walk: null};
+  const n = last + 1, ongoing = w.end >= n - 2;
   let sarTurn = null, cross = null;
   for (let i = w.start + 1; i < n; i++) {
     if (sarTurn == null && t.sarUp[i] != null && t.sarUp[i - 1] != null && t.sarUp[i] !== t.sarUp[i - 1] && t.sarUp[i] === (dir < 0)) sarTurn = i;
@@ -535,6 +537,97 @@ function nextUsSq(from = new Date()) {
   return null;
 }
 const jd = d => `${d.getMonth() + 1}/${d.getDate()}`;
+
+/* ---------------- 重要度（★）：過去データでの効き目×件数 ---------------- */
+/* 各項目が「点灯していた日」のあと、日経平均が想定どおりの方向に動いたかを過去約3年で測る。
+   効き目 edge = 想定方向 ×（5日後の平均騰落の差 ＋ 20日後の差÷4）、件数が少ないほど割り引く。 */
+function starsOf(edge, nEff) {
+  if (nEff == null || nEff < 8) return null;
+  const rel = nEff >= 30 ? 1 : nEff >= 15 ? 0.75 : 0.5, s = edge * rel;
+  return s >= 2 ? 5 : s >= 1 ? 4 : s >= 0.4 ? 3 : s >= 0 ? 2 : 1;
+}
+const starTxt = k => '★'.repeat(k) + '☆'.repeat(5 - k);
+let _histCache = null;
+function histCtx() {
+  if (_histCache && _histCache.len === (D.daily.nikkei || []).length) return _histCache;
+  const t = techSeries(), n = t.c.length, c = t.c;
+  const fw = h => c.map((v, k) => k + h < n ? (c[k + h] / v - 1) * 100 : null);
+  const F5 = fw(5), F20 = fw(20);
+  const mean = (ix, F) => { const a = ix.filter(k => F[k] != null); return a.reduce((s, k) => s + F[k], 0) / (a.length || 1); };
+  const all = c.map((_, k) => k);
+  const base = {m5: mean(all, F5), m20: mean(all, F20)};
+  const vixPrev = prevMap(t.dates, D.daily.vix || []), vm = macdOf(vixPrev), vps = psar(vixPrev.map(v => v ?? 0));
+  const sp = Object.fromEntries((D.daily.sp500 || []).map(r => r)), nsv = t.dates.map((d, k) => sp[d] ? c[k] / sp[d] : null);
+  const nsF = nsv.map((v, k) => v ?? (k ? nsv[k - 1] : null)), nsma = sma(nsF.map(v => v ?? 0), 25);
+  // 週次データを日付に展開（公表日以降に使えるとみなす：信用残は2営業日後、投資主体別は4営業日後）
+  const asOf = (list, key, lag) => t.dates.map((d, k) => { const j = Math.max(0, k - lag); let r = null; for (const x of list) { if (x[key] <= t.dates[j]) r = x; else break; } return r; });
+  const mAt = asOf(D.margin, 'date', 2), iAt = asOf(D.investor, 'week_end', 4);
+  _histCache = {len: (D.daily.nikkei || []).length, t, n, c, F5, F20, base, mean, vixPrev, vm, vps, nsF, nsma, mAt, iAt};
+  return _histCache;
+}
+function evalMask(mask, dir, weekly, event) {
+  const H = histCtx(), ix = [];
+  let prev = false;
+  for (let k = 0; k < H.n; k++) { const on = !!mask(k); if (on && (!event || !prev)) ix.push(k); prev = on; }  // event：点灯し始めた日だけ数える
+  const nEff = weekly ? new Set(ix.map(k => weekly(k))).size : ix.length;
+  if (!ix.length) return {n: 0, nEff: 0, stars: null};
+  const m5 = H.mean(ix, H.F5), m20 = H.mean(ix, H.F20);
+  const edge = dir * ((m5 - H.base.m5) + (m20 - H.base.m20) / 4);
+  return {n: ix.length, nEff, m5, m20, edge, stars: starsOf(edge, nEff)};
+}
+/* 項目名ごとの「点灯していた日」の判定（過去にさかのぼって計算できるもの） */
+function histRule(name) {
+  const H = histCtx(), t = H.t, c = H.c;
+  const rsiBreak = (k, up) => { for (let j = k; j > k - 5 && j > TH.lineDays; j--) { const w = t.rsi.slice(j - TH.lineDays, j).filter(v => v != null); if (!w.length || t.rsi[j] == null) continue; if (up ? t.rsi[j] > Math.max(...w) : t.rsi[j] < Math.min(...w)) return true; } return false; };
+  const crossIn = (h, k, days, type) => { for (let j = k; j > k - days && j > 0; j--) if (h[j] != null && h[j - 1] != null && (type > 0 ? h[j] > 0 && h[j - 1] <= 0 : h[j] < 0 && h[j - 1] >= 0)) return true; return false; };
+  const wk = (at, key) => k => at[k] ? at[k][key] : null;
+  const R = {
+    '上昇バンドウォーク終了サイン': [-1, k => k > 80 && walkEnd(t, +1, k).done, null, true],
+    '二市場 信用売残が8,000億円未満': [-1, k => H.mAt[k] && H.mAt[k].sell < TH.sellBalance, wk(H.mAt, 'date')],
+    '日本株の優位性低下': [-1, k => k > 30 && H.nsF[k] != null && H.nsF[k] < H.nsma[k] && H.nsF[k] < H.nsF[k - 5]],
+    '海外投資家の売り越し': [-1, k => H.iAt[k] && H.iAt[k].foreign < 0, wk(H.iAt, 'week_end')],
+    'VIXのMACDがゴールデンクロス': [-1, k => H.vm.hist[k] != null && H.vm.hist[k] > 0],
+    'RSIの下値ライン割れ': [-1, k => k > 40 && rsiBreak(k, false)],
+    '下落バンドウォーク終了サイン': [1, k => k > 80 && walkEnd(t, -1, k).done, null, true],
+    'VIXのMACDがデッドクロス': [1, k => H.vm.hist[k] != null && H.vm.hist[k] < 0 && H.vps.up[k] === false],
+    '急落は3日待て': [1, k => { for (const d of TH.waitDays) { const j = k - d + 1; if (j > 0 && (c[j] / c[j - 1] - 1) * 100 <= TH.bigDrop) return true; } return false; }],
+    '逆ダイバージェンス＋RSI上値ライン突破＋MACDゴールデンクロス': [1, k => {
+      if (k < 60) return false;
+      const a = c.slice(k - 19, k + 1), b = c.slice(k - 39, k - 19), ra = t.rsi.slice(k - 19, k + 1), rb = t.rsi.slice(k - 39, k - 19);
+      return Math.min(...a) < Math.min(...b) && Math.min(...ra) > Math.min(...rb) && rsiBreak(k, true) && crossIn(t.hist, k, 5, 1); }],
+    '25日線（中央線）が鋭角に切り下がり': [-1, k => k > 30 && t.ma25[k - 5] && (t.ma25[k] / t.ma25[k - 5] - 1) * 100 <= TH.slopeDown],
+    '5日線と200日線のデッドクロス': [-1, k => t.ma200[k] != null && t.ma5[k] < t.ma200[k] && crossIn(t.ma5.map((v, j) => v != null && t.ma200[j] != null ? v - t.ma200[j] : null), k, 20, -1)],
+    '5日線と25日線のクロス': [-1, k => crossIn(t.ma5.map((v, j) => v != null && t.ma25[j] != null ? v - t.ma25[j] : null), k, 10, -1)],
+    'RSI 80以上／20以下': [-1, k => t.rsi[k] != null && t.rsi[k] >= TH.rsiHigh],
+    '信用評価損益率（参考）': [1, k => H.mAt[k] && H.mAt[k].eval != null && H.mAt[k].eval <= TH.evalBottom, wk(H.mAt, 'date')],
+    'バンドウォーク中': [-1, k => { let run = 0; for (let j = k; j > k - TH.bandDays; j--) if (t.z[j] != null && t.z[j] <= -TH.bandZ) run++; return run >= TH.bandDays; }],
+  };
+  const key = Object.keys(R).find(x => name.replace(/^[①-⑧]\s*/, '').startsWith(x));
+  return key ? R[key] : null;
+}
+/* 動画での重視度（過去データで確かめられない項目の仮の★） */
+const VIDEO_WEIGHT = {'日経レバ(1570)': 3, 'ショートカバー条件': 3, 'PER16倍・PBR2倍': 3, 'PER14倍・13倍': 2, '二市場の信用倍率': 2, '米国SQ週': 2, '信用期日': 3, '空売り比率': 1};
+function rateList(list) {
+  for (const x of list) {
+    const rule = histRule(x.name);
+    x.name = x.name.replace(/^[①-⑧]\s*/, '');
+    if (rule) {
+      const e = evalMask(rule[1], rule[0], rule[2], rule[3]);
+      x.stars = e.stars; x.ev = e; x.dir = rule[0];
+    }
+    if (x.stars == null) {
+      const w = Object.keys(VIDEO_WEIGHT).find(k => x.name.startsWith(k));
+      x.stars = w ? VIDEO_WEIGHT[w] : 2; x.unverified = true;
+    }
+  }
+  return list.sort((a, b) => b.stars - a.stars || (b.ev ? b.ev.edge : -9) - (a.ev ? a.ev.edge : -9));
+}
+function starHtml(x) {
+  const H = histCtx();
+  const note = x.unverified ? '未検証（データ不足のため動画での重視度）'
+    : `点灯${x.ev.nEff}${x.ev.nEff !== x.ev.n ? '週' : '回'}：5日後 ${sgn(x.ev.m5, fmt2)}%・20日後 ${sgn(x.ev.m20, fmt2)}%（全期間 ${sgn(H.base.m5, fmt2)}%・${sgn(H.base.m20, fmt2)}%）` + (x.stars === 1 ? '　※過去約3年では想定と逆の結果' : '');
+  return `<span class="stars" title="${note}">${starTxt(x.stars)}</span><span class="snote">${note}</span>`;
+}
 
 /* ---------------- シグナル ---------------- */
 const ST = {on: '点灯', off: '消灯', ok: '成立', no: '不成立', warn: '注意', none: 'なし', na: 'データなし'};
@@ -658,14 +751,15 @@ function buildSignals() {
     c: mz.eval <= TH.evalBottom ? '-10%以下＝追証売りが出やすい水準（元のシートの目安）' : ''});
   const s = D.short, sz = s[s.length - 1];
   if (sz) caution.push({name: '空売り比率（参考）', st: 'none', val: sz.ratio.toFixed(1) + '%', c: md(sz.date) + '。5日平均 ' + (s.slice(-5).reduce((a, r) => a + r.ratio, 0) / Math.min(5, s.length)).toFixed(1) + '%'});
-  return {crash, rebound, caution};
+  return {crash: rateList(crash), rebound: rateList(rebound), caution: rateList(caution)};
 }
 function sigRows(list) {
-  return list.map(x => `<div class="sig"><div class="n">${x.name}${x.asof ? `<small>${x.asof}</small>` : ''}</div><div class="val">${x.val}</div><div><span class="pill st-${STC[x.st]}">${ST[x.st]}</span></div>${x.c ? `<div class="c">${x.c}</div>` : ''}</div>`).join('');
+  return list.map(x => `<div class="sig"><div class="n">${x.stars ? starHtml(x) : ''}${x.name}${x.asof ? `<small>${x.asof}</small>` : ''}</div><div class="val">${x.val}</div><div><span class="pill st-${STC[x.st]}">${ST[x.st]}</span></div>${x.c ? `<div class="c">${x.c}</div>` : ''}</div>`).join('');
 }
 function renderSignal() {
-  const sigAll = buildSignals(), {crash, rebound, caution} = sigAll;
-  renderJudge(sigAll);
+  const sigAll = buildSignals(), {crash, rebound, caution} = sigAll, V = buildVerify();
+  renderJudge(sigAll, V);
+  renderVerify(V);
   const lit = crash.filter(x => x.st === 'on').length, okN = rebound.filter(x => x.st === 'ok').length, wN = caution.filter(x => x.st === 'warn').length;
   const lv = lit >= 6 ? ['高い', 'neg'] : lit >= 4 ? ['やや高い', 'neg'] : lit >= 2 ? ['低め', ''] : ['低い', 'pos'];
   $('#s-summary').innerHTML =
@@ -1005,6 +1099,93 @@ function renderChart() {
     card(`${H}本先の予想レンジ（約68%）`, r1x(H), `約95%：${r2x(H)}`);
 }
 
+/* ---------------- 各画面の指標と日経平均の関係（過去データで検証） ---------------- */
+/* 指標ごとに「今と同じ状態だった日のあと、日経がどう動いたか」を毎回計算し直す */
+function buildVerify() {
+  const t = techSeries(), n = t.c.length, i = n - 1; if (n < 260) return null;
+  const c = t.c, fw = h => c.map((v, k) => k + h < n ? (c[k + h] / v - 1) * 100 : null);
+  const F1 = fw(1), F5 = fw(5), F20 = fw(20);
+  const st = mask => {
+    const ix = mask.map((m, k) => m && F5[k] != null ? k : -1).filter(k => k >= 0), ix20 = ix.filter(k => F20[k] != null);
+    const avg = (a, F) => a.reduce((s, k) => s + F[k], 0) / (a.length || 1), up = (a, F) => a.filter(k => F[k] > 0).length / (a.length || 1) * 100;
+    return {n: ix.length, m5: avg(ix, F5), p5: up(ix, F5), m20: avg(ix20, F20), p20: up(ix20, F20), n20: ix20.length};
+  };
+  const base = st(c.map(() => true));
+  const judge = s => s.n < 10 ? 'na' : (s.m20 - base.m20 >= 1.5 && s.p20 >= 70) || (s.m5 - base.m5 >= 1 && s.p5 >= 65) ? 'buy'
+    : (s.m5 < 0 && s.p5 <= 45) || (s.m20 <= base.m20 - 1.5 && s.p20 <= 50) ? 'sell' : 'neutral';
+  const rows = [];
+  // 状態（バケツ）で分ける指標：cls(k) が今日と同じ値の日を集める
+  const bucket = (tab, name, cls, label) => {
+    const now = cls(i); if (now == null) return;
+    const s = st(c.map((_, k) => cls(k) === now));
+    rows.push({tab, name, now: label(now), s, st: judge(s), kind: 'state'});
+  };
+  const vixPrev = prevMap(t.dates, D.daily.vix || []), vm = macdOf(vixPrev.map(v => v == null ? null : v));
+  bucket('テクニカル', 'RSI(14)', k => t.rsi[k] == null ? null : t.rsi[k] <= 30 ? 0 : t.rsi[k] >= 70 ? 2 : 1, b => ['30以下（売られ過ぎ）', '30〜70', '70以上（過熱）'][b] + `　今 ${t.rsi[i].toFixed(1)}`);
+  bucket('テクニカル', 'ボリンジャー(20日)', k => t.z[k] == null ? null : t.z[k] <= -2 ? 0 : t.z[k] >= 2 ? 2 : 1, b => ['−2σ以下', '±2σの内側', '+2σ以上'][b] + `　今 ${t.z[i].toFixed(2)}σ`);
+  bucket('テクニカル', '25日線乖離率', k => t.ma25[k] == null ? null : (c[k] / t.ma25[k] - 1) * 100 <= -5 ? 0 : (c[k] / t.ma25[k] - 1) * 100 >= 5 ? 2 : 1, b => ['−5%以下', '±5%以内', '+5%以上'][b] + `　今 ${sgn((c[i] / t.ma25[i] - 1) * 100, fmt2)}%`);
+  bucket('テクニカル', 'MACD(12,26,9)', k => t.hist[k] == null ? null : t.hist[k] > 0 ? 1 : 0, b => ['シグナルより下', 'シグナルより上'][b]);
+  bucket('テクニカル', 'パラボリック', k => t.sarUp[k] == null ? null : t.sarUp[k] ? 1 : 0, b => ['陰転（下降）', '陽転（上昇）'][b]);
+  bucket('テクニカル', '200日線', k => t.ma200[k] == null ? null : c[k] > t.ma200[k] ? 1 : 0, b => ['200日線より下', '200日線より上'][b]);
+  bucket('テクニカル', 'VIX（前夜）', k => vixPrev[k] == null ? null : vixPrev[k] >= 25 ? 2 : vixPrev[k] <= 15 ? 0 : 1, b => ['15以下', '15〜25', '25以上'][b] + `　今 ${vixPrev[i].toFixed(1)}`);
+  bucket('テクニカル', 'VIXのMACD', k => vm.hist[k] == null ? null : vm.hist[k] > 0 ? 1 : 0, b => ['デッドクロス中', 'ゴールデンクロス中'][b]);
+  bucket('テクニカル', '−3%以上の急落のあと', k => { for (let j = k; j > k - 5 && j > 0; j--) if ((c[j] / c[j - 1] - 1) * 100 <= -3) return 1; return 0; }, b => ['直近5日に急落なし', '直近5日に急落あり']);
+  // 連動指数：朝の推定と当日の騰落
+  const L = linkSeries();
+  if (L) {
+    const est = L.P.map((p, k) => p != null && L.N[k - 1] != null ? (p / L.N[k - 1] - 1) * 100 : null);
+    const act = L.N.map((v, k) => v != null && L.N[k - 1] != null ? (v / L.N[k - 1] - 1) * 100 : null);
+    const cls = e => e == null ? null : e >= 0.3 ? 2 : e <= -0.3 ? 0 : 1;
+    const li = L.dates.length - 1, nowB = L.ahead ? cls(est[li]) : null;  // 次の取引日の推定が無ければ判定しない
+    const ks = est.map((e, k) => cls(e) === nowB && act[k] != null ? k : -1).filter(k => k >= 0);
+    const hit = ks.filter(k => nowB === 1 ? true : Math.sign(act[k]) === (nowB === 2 ? 1 : -1)).length / (ks.length || 1) * 100;
+    const avg = ks.reduce((s, k) => s + act[k], 0) / (ks.length || 1);
+    rows.push({tab: '連動指数', name: '朝の推定（次の取引日）', now: nowB == null ? '米国データ未反映' : ['−0.3%以下（下落寄り）', '±0.3%以内', '+0.3%以上（上昇寄り）'][nowB] + `　今 ${sgn(est[li], fmt2)}%`,
+      s: {n: ks.length, hit: nowB == null || nowB === 1 ? null : hit, custom: nowB == null ? '—' : `その日の日経 平均 ${sgn(avg, fmt2)}%${nowB !== 1 ? `、方向一致 ${Math.round(hit)}%` : ''}`},
+      st: nowB == null || ks.length < 10 ? 'na' : nowB === 2 && hit >= 65 ? 'buy' : nowB === 0 && hit >= 65 ? 'sell' : 'neutral', kind: 'custom', asof: md(L.dates[li])});
+  }
+  // 週次・短いデータ：公表日から5営業日後の騰落との相関（サンプルが少ないので参考）
+  const idxOn = d => { let r = null; t.dates.forEach((x, k) => { if (x <= d) r = k; }); return r; };
+  const corrRow = (tab, name, list, key, lag, f, unitTxt) => {
+    const xs = [], ys = [];
+    list.forEach((r, k) => { const v = f(r, k), j = idxOn(r[key]); if (v == null || j == null || j + lag + 5 >= n) return; xs.push(v); ys.push((c[j + lag + 5] / c[j + lag] - 1) * 100); });
+    const cr = corrOf(xs, ys), vals = list.map((r, k) => f(r, k)).filter(v => v != null), cur = vals[vals.length - 1];
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length, sd = Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length);
+    const zc = sd ? (cur - mean) / sd : 0, implied = cr.r == null ? 0 : Math.sign(cr.r) * Math.sign(zc);
+    rows.push({tab, name, now: `${unitTxt(cur)}（平均より${zc >= 0 ? '高い' : '低い'}）`, s: {n: cr.n, r: cr.r},
+      st: cr.r == null || cr.n < 10 ? 'na' : Math.abs(cr.r) >= 0.3 && Math.abs(zc) >= 0.5 ? (implied > 0 ? 'buy' : 'sell') : 'neutral', kind: 'corr'});
+  };
+  const m = D.margin;
+  corrRow('信用残', '信用倍率', m, 'date', 2, r => r.buy / r.sell, v => fmt2.format(v) + '倍');
+  corrRow('信用残', '信用買残の前週比', m, 'date', 2, (r, k) => k ? (r.buy / m[k - 1].buy - 1) * 100 : null, v => sgn(v, fmt2) + '%');
+  corrRow('信用残', '信用評価損益率', m, 'date', 2, r => r.eval, v => fmt2.format(v) + '%');
+  corrRow('投資主体別', '海外投資家（差引き）', D.investor, 'week_end', 4, r => r.foreign, v => sgn(Math.round(v / 100)) + '億円');
+  corrRow('投資主体別', '個人（差引き）', D.investor, 'week_end', 4, r => r.individual, v => sgn(Math.round(v / 100)) + '億円');
+  corrRow('投資主体別', '投資信託（差引き）', D.investor, 'week_end', 4, r => r.inv_trust, v => sgn(Math.round(v / 100)) + '億円');
+  corrRow('日経理論値', 'PER（加重平均）', D.nikkei, 'date', 0, r => r.per_w, v => fmt2.format(v) + '倍');
+  return {rows, base};
+}
+function renderVerify(V) {
+  const box = $('#s-verify'); if (!box || !V) return;
+  const lab = {buy: '買い寄り', sell: '売り寄り', neutral: '中立', na: 'データ不足'}, cl = {buy: 'buy', sell: 'sell', neutral: 'neutral', na: 'na'};
+  const rel = s => s.n >= 30 ? '○' : s.n >= 10 ? '△' : '×';
+  for (const r of V.rows) {
+    const b = V.base;
+    const e = r.kind === 'state' ? Math.abs((r.s.m5 - b.m5) + (r.s.m20 - b.m20) / 4) : r.kind === 'custom' ? (r.s.hit == null ? 0 : (r.s.hit - 50) / 10) : (r.s.r == null ? 0 : Math.abs(r.s.r) * 3);
+    r.stars = Math.min(r.kind === 'corr' ? 3 : 5, starsOf(e, r.s.n) || 1); r.edge = e;  // 週次・短いデータは★3まで
+  }
+  V.rows.sort((a, b) => b.stars - a.stars || b.edge - a.edge);
+  let html = '';
+  for (const r of V.rows) {
+    const det = r.kind === 'state' ? `今と同じ状態だった${r.s.n}日のあと：5日後 ${sgn(r.s.m5, fmt2)}%（上昇${Math.round(r.s.p5)}%）、20日後 ${sgn(r.s.m20, fmt2)}%（上昇${Math.round(r.s.p20)}%）`
+      : r.kind === 'custom' ? `今と同じ状態だった${r.s.n}日：${r.s.custom}`
+      : `値と、公表後5営業日の日経騰落との相関 r=${r.s.r == null ? '—' : (r.s.r >= 0 ? '+' : '') + r.s.r.toFixed(2)}（${r.s.n}週・日）。少ないので参考`;
+    html += `<div class="sig"><div class="n"><span class="stars">${starTxt(r.stars)}</span>${r.name}<small>${r.tab}｜${r.now}</small></div><div class="val">信頼度 ${rel(r.s)}</div><div><span class="pill st-${cl[r.st]}">${lab[r.st]}</span></div><div class="c">${det}</div></div>`;
+  }
+  box.innerHTML = `<h2>各画面の指標と日経平均の関係（過去データで検証）</h2>` +
+    `<p class="note">基準：全期間の平均は 5日後 ${sgn(V.base.m5, fmt2)}%（上昇${Math.round(V.base.p5)}%）、20日後 ${sgn(V.base.m20, fmt2)}%（上昇${Math.round(V.base.p20)}%）。これより明らかに良ければ「買い寄り」、悪ければ「売り寄り」。信頼度：○＝30件以上、△＝10〜29件、×＝10件未満。★は「今の状態が、その後の日経にどれだけ差を生んできたか」×件数で、多いほど重要（重要な順に表示）。過去約3年はおおむね上昇相場だったため、その偏りが入っています。</p>` + html;
+}
+
 /* ---------------- 今日の判断（自動） ---------------- */
 const JUDGE = {
   defendCrash: 5,   // 急落サインがこの数以上 かつ 反発条件0 → 守り
@@ -1014,7 +1195,7 @@ const JUDGE = {
   signalDays: 15,   // これより古い合図は「直近の合図なし」とみなす（営業日）
 };
 function nextWeekday(from, dow) { const d = new Date(from); d.setHours(0, 0, 0, 0); do d.setDate(d.getDate() + 1); while (d.getDay() !== dow); return d; }
-function renderJudge(sig) {
+function renderJudge(sig, V) {
   const box = $('#s-judge'); if (!box) return;
   const t = techSeries(), L = linkSeries();
   if (!L || t.c.length < 260) { box.innerHTML = '<h2>今日の判断（自動）</h2><p class="note">データが足りません</p>'; return; }
@@ -1043,6 +1224,13 @@ function renderJudge(sig) {
     c: `急落サイン ${lit}/8、反発条件 ${okN}/${sig.rebound.length}。` +
       (stance === 'defend' ? '新規の買いは控えるか少量に。保有は戻りで減らす。' : stance === 'attack' ? '押し目で買う構え。' : '取引量は普段の半分程度。') +
       (warns.length ? `注意点：${warns.join('、')}。` : '') + (yearEnd ? '年末は信用期日・損益通算売りが重なりやすく、出尽くした安値を分けて拾うのがSHO手法の考え方。' : '')});
+
+  // ②' データ検証（過去3年で効いていた指標）
+  const vb = V ? V.rows.filter(r => r.st === 'buy' && r.s.n >= 20) : [], vs = V ? V.rows.filter(r => r.st === 'sell' && r.s.n >= 20) : [];
+  steps.push({h: 'データ検証（過去約3年で、今と同じ状態のあと）', r: `買い寄り ${vb.length}件／売り寄り ${vs.length}件`, cls: vb.length > vs.length ? 'pos' : vs.length > vb.length ? 'neg' : '',
+    c: (vb.length ? '買い寄り：' + vb.map(r => `${r.name}（${r.kind === 'state' ? `20日後 上昇${Math.round(r.s.p20)}%` : r.s.custom}）`).join('、') + '。' : '') +
+      (vs.length ? '売り寄り：' + vs.map(r => `${r.name}（${r.kind === 'state' ? `5日後 上昇${Math.round(r.s.p5)}%` : r.s.custom}）`).join('、') + '。' : '') +
+      (!vb.length && !vs.length ? '今の状態で、過去にはっきり差が出ていた指標はありません。' : '') + '信頼度○△の指標のみ数えています（詳しくは下の「各画面の指標と日経平均の関係」）。'});
 
   // ③ タイミング（連動指数 → 日経の2段階）
   const sn = crosses(L.N, LINK.slow).out, sc = crosses(L.P, LINK.fast, LINK.band).out;
@@ -1084,6 +1272,8 @@ function renderJudge(sig) {
     concl = timing === 'buy1' ? '中立。普段の半分の量で、その半分を打診買い' : timing === 'buy2' ? '中立。普段の半分の量の残りを買う段階' : timing.startsWith('sell') ? '中立。様子見、保有の一部を減らす' : '中立。合図待ち';
     ccls = '';
   }
+  if (stance === 'defend' && vb.length >= 2) concl += `。ただし過去約3年のデータでは、今と同じ状態のあとは反発しやすかった（${vb.slice(0, 2).map(r => r.name).join('・')}）`;
+  if (stance === 'attack' && vs.length >= 2) concl += `。ただし過去約3年のデータでは、今と同じ状態のあとは伸びにくかった（${vs.slice(0, 2).map(r => r.name).join('・')}）`;
   if (yearEnd && stance !== 'attack') concl += '。年末（クリスマス頃〜大納会）の投げ一巡を分割で拾う準備';
   box.innerHTML = `<h2>今日の判断（自動）</h2><p class="note">基準：日経 ${ymd(asof)} 終値・データ更新 ${D.meta.updated || '—'}。決めたルールに当てはめた結果で、売買を勧めるものではありません。</p>` +
     `<div class="concl ${ccls}">${concl}</div>` +
