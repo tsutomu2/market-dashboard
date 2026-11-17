@@ -57,9 +57,10 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 @media (max-width:480px){.pill{min-width:0;padding:2px 7px;font-size:11px}.sig{gap:4px 8px}}
 /* 上部の相場：TradingView の文字は外から大きさを変えられないので、枠ごと拡大（zoom）する */
 .tape{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.tape>div{height:108px;overflow:hidden;border-bottom:1px solid var(--line)}.tape .z{zoom:1.4}
-@media (max-width:900px){.tape{grid-template-columns:1fr 1fr}.tape>div{height:92px}.tape .z{zoom:1.2}}
-@media (max-width:600px){.tape>div{height:76px}.tape .z{zoom:1}}
+.tape>div{height:136px;overflow:hidden;border-bottom:1px solid var(--line);padding:8px 10px 0}.tape .z{zoom:1.6}
+.tape .lab{font-size:15px;font-weight:600;margin-bottom:-4px}
+@media (max-width:900px){.tape{grid-template-columns:1fr 1fr}.tape>div{height:118px}.tape .z{zoom:1.35}}
+@media (max-width:600px){.tape>div{height:76px;padding:0}.tape .z{zoom:1}}
 .seg{display:inline-flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
 .seg button{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;padding:6px 12px;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--accent);color:#fff;font-weight:600}
@@ -1389,22 +1390,27 @@ const TAPE = [
   {proName: 'TVC:USOIL', title: 'WTI原油'},
 ];
 /* 銘柄ごとに1つずつ並べる（流れない表示） */
+/* PC・タブレットは価格が大きく出る single-quote（名前は英語なので日本語名を上に添える）、スマホは幅に収まる tickers */
+const tapeNarrow = matchMedia('(max-width:600px)');
 function mountTape() {
   const box = $('#tape'); box.innerHTML = '';
-  const theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', narrow = tapeNarrow.matches;
   for (const sym of TAPE) {
     const cell = document.createElement('div');
+    if (!narrow) { const lab = document.createElement('div'); lab.className = 'lab'; lab.textContent = sym.title === '日経225' ? '日経225（CFD）' : sym.title; cell.appendChild(lab); }
     const c = document.createElement('div'); c.className = 'tradingview-widget-container';
     const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; c.appendChild(w);
     const s = document.createElement('script'); s.async = true;
-    s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-tickers.js';
-    s.textContent = JSON.stringify({symbols: [sym], showSymbolLogo: false, isTransparent: true, colorTheme: theme, locale: 'ja'});
+    s.src = `https://s3.tradingview.com/external-embedding/embed-widget-${narrow ? 'tickers' : 'single-quote'}.js`;
+    s.textContent = JSON.stringify(narrow ? {symbols: [sym], showSymbolLogo: false, isTransparent: true, colorTheme: theme, locale: 'ja'}
+      : {symbol: sym.proName, width: '100%', isTransparent: true, colorTheme: theme, locale: 'ja'});
     const z = document.createElement('div'); z.className = 'z';
     c.appendChild(s); z.appendChild(c); cell.appendChild(z); box.appendChild(cell);
   }
 }
 mountTape();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); });
+tapeNarrow.addEventListener('change', mountTape);
 load();
 </script>
 </body>
