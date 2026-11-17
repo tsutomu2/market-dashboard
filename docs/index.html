@@ -56,6 +56,8 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .sig .val{white-space:nowrap}
 @media (max-width:480px){.pill{min-width:0;padding:2px 7px;font-size:11px}.sig{gap:4px 8px}}
 .tape{margin:6px -14px 0;min-height:46px;overflow:hidden}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid2 .box{margin-bottom:14px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr;gap:0}}
 .grp{font-size:12px;color:var(--muted);font-weight:600;margin:12px 0 0;letter-spacing:.05em}
 .meter{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line)}
 .meter span{display:block;height:100%}
@@ -72,6 +74,7 @@ code{font-size:12px}
     <button class="tab on" data-page="signal">シグナル</button>
     <button class="tab" data-page="margin">信用残</button>
     <button class="tab" data-page="tech">テクニカル</button>
+    <button class="tab" data-page="corr">連動指数</button>
     <button class="tab" data-page="nikkei">日経理論値</button>
     <button class="tab" data-page="investor">投資主体別</button>
   </nav>
@@ -130,6 +133,25 @@ code{font-size:12px}
     <div class="chart" style="height:200px"><canvas id="t-chart4"></canvas></div></div>
   <div class="box"><h2>ドル円・ナスダック</h2>
     <div class="chart" style="height:220px"><canvas id="t-chart6"></canvas></div></div>
+</section>
+
+<!-- ============ 連動指数 ============ -->
+<section class="page" id="p-corr">
+  <div class="cards" id="c-cards"></div>
+  <div class="grid2">
+    <div class="box"><h2>日経225（終値）</h2>
+      <p class="note">MACD（12,26,9）のクロス：▲ゴールデン、▼デッド。</p>
+      <div class="chart" style="height:300px"><canvas id="c-chart1"></canvas></div>
+      <div class="chart" style="height:130px"><canvas id="c-chart2"></canvas></div></div>
+    <div class="box"><h2>連動指数（米国株・VIXの合成）</h2>
+      <p class="note">前日の日経終値に、前夜の S&amp;P500・ナスダック・VIX の騰落を効かせた推定値。MACDは速め（8,17,6）。▲▼が日経より早めに出るように調整。</p>
+      <div class="chart" style="height:300px"><canvas id="c-chart3"></canvas></div>
+      <div class="chart" style="height:130px"><canvas id="c-chart4"></canvas></div></div>
+  </div>
+  <div class="box"><h2>シグナルの先行度（全期間の実績）</h2><div id="c-lead"></div></div>
+  <div class="box"><h2>日経平均と各データの相関</h2>
+    <p class="note">相関係数（r）：+1に近いほど同じ向き、-1に近いほど逆向きに動く。水準どうしの相関は、どちらも上昇傾向だと高く出やすいので、「値動き」の相関もあわせて見ます。米国のデータは前夜の値を東京の当日に対応させています。</p>
+    <div class="wrap"><table id="c-table"></table></div></div>
 </section>
 
 <!-- ============ 信用残 ============ -->
@@ -699,10 +721,148 @@ function renderTech() {
     options: {scales: {x: xs, y: {position: 'left', ticks: {callback: v => v + '円'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, ticks: {callback: v => fmt0.format(v)}}}}});
 }
 
+/* ---------------- 連動指数 ---------------- */
+const LINK = {
+  inputs: ['sp500', 'nasdaq', 'vix'],  // 前夜の米国データ（ドル円はFREDの公表が数日遅れるため朝の計算に間に合わず除外）
+  win: 250,                            // 係数を求める過去の日数（当日は学習に含めない）
+  fast: [8, 17, 6], band: 0.05,        // 連動指数のMACD（速め）と、小さなクロスを除く幅（ヒストグラム÷価格、%）
+  slow: [12, 26, 9],                   // 日経のMACD（標準）
+};
+/* 東京の日付 t に、t より前の最後の米国の値（＝前夜の米国市場）を対応させる */
+function prevMap(dates, series) {
+  const out = []; let j = 0, last = null;
+  for (const t of dates) { while (j < series.length && series[j][0] < t) { last = series[j][1]; j++; } out.push(last); }
+  return out;
+}
+function corrOf(a, b) {
+  const p = a.map((v, i) => [v, b[i]]).filter(([x, y]) => x != null && y != null && isFinite(x) && isFinite(y));
+  if (p.length < 5) return {r: null, n: p.length};
+  const mx = p.reduce((s, q) => s + q[0], 0) / p.length, my = p.reduce((s, q) => s + q[1], 0) / p.length;
+  let sxy = 0, sxx = 0, syy = 0; for (const [x, y] of p) { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; syy += (y - my) ** 2; }
+  return {r: sxy / Math.sqrt(sxx * syy), n: p.length};
+}
+function solve(A, b) {  // 連立一次方程式（ガウスの消去法）
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]]; if (Math.abs(M[c][c]) < 1e-12) return null;
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+  }
+  return M.map((r, i) => r[n] / r[i]);
+}
+function linkSeries() {
+  const nk = D.daily.nikkei || []; if (nk.length < LINK.win + 30) return null;
+  let dates = nk.map(r => r[0]), N = nk.map(r => r[1]);
+  // 米国の最新値が日経の最終日より新しければ、次の取引日の目安を1日分足す
+  const lastUs = Math.min(...LINK.inputs.map(k => { const a = D.daily[k] || []; return a.length ? new Date(a[a.length - 1][0]) : 0; }));
+  const lastN = new Date(dates[dates.length - 1]);
+  let ahead = false;
+  if (lastUs >= lastN) { const nx = new Date(lastN); do nx.setDate(nx.getDate() + 1); while (nx.getDay() === 0 || nx.getDay() === 6); dates = [...dates, nx.toISOString().slice(0, 10)]; N = [...N, null]; ahead = true; }
+  const X = LINK.inputs.map(k => prevMap(dates, D.daily[k] || []));
+  const lr = a => a.map((v, i) => i && v != null && a[i - 1] != null ? Math.log(v / a[i - 1]) : null);
+  const R = X.map(lr), rN = lr(N), n = dates.length, P = dates.map(() => null);
+  for (let i = LINK.win + 1; i < n; i++) {
+    const k = R.length + 1, A = Array.from({length: k}, () => Array(k).fill(0)), b = Array(k).fill(0);
+    let cnt = 0;
+    for (let j = i - LINK.win; j < i; j++) {
+      if (rN[j] == null || R.some(r => r[j] == null)) continue;
+      const x = [1, ...R.map(r => r[j])]; cnt++;
+      for (let a = 0; a < k; a++) { b[a] += x[a] * rN[j]; for (let c = 0; c < k; c++) A[a][c] += x[a] * x[c]; }
+    }
+    const coef = cnt > 30 ? solve(A, b) : null;
+    if (!coef || R.some(r => r[i] == null) || N[i - 1] == null) continue;
+    const x = [1, ...R.map(r => r[i])];
+    P[i] = N[i - 1] * Math.exp(x.reduce((s, v, a) => s + v * coef[a], 0));
+  }
+  return {dates, N, P, ahead};
+}
+/* MACDクロス（ヒストグラムが ±band% を超えたら確定） */
+function crosses(a, [f, s, g], band = 0) {
+  const vals = a.map(v => v == null ? null : v);
+  const e1 = ema(vals, f), e2 = ema(vals, s), m = vals.map((_, i) => e1[i] != null && e2[i] != null ? e1[i] - e2[i] : null);
+  const sg = ema(m, g), h = m.map((v, i) => v != null && sg[i] != null ? (v - sg[i]) / vals[i] * 100 : null);
+  const out = []; let st = 0;
+  h.forEach((v, i) => { if (v == null) return; const w = v > band ? 1 : v < -band ? -1 : 0; if (w && w !== st) { if (st) out.push({i, t: w}); st = w; } });
+  return {h, out};
+}
+function leadStats(sc, sn, maxlag = 10) {
+  const used = new Set(), leads = [];
+  for (const a of sn) {
+    let best = null; for (const b of sc) if (b.t === a.t && Math.abs(a.i - b.i) <= maxlag && (best == null || Math.abs(a.i - b.i) < Math.abs(a.i - best.i))) best = b;
+    if (best) { leads.push(a.i - best.i); used.add(best.i); }
+  }
+  const avg = leads.reduce((s, v) => s + v, 0) / (leads.length || 1);
+  return {n: sn.length, matched: leads.length, avg, early: leads.filter(v => v > 0).length, same: leads.filter(v => v === 0).length, extra: sc.filter(b => !used.has(b.i)).length, total: sc.length};
+}
+function renderCorr() {
+  const L = linkSeries();
+  if (!L) { $('#c-lead').textContent = 'データが足りません'; return; }
+  const {dates, N, P} = L, nIdx = N.length - 1 - (L.ahead ? 1 : 0);
+  const sn = crosses(N, LINK.slow), sc = crosses(P, LINK.fast, LINK.band);
+  const span = weeks() >= 9999 ? dates.length : Math.min(dates.length, weeks() * 5);
+  const s0 = dates.length - span, labels = dates.slice(s0).map(md);
+  const marks = (out, arr) => { const up = arr.map(() => null), dn = arr.map(() => null); out.forEach(({i, t}) => { if (i >= s0) (t > 0 ? up : dn)[i - s0] = arr[i]; }); return [up, dn]; };
+  const [nUp, nDn] = marks(sn.out, N), [pUp, pDn] = marks(sc.out, P);
+  const ln = (label, data, color, extra = {}) => Object.assign({type: 'line', label, data, borderColor: color, backgroundColor: color, pointRadius: 0, borderWidth: 2, tension: 0, spanGaps: true}, extra);
+  const mk = (label, data, color, style) => ({type: 'line', label, data, showLine: false, pointStyle: style, pointRadius: 7, borderColor: color, backgroundColor: color});
+  const xs = {ticks: {maxTicksLimit: 7, maxRotation: 0}};
+  const all = [...N.slice(s0), ...P.slice(s0)].filter(v => v != null), lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo) * 0.05;
+  const ys = {min: Math.floor((lo - pad) / 500) * 500, max: Math.ceil((hi + pad) / 500) * 500, ticks: {callback: v => fmt0.format(v)}};
+  mkChart('c-chart1', {data: {labels, datasets: [ln('日経225', N.slice(s0).map(r2), PALETTE[0]), mk('ゴールデン', nUp, css('--pos'), 'triangle'), mk('デッド', nDn, css('--neg'), 'triangle')]},
+    options: {plugins: {legend: {display: false}}, scales: {x: xs, y: ys}}});
+  const pts = P.slice(s0).map((v, k) => L.ahead && s0 + k === dates.length - 1 ? 6 : 0);
+  mkChart('c-chart3', {data: {labels, datasets: [ln('連動指数', P.slice(s0).map(r2), PALETTE[1], {pointRadius: pts}), ln('日経225（参考）', N.slice(s0).map(r2), PALETTE[0] + '55', {borderWidth: 1}),
+    mk('ゴールデン', pUp, css('--pos'), 'triangle'), mk('デッド', pDn, css('--neg'), 'triangle')]},
+    options: {plugins: {legend: {display: false}}, scales: {x: xs, y: ys}}});
+  const hist = (id, h) => mkChart(id, {data: {labels, datasets: [{type: 'bar', label: 'MACDヒストグラム(%)', data: h.slice(s0).map(v => v == null ? null : Math.round(v * 1000) / 1000), backgroundColor: h.slice(s0).map(v => v >= 0 ? css('--pos') + '99' : css('--neg') + '99')}]},
+    options: {plugins: {legend: {display: false}}, scales: {x: {display: false}, y: {ticks: {callback: v => v + '%'}}}}});
+  hist('c-chart2', sn.h); hist('c-chart4', sc.h);
+  // 先行度
+  const st = leadStats(sc.out, sn.out), ref = leadStats(crosses(N, LINK.fast, LINK.band).out, sn.out);
+  const lastSig = o => o.length ? `${o[o.length - 1].t > 0 ? '▲ゴールデン' : '▼デッド'}（${md(dates[o[o.length - 1].i])}）` : '—';
+  const nxt = L.ahead ? P[P.length - 1] : null;
+  $('#c-cards').innerHTML =
+    card('日経225', fmt2.format(N[nIdx]), md(dates[nIdx]) + '　直近 ' + lastSig(sn.out)) +
+    card(L.ahead ? '連動指数（次の取引日の目安）' : '連動指数', fmt2.format(L.ahead ? nxt : P[nIdx]), (L.ahead ? md(dates[dates.length - 1]) + '　前日比 ' + sgn((nxt / N[nIdx] - 1) * 100, fmt2) + '%　' : md(dates[nIdx]) + '　') + '直近 ' + lastSig(sc.out), L.ahead ? (nxt >= N[nIdx] ? 'pos' : 'neg') : '') +
+    card('シグナルの先行', sgn(st.avg, fmt2) + '日', `平均（＋＝連動指数が先）。さらに米国の引け後に計算できるため実時間で約半日早い`) +
+    card('ダマシ', `${st.extra}回`, `連動指数のシグナル${st.total}回のうち、日経に対応するシグナルが無かった回数`);
+  $('#c-lead').innerHTML = `<div class="sig"><div class="n">日経のMACDシグナル（${LINK.slow.join(',')}）<small>${ymd(dates[sn.out[0] ? sn.out[0].i : 0])}以降</small></div><div class="val">${st.n}回</div><div></div></div>` +
+    `<div class="sig"><div class="n">連動指数が先に出た／同じ日に出た</div><div class="val">${st.early}回／${st.same}回</div><div></div><div class="c">同じ向きのシグナルが前後10日以内にあったもの ${st.matched}回のうち。同じ日でも、連動指数は前夜の米国の引け後（東京の寄り付き前後）に分かります。</div></div>` +
+    `<div class="sig"><div class="n">参考：日経そのものに同じ速めの設定を使った場合</div><div class="val">${sgn(ref.avg, fmt2)}日／ダマシ${ref.extra}回</div><div></div><div class="c">シグナルが早まる効果の大半は「速めの設定」によるもので、米国データの上乗せは主に寄り付き前に分かる点（約半日）です。速くするほどダマシは増えます。</div></div>`;
+  // 相関の一覧
+  const nkD = D.daily.nikkei || [], dd = nkD.map(r => r[0]), nv = nkD.map(r => r[1]);
+  const chg = a => a.map((v, i) => i && v != null && a[i - 1] != null ? Math.log(v / a[i - 1]) : null);
+  const rows = [];
+  const nameMap = {sp500: 'S&P500（前夜）', nasdaq: 'ナスダック（前夜）', vix: 'VIX（前夜）', usdjpy: 'ドル円（前日）'};
+  for (const k of ['sp500', 'nasdaq', 'vix', 'usdjpy']) {
+    const x = prevMap(dd, D.daily[k] || []), a = corrOf(nv.map(Math.log), x.map(v => v && Math.log(v))), b = corrOf(chg(nv), chg(x));
+    rows.push([nameMap[k], '日次（3年）', a, b, k === 'usdjpy' ? 'FREDの公表が数日遅れるため連動指数には使っていない' : '連動指数に使用']);
+  }
+  rows.push(['連動指数（今回の合成）', '日次', corrOf(N.slice(0, nIdx + 1), P.slice(0, nIdx + 1)), corrOf(chg(N.slice(0, nIdx + 1)).map((v, i) => v), P.slice(0, nIdx + 1).map((v, i) => v != null && N[i - 1] != null ? Math.log(v / N[i - 1]) : null)), '値動きは「朝の推定（前日終値→連動指数）」と「実際の騰落」の相関']);
+  const nkOn = d => { let v = null; for (const [t, c] of nkD) { if (t <= d) v = c; else break; } return v; };
+  const wk = (list, key, f) => { const pts = list.map(r => [nkOn(r[key]), f(r)]).filter(p => p[0] != null && p[1] != null); return pts; };
+  const lvl = pts => corrOf(pts.map(p => p[0]), pts.map(p => p[1]));
+  const wchg = pts => corrOf(pts.map((p, i) => i ? Math.log(p[0] / pts[i - 1][0]) : null), pts.map((p, i) => i ? p[1] : null));
+  const m = D.margin;
+  rows.push(['信用買残', '週次', lvl(wk(m, 'date', r => r.buy)), null, '']);
+  rows.push(['信用売残', '週次', lvl(wk(m, 'date', r => r.sell)), null, '']);
+  rows.push(['信用倍率', '週次', lvl(wk(m, 'date', r => r.buy / r.sell)), null, '']);
+  rows.push(['信用評価損益率', '週次', lvl(wk(m, 'date', r => r.eval)), null, '推計値は日経平均から計算しているため高く出る（参考）']);
+  for (const [k, l] of [['foreign', '海外投資家'], ['individual', '個人'], ['inv_trust', '投資信託'], ['trust_bank', '信託銀行'], ['proprietary', '証券自己']])
+    rows.push([l + '（差引き）', '週次', null, wchg(wk(D.investor, 'week_end', r => r[k])), '値動き＝その週の日経の騰落と、その週の買越し額']);
+  const sh = D.short.map(r => [nkOn(r.date), r.ratio]);
+  rows.push(['空売り比率', '日次', lvl(sh), corrOf(sh.map((p, i) => i ? Math.log(p[0] / sh[i - 1][0]) : null), sh.map(p => p[1])), 'データが少ない（参考）']);
+  rows.push(['日経レバ(1570)信用倍率', '日次', lvl(D.lev.map(r => [nkOn(r.date), r.ratio])), null, 'データが少ない（参考）']);
+  rows.push(['予想EPS', '日次', lvl(D.nikkei.map(r => [r.close, r.eps_w])), null, 'PER×EPS＝日経平均（恒等式）なので PER は対象外']);
+  const cell = c => !c ? '<td>—</td>' : c.r == null ? `<td>データ不足（${c.n}）</td>` : `<td class="${Math.abs(c.r) >= 0.7 ? (c.r > 0 ? 'cpos' : 'cneg') : ''}">${c.r >= 0 ? '+' : ''}${c.r.toFixed(2)}<small style="color:var(--muted)">（${c.n}）</small></td>`;
+  $('#c-table').innerHTML = '<thead><tr><th>データ</th><th>頻度</th><th>水準の相関</th><th>値動きの相関</th><th style="text-align:left">メモ</th></tr></thead><tbody>' +
+    rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td>${cell(r[2])}${cell(r[3])}<td style="text-align:left;white-space:normal;min-width:180px">${r[4]}</td></tr>`).join('') + '</tbody>';
+}
+
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
   $('#period-box').style.display = on === 'signal' ? 'none' : '';
-  ({signal: renderSignal, margin: renderMargin, tech: renderTech, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  ({signal: renderSignal, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 /* ---------------- UI ---------------- */
