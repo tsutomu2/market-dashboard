@@ -158,7 +158,20 @@ code{font-size:12px}
     <div class="box"><h2>ダッシュボードの分析との比較</h2><div class="wrap" id="yt-cmp"></div></div>
   </div>
   <div class="box"><h2>答え合わせ（週ごと）</h2><p class="note">再生数で重み付けした強気度が +0.2 以上を「強気」、−0.2 以下を「弱気」として、集めた日の終値からの日経平均の騰落と比べます。○＝当たり。</p><div class="wrap" id="yt-check"></div></div>
-  <div class="box"><h2>動画一覧（再生数の多い順）</h2><p class="note">内容は NotebookLM の要約からの分類です。売買を勧めるものではありません。</p><div class="wrap" id="yt-list"></div></div>
+  <div class="box"><h2>動画一覧</h2><p class="note">内容は NotebookLM の要約からの分類です。売買を勧めるものではありません。見出しを押しても並び替えできます。</p>
+    <div class="controls" id="yt-ctl">
+      <label>並び順 <select id="yt-sort">
+        <option value="views-d">再生数の多い順</option><option value="views-a">再生数の少ない順</option>
+        <option value="date-d">公開日の新しい順</option><option value="date-a">公開日の古い順</option>
+        <option value="tgt-d">目標の高い順</option><option value="tgt-a">目標の低い順</option>
+        <option value="hz-a">期間の短い順</option><option value="hz-d">期間の長い順</option>
+        <option value="ch-a">チャンネル名順</option></select></label>
+      <label>方向 <select id="yt-fdir"><option value="all">すべて</option><option value="1">上昇だけ</option><option value="-1">下落だけ</option><option value="0">横ばいだけ</option><option value="2">二極化だけ</option></select></label>
+      <label>期間 <select id="yt-fhz"><option value="all">すべて</option><option>1週間以内</option><option>1ヶ月以内</option><option>年末まで</option><option>来年以降</option></select></label>
+      <label>目標 <select id="yt-ftg"><option value="all">すべて</option><option value="has">数値ありだけ</option></select></label>
+      <span class="note" id="yt-count" style="margin:0"></span>
+    </div>
+    <div class="wrap" id="yt-list"></div></div>
   </div>
 </section>
 
@@ -1451,9 +1464,26 @@ function renderYt() {
     return `<tr><td>${ymd(w.collected)}</td><td>${s.vids.length}本</td><td class="${call > 0 ? 'pos' : call < 0 ? 'neg' : ''}">${call > 0 ? '強気' : call < 0 ? '弱気' : '拮抗'}（${(s.score >= 0 ? '+' : '') + s.score.toFixed(2)}）</td>` +
       `<td>${r5 == null ? '未確定' : sgn(r5, fmt2) + '%' + (call ? (Math.sign(r5) === call ? ' ○' : ' ×') : '')}</td><td>${r20 == null ? '未確定' : sgn(r20, fmt2) + '%' + (call ? (Math.sign(r20) === call ? ' ○' : ' ×') : '')}</td></tr>`; }).reverse().join('');
   $('#yt-check').innerHTML = `<table><thead><tr><th>集めた日</th><th>本数</th><th>多数派</th><th>5営業日後の日経</th><th>20営業日後</th></tr></thead><tbody>${rows}</tbody></table>`;
-  // 動画一覧
-  const vs = S.vids.slice().sort((a, b) => (b.views || 0) - (a.views || 0));
-  $('#yt-list').innerHTML = `<table><thead><tr><th>動画</th><th>再生</th><th>公開</th><th>方向</th><th>期間</th><th>目標（円）</th><th style="text-align:left">主な理由</th></tr></thead><tbody>` +
+  renderYtList();
+}
+/* 動画一覧（並び替え・絞り込み）。選んだ条件はこの端末に保存 */
+const YT_HZ_ORDER = {'1週間以内': 1, '1ヶ月以内': 2, '年末まで': 3, '来年以降': 4};
+const ytTarget = v => v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high || null;
+function renderYtList() {
+  const H = (D.yt && D.yt.history) || []; if (!H.length) return;
+  const all = ytWeek(H[H.length - 1]).vids;
+  const [key, ord] = $('#yt-sort').value.split('-'), sign = ord === 'd' ? -1 : 1;
+  const fdir = $('#yt-fdir').value, fhz = $('#yt-fhz').value, ftg = $('#yt-ftg').value;
+  try { localStorage.setItem('ytList', JSON.stringify({sort: $('#yt-sort').value, fdir, fhz, ftg})); } catch (e) { /* 保存できなくても表示は変える */ }
+  const val = v => key === 'views' ? v.views || 0 : key === 'date' ? v.date || '' : key === 'tgt' ? ytTarget(v) : key === 'hz' ? YT_HZ_ORDER[v.horizon] || 9 : v.channel || '';
+  const vs = all.filter(v => (fdir === 'all' || v.dir === +fdir) && (fhz === 'all' || v.horizon === fhz) && (ftg === 'all' || ytTarget(v)))
+    .sort((a, b) => { const x = val(a), y = val(b);
+      if (x == null && y == null) return (b.views || 0) - (a.views || 0);
+      if (x == null) return 1; if (y == null) return -1;   // 目標なしは常に最後
+      return (x < y ? -1 : x > y ? 1 : (b.views || 0) - (a.views || 0) * 1) * (x === y ? 1 : sign); });
+  $('#yt-count').textContent = `${vs.length}本 / ${all.length}本`;
+  const th = (k, label, left) => `<th data-k="${k}" style="cursor:pointer${left ? ';text-align:left' : ''}">${label}${key === k ? (ord === 'd' ? ' ▼' : ' ▲') : ''}</th>`;
+  $('#yt-list').innerHTML = `<table><thead><tr>${th('ch', '動画', true)}${th('views', '再生')}${th('date', '公開')}<th>方向</th>${th('hz', '期間')}${th('tgt', '目標（円）')}<th style="text-align:left">主な理由</th></tr></thead><tbody>` +
     vs.map(v => `<tr><td style="text-align:left;white-space:normal;min-width:220px"><a href="${v.url}" target="_blank" rel="noopener" style="color:var(--fg)">${v.title}</a><br><small style="color:var(--muted)">${v.channel || ''}</small></td><td>${fmt0.format(v.views || 0)}</td><td>${v.date ? md(v.date) : '—'}</td>` +
       `<td class="${v.dir === 1 ? 'cpos' : v.dir === -1 ? 'cneg' : ''}">${YT_DIR[v.dir] || '—'}</td><td>${v.horizon || '—'}</td><td>${v.low || v.high ? [v.low, v.high].filter(Boolean).map(x => fmt0.format(x)).join('〜') : '—'}</td><td style="text-align:left;white-space:normal;min-width:180px">${v.reason || ''}</td></tr>`).join('') + '</tbody>';
 }
@@ -1473,6 +1503,16 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 }));
 ['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
 $('#i-checks').addEventListener('change', renderInvestor);
+['#yt-sort', '#yt-fdir', '#yt-fhz', '#yt-ftg'].forEach(id => $(id).addEventListener('change', renderYtList));
+$('#yt-list').addEventListener('click', e => {
+  const t = e.target.closest('th[data-k]'); if (!t) return;
+  const k = t.dataset.k, [cur, ord] = $('#yt-sort').value.split('-');
+  const next = cur === k ? (ord === 'd' ? 'a' : 'd') : (k === 'ch' || k === 'hz' ? 'a' : 'd');
+  const sel = $('#yt-sort'), v = `${k}-${next}`;
+  if (![...sel.options].some(o => o.value === v)) { const o = document.createElement('option'); o.value = v; o.textContent = `${t.textContent.replace(/[▲▼]/g, '').trim()}（${next === 'd' ? '降順' : '昇順'}）`; sel.appendChild(o); }
+  sel.value = v; renderYtList();
+});
+try { const st = JSON.parse(localStorage.getItem('ytList') || 'null'); if (st) { $('#yt-sort').value = st.sort; $('#yt-fdir').value = st.fdir; $('#yt-fhz').value = st.fhz; $('#yt-ftg').value = st.ftg; if (!$('#yt-sort').value) $('#yt-sort').value = 'views-d'; } } catch (e) { /* 既定の条件のまま */ }
 $('#tf').addEventListener('click', e => { const b = e.target.closest('[data-tf]'); if (!b) return; curTF = b.dataset.tf; try { localStorage.setItem('tf', curTF); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.csv;
