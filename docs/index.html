@@ -151,7 +151,7 @@ code{font-size:12px}
   <div class="box" id="yt-ai"></div>
   <div class="grid2">
     <div class="box"><h2>方向と期間</h2><p class="note">動画の本数。期間は動画が言っている予想の期間。</p><div class="chart" style="height:260px"><canvas id="yt-chart1"></canvas></div></div>
-    <div class="box"><h2>日経平均の目標と再生数</h2><p class="note">目標を数値で挙げた動画のみ。点の大きさ＝再生数。</p><div class="chart" style="height:260px"><canvas id="yt-chart2"></canvas></div></div>
+    <div class="box"><h2>日経平均の目標と再生数</h2><p class="note">年末までの目標を数値で挙げた動画のみ（来年以降の長期目標は除く）。点の大きさ＝再生数。</p><div class="chart" style="height:260px"><canvas id="yt-chart2"></canvas></div></div>
   </div>
   <div class="grid2">
     <div class="box"><h2>よく挙がる理由</h2><div id="yt-reasons"></div></div>
@@ -1392,7 +1392,8 @@ function ytWeek(w) {
   const share = {}, shareV = {};
   for (const d of [1, -1, 0, 2]) { const a = vids.filter(v => v.dir === d); share[d] = a.length / tot * 100; shareV[d] = a.reduce((s, v) => s + (v.views || 0), 0) / totV * 100; }
   const score = vids.reduce((s, v) => s + (v.dir === 1 ? 1 : v.dir === -1 ? -1 : 0) * (v.views || 0), 0) / totV;   // −1〜+1：再生数で重み付けした強気度
-  const mids = vids.map(v => v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high || null).filter(Boolean).sort((a, b) => a - b);
+  // 目標の中央値は年末までの予想だけで計算（来年以降・10年後などの長期目標は桁が違うため除く）
+  const mids = vids.filter(v => v.horizon !== '来年以降').map(v => v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high || null).filter(Boolean).sort((a, b) => a - b);
   const med = mids.length ? mids[Math.floor(mids.length / 2)] : null;
   return {vids, share, shareV, score, mids, med, totV};
 }
@@ -1418,13 +1419,13 @@ function renderYt() {
     card(`集めた動画（${ymd(W.collected)}）`, `${S.vids.length}本`, `過去1週間・再生数上位・1チャンネル3本まで。合計再生 ${fmt0.format(S.totV)}回`) +
     card('人気動画の多数派', lab[0], `上昇 ${pct(S.share, 1)}・下落 ${pct(S.share, -1)}・横ばい ${pct(S.share, 0)}・二極化 ${pct(S.share, 2)}（本数）`, lab[1]) +
     card('再生数で重み付けした強気度', (S.score >= 0 ? '+' : '') + S.score.toFixed(2), `−1（全員下落）〜＋1（全員上昇）。再生数ベース：上昇 ${pct(S.shareV, 1)}・下落 ${pct(S.shareV, -1)}`, S.score > 0 ? 'pos' : S.score < 0 ? 'neg' : '') +
-    card('日経平均の目標（中央値）', S.med ? fmt0.format(S.med) + '円' : '—', S.mids.length ? `数値を挙げた${S.mids.length}本。範囲 ${fmt0.format(S.mids[0])}〜${fmt0.format(S.mids[S.mids.length - 1])}円。現在 ${lastN ? fmt0.format(lastN[1]) + '円（' + md(lastN[0]) + '）' : '—'}` : '目標を数値で挙げた動画なし');
+    card('日経平均の目標（中央値・年末まで）', S.med ? fmt0.format(S.med) + '円' : '—', S.mids.length ? `年末までの目標を数値で挙げた${S.mids.length}本。範囲 ${fmt0.format(S.mids[0])}〜${fmt0.format(S.mids[S.mids.length - 1])}円。現在 ${lastN ? fmt0.format(lastN[1]) + '円（' + md(lastN[0]) + '）' : '—'}` : '目標を数値で挙げた動画なし');
   // 方向×期間の積み上げ
   const HZ = ['1週間以内', '1ヶ月以内', '年末まで', '来年以降'], col = YT_COL();
   mkChart('yt-chart1', {type: 'bar', data: {labels: HZ, datasets: [1, -1, 0, 2].map(d => ({label: YT_DIR[d], data: HZ.map(h => S.vids.filter(v => v.dir === d && (v.horizon || '').startsWith(h.slice(0, 2))).length), backgroundColor: col[d]}))},
     options: {scales: {x: {stacked: true}, y: {stacked: true, ticks: {precision: 0}}}}});
   // 目標水準の分布（再生数を点の大きさに）
-  const pts = S.vids.filter(v => v.low || v.high).map(v => ({x: (v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high), y: v.views || 0, r: 4 + Math.sqrt((v.views || 0) / 20000), dir: v.dir, t: v.title}));
+  const pts = S.vids.filter(v => (v.low || v.high) && v.horizon !== '来年以降').map(v => ({x: (v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high), y: v.views || 0, r: 4 + Math.sqrt((v.views || 0) / 20000), dir: v.dir, t: v.title}));
   mkChart('yt-chart2', {type: 'bubble', data: {datasets: [1, -1, 0, 2].map(d => ({label: YT_DIR[d], data: pts.filter(p => p.dir === d), backgroundColor: col[d] + 'aa', borderColor: col[d]}))},
     options: {plugins: {tooltip: {callbacks: {label: c => `${fmt0.format(c.raw.x)}円・${fmt0.format(c.raw.y)}回：${c.raw.t.slice(0, 30)}`}}},
       scales: {x: {title: {display: true, text: '日経平均の目標（円）'}, ticks: {callback: v => fmt0.format(v)}}, y: {title: {display: true, text: '再生回数'}, ticks: {callback: v => fmt0.format(v)}}}}});
