@@ -9,7 +9,7 @@ Excelで手作業管理していた3種類の需給データを自動取得し�
 
 ## 構成
 - `scripts/fetch.py`：取得と推計。平日 17:35 / 21:35 JST に Actions から実行（`.github/workflows/update-data.yml`）
-- `docs/index.html`：アプリ（Chart.js、タブはシグナル・チャート・信用残・テクニカル・連動指数・日経理論値・投資主体別）
+- `docs/index.html`：アプリ（Chart.js、タブはシグナル・チャート・人気動画の予想・信用残・テクニカル・連動指数・日経理論値・投資主体別）
 - `docs/data/*.json`：データ。初期値はオーナーのExcel画面から転記したもの（src: "sheet"）
 - `docs/data/manual_eval.csv`：信用評価損益率の実績値（手入力）
 - `debug/`：取得失敗時のExcelダンプと `last_run.log`、AIコメント用の `snapshot.json`
@@ -53,6 +53,13 @@ YouTube「Sho's投資情報局」（@SHO1112）の手法にもとづく。YouTub
   4. 損切り＝日足の95%帯の下限（−2σ）、利確＝68%帯の上限・25日線、投入額＝資金の1%÷損切り幅
   5. 週1回：週足と13週線、次の信用残（火）・投資主体別（木）の公表日
 - 結論の1行は「構え×タイミング」の組み合わせで決める。売買を勧めるものではない旨を画面に明記
+
+## 人気動画の予想タブ（週1回）
+- 目的：YouTube で過去1週間に再生数の多かった「日経平均・日本株全体の見通し」動画を約50本（1チャンネル3本まで、ショート・メンバー限定・個別銘柄だけの動画は除く）集め、NotebookLM で読ませて多数派の予想を出す（2026-11-18 オーナー指定）
+- 手順：オーナーの PC 上のセッション（内蔵ブラウザ）が YouTube 検索→NotebookLM→Googleドキュメント「人気動画予想_YYYY-MM-DD」に保存（一覧＝URL・チャンネル・タイトル・再生回数・公開日、回答＝タイトル｜方向｜期間｜目標レンジ｜理由｜指標｜売買の勧め）。このセッションは Google ドライブから読み、`docs/data/yt_consensus.json` の history に1週分を追加する
+- yt_consensus.json：{history:[{collected:"YYYY-MM-DD", source:"ドキュメント名", videos:[{url, channel, title, views, date, dir（1上昇/-1下落/0横ばい/2二極化）, horizon（1週間以内/1ヶ月以内/年末まで/来年以降）, low, high（日経平均の目標円、無ければnull）, reason, indicators, advice}], ai:{headline, points[]}}]}（古い順。過去の週は消さない＝答え合わせに使う）
+- 画面（`renderYt()`）：多数派（本数・再生数で重み付けした強気度 −1〜+1）、目標の中央値と範囲、方向×期間、目標×再生数、よく挙がる理由（`YT_KEYS`）、ダッシュボードの構え・AIの判断・SHOとの比較、答え合わせ（強気度±0.2以上を強気/弱気とし、集めた日から5・20営業日後の日経）、動画一覧
+- ai（AIのまとめ）：人気動画の多数派とダッシュボードの分析（snapshot）を比べ、一致・食い違いと、その理由を書く。数値は集計とsnapshotの値のみ。売買の推奨はしない
 
 ## AIの判断コメント（今日の判断の先頭）
 - `docs/data/ai_comment.json`（generated＝作成日時JST、asof＝分析した日経の基準日、tone＝pos/neg/空、headline、points[]）。asof が画面の最新の日経の日付と一致するときだけ表示し、ルールによる結論は下に小さく残す。一致しなければルールの結論を出し「AIの判断は未作成」と表示
