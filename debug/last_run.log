@@ -1,7 +1,8 @@
-2026-11-19 05:52 JST
-fred: 19242 closes
-short: 0 days added
-lev1570: 0 days added
-nikkei: 0 rows updated
-daily: nikkei=730, vix=773, usdjpy=747, nasdaq=751, sp500=751
+2026-11-20 02:36 JST
+fred: 19243 closes
+investor 2026-11-13: {'foreign': -312487, 'individual': -361467, 'inv_trust': -17682, 'trust_bank': 393393, 'proprietary': 153204, 'business': 306992}
+short: 1 days added
+lev1570: 1 days added
+nikkei: 1 rows updated
+daily: nikkei=731, vix=774, usdjpy=747, nasdaq=752, sp500=752
 breadth: adr 30 rows, topix 30 rows

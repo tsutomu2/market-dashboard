@@ -218,5 +218,16 @@
 "proprietary": 87893,
 "business": 310006,
 "src": "jpx"
+},
+{
+"week_end": "2026-11-13",
+"week_start": "2026-11-09",
+"foreign": -312487,
+"individual": -361467,
+"inv_trust": -17682,
+"trust_bank": 393393,
+"proprietary": 153204,
+"business": 306992,
+"src": "jpx"
 }
 ]
