@@ -1,1 +1,12 @@
-{"docs": []}
+{
+ "docs": [
+  {
+   "id": "1lfbImm7zMEu8YNnVBNa8632FlUidXVWqs3kZCHaP4GU",
+   "title": "SHO最新動画_2026-11-21",
+   "modified": "2026-11-21T13:02:43Z",
+   "ingested": "2026-11-21 22:43",
+   "videos": 4,
+   "note": "評価損益率は11/13週-1.49%（要確認・不自然）のため manual_eval には入れず。11/6週-21%は既存値-21.08を維持"
+  }
+ ]
+}

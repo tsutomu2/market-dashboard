@@ -1349,7 +1349,7 @@ function renderSho() {
   const row = (lab, dir) => { const a = S.res[dir], s5 = S.sum(a, 'r5', +dir), s20 = S.sum(a, 'r20', +dir);
     return `<tr><td>${lab}</td><td>${a.length}本</td><td>${sgn(s5.avg, fmt2)}%${s5.hit != null ? `（当たり${Math.round(s5.hit)}%）` : ''}</td><td>${s20.n ? sgn(s20.avg, fmt2) + '%' + (s20.hit != null ? `（当たり${Math.round(s20.hit)}%）` : '') : '—'}</td></tr>`; };
   box.innerHTML = `<h2>動画（SHO）の結論の答え合わせ</h2>
-    <p class="note">最新100本（${ymd(sho[0].date)}〜${ymd(last.date)}）の「その日の結論」と、動画の前日終値からの日経平均の騰落。同じ期間の全日平均は5日後 ${sgn(S.base.avg, fmt2)}%（上昇${Math.round(S.base.up)}%）。結論はNotebookLMの要約から分類しています。</p>
+    <p class="note">動画${sho.length}本（${ymd(sho[0].date)}〜${ymd(last.date)}）の「その日の結論」と、動画の前日終値からの日経平均の騰落。同じ期間の全日平均は5日後 ${sgn(S.base.avg, fmt2)}%（上昇${Math.round(S.base.up)}%）。結論はNotebookLMの要約から分類しています。</p>
     <div class="concl">最新の結論（${md(last.date)}）：${last.view}<div class="c" style="font-weight:400;font-size:calc(var(--fs)*12px);color:var(--muted)">${last.title}</div></div>
     <div class="wrap"><table><thead><tr><th>結論</th><th>本数</th><th>5日後</th><th>20日後</th></tr></thead><tbody>
     ${row('下落を予想', -1)}${row('上昇を予想', 1)}${row('二極化・もみ合いなど', 0)}</tbody></table></div>
@@ -1611,7 +1611,7 @@ function renderShoPage() {
   // ⑦ 動画の答え合わせ（要約）
   const S = shoStats(), s5d = S.sum(S.res[-1], 'r5', -1), s5u = S.sum(S.res[1], 'r5', 1);
   $('#h-track').innerHTML = `<h2>SHOの予想はどのくらい当たった？</h2>
-    <p class="note">最新100本の動画の結論と、5営業日後の日経平均。</p>
+    <p class="note">動画${(D.sho || []).length}本（${D.sho && D.sho.length ? ymd(D.sho[0].date) + '〜' + ymd(D.sho[D.sho.length - 1].date) : ''}）の結論と、5営業日後の日経平均。</p>
     <div class="cards" style="margin-bottom:0">${card('「下がる」と言った動画', s5d.n ? `当たり ${Math.round(s5d.hit)}%` : '—', `${S.res[-1].length}本・5日後の平均 ${sgn(s5d.avg, fmt2)}%`, 'pos')}${card('「上がる」と言った動画', s5u.n ? `当たり ${Math.round(s5u.hit)}%` : '—', `${S.res[1].length}本・5日後の平均 ${sgn(s5u.avg, fmt2)}%`)}${card('同じ期間の全日', `上昇 ${Math.round(S.base.up)}%`, `5日後の平均 ${sgn(S.base.avg, fmt2)}%`)}</div>
     <p class="note" style="margin-top:8px">「下がる」という警告はよく当たり、「上がる」は外れることが多い傾向です。警告のサインは重く、強気の見方は控えめに受け取るのが無難です。</p>`;
 }
