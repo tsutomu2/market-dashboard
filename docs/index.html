@@ -140,6 +140,12 @@ header h1{padding-right:4px}
 #fs-info{height:6.4em;flex:none;overflow-y:auto;padding:6px 12px 0;margin:0;font-size:calc(var(--fs)*13px);line-height:1.35;align-content:flex-start}   /* 高さを固定（変わるとグラフが描き直されて値が消えるため） */
 @media (orientation:landscape) and (max-height:500px){#fs-info{height:2.9em}.fs-head{padding:4px 12px}}
 .leadwrap{float:right}.leadtg{font-size:calc(var(--fs)*12px);padding:3px 9px;margin-top:-2px}.leadtg.on{border-color:var(--accent);color:var(--accent)}
+.hvids{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}@media (max-width:700px){.hvids{grid-template-columns:1fr}}
+.hvp{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000;cursor:pointer}
+.hvp img,.hvp iframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
+.hvplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:44px;border-radius:12px;background:#e00000dd;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
+.hvt{display:flex;align-items:center;gap:8px;margin-top:8px}.hvd{font-size:calc(var(--fs)*12px);color:var(--muted);font-variant-numeric:tabular-nums}
+.hvn{font-weight:600;font-size:calc(var(--fs)*14px);margin:4px 0 2px}.hvw{font-size:calc(var(--fs)*13px)}.hvl{font-size:calc(var(--fs)*12px);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -190,6 +196,7 @@ header h1{padding-right:4px}
 <section class="page on" id="p-sho">
   <div class="box" id="h-top"></div>
   <div class="box" id="h-fc"></div>
+  <div class="box" id="h-vid"></div>
   <div class="box" id="h-plan"></div>
   <div class="grid2"><div class="box" id="h-check"></div><div class="box" id="h-ladder"></div></div>
   <div class="box" id="h-change"></div>
@@ -1658,6 +1665,26 @@ function renderShoForecast(sig) {
     scales: {x: {ticks: {maxTicksLimit: innerWidth <= 600 ? 5 : 9, maxRotation: 0}}, y: {ticks: {callback: v => fmt0.format(v)}}}}});
 }
 
+/* SHOの最新動画（sho_views.json の url があるものの新しい2本）。サムネイルを押すとその場で再生（youtube-nocookie の埋め込み） */
+const ytId = u => { const m = (u || '').match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/); return m ? m[1] : null; };
+function renderShoVideos() {
+  const box = $('#h-vid'); if (!box) return;
+  const vs = (D.sho || []).filter(v => ytId(v.url)).slice(-2).reverse();
+  if (!vs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  const dirTxt = d => d === 1 ? ['上昇', 'pos'] : d === -1 ? ['下落', 'neg'] : ['二極化・もみ合い', ''];
+  box.innerHTML = `<h2>Sho's投資情報局の最新動画</h2><p class="note">新しい${vs.length}本。画像を押すとここで再生します。結論はNotebookLMで要約したものです。</p>
+    <div class="hvids">${vs.map(v => { const id = ytId(v.url), d = dirTxt(v.dir);
+      return `<div class="hv1"><div class="hvp" data-yt="${id}" role="button" tabindex="0" aria-label="再生：${v.title}"><img src="https://i.ytimg.com/vi/${id}/hqdefault.jpg" alt="" loading="lazy"><span class="hvplay">▶</span></div>
+        <div class="hvt"><span class="hvd">${ymd(v.date)}</span><span class="pill st-${d[1] === 'pos' ? 'buy' : d[1] === 'neg' ? 'sell' : 'neutral'}">${d[0]}</span></div>
+        <div class="hvn">${v.title}</div><div class="hvw">${v.view}</div>
+        <a class="hvl" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">YouTubeで開く ↗</a></div>`; }).join('')}</div>`;
+}
+document.addEventListener('click', e => {
+  const p = e.target.closest('.hvp[data-yt]'); if (!p) return;
+  p.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${p.dataset.yt}?autoplay=1&playsinline=1&rel=0" title="YouTube" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  p.removeAttribute('data-yt');
+});
 function renderShoPage() {
   const box = $('#h-top'); if (!box) return;
   let sig;
@@ -1703,6 +1730,7 @@ function renderShoPage() {
     日経平均 ${fmt0.format(close)}円（前日比 ${sgn((close / t.c[i - 1] - 1) * 100, fmt2)}%）。${shoLast ? `SHOの最新動画（${md(shoLast.date)}）の結論：${shoLast.view}。` : ''}</p>`;
 
   renderShoForecast(sig);
+  renderShoVideos();
   // ② SHOならこう考える
   const plan = [];
   if (sell.st === 'on') plan.push(`<b>需給が悪い</b>：空売りの残高が${sell.val}と8,000億円を下回り、下げても買い戻しの支えが弱い。需給が悪いうちは「戻ったら売られる」と考えるのがSHO流。`);
