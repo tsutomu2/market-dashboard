@@ -123,6 +123,8 @@ header h1{padding-right:4px}
   header h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .seg{display:flex;width:100%}.seg button{flex:1;padding:7px 2px;white-space:nowrap}
 }
+.perrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.perrow>span{font-size:calc(var(--fs)*13px);color:var(--muted)}.perrow .seg{margin-bottom:0}
+@media (max-width:600px){.perrow .seg{flex:1}.perrow .seg button{padding:6px 1px}}
 </style>
 </head>
 <body>
@@ -208,6 +210,7 @@ header h1{padding-right:4px}
     <div id="ch-tvbox" style="height:540px"></div></div>
   <div id="ch-main">
     <div class="cards" id="ch-cards"></div>
+    <div class="perrow"><span>表示期間</span><div class="seg" id="chper"></div></div>
     <div class="grid2">
       <div class="box"><h2 id="ch-t1">日経平均</h2><div class="chart" style="height:300px"><canvas id="ch-c1"></canvas></div></div>
       <div class="box"><h2 id="ch-t2">連動指数</h2><div class="chart" style="height:300px"><canvas id="ch-c2"></canvas></div></div>
@@ -1103,6 +1106,11 @@ const TF = {
   h1: {label: '1時間足', tv: '60', tvLabel: '1時間足'},
 };
 let curTF = 'd';
+/* 日経平均・連動指数のグラフの表示期間（営業日数）。足ごとに選んだ期間を覚える */
+const CH_PER = [['1m', '1ヶ月', 21], ['3m', '3ヶ月', 63], ['6m', '6ヶ月', 126], ['1y', '1年', 250], ['2y', '2年', 500], ['all', '全期間', 1e9]];
+const CH_PER_DAYS = {d: 1, w: 5, m: 21}, CH_PER_MIN = {d: 10, w: 8, m: 6};
+let chPer = {d: '6m', w: '2y', m: 'all'};
+try { Object.assign(chPer, JSON.parse(localStorage.getItem('chPer') || '{}')); } catch (e) { /* 保存できない環境では既定値 */ }
 try { const v = localStorage.getItem('tf'); if (v && TF[v]) curTF = v; } catch (e) { /* 保存できない環境では既定値 */ }
 const dayNum = s => Math.round(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 864e5);
 const isoOf = n => new Date(n * 864e5).toISOString().slice(0, 10);
@@ -1164,9 +1172,15 @@ function renderChart() {
   const pb = L ? resample(L.dates, L.P, curTF) : [];
   const pMap = Object.fromEntries(pb.map(b => [b.k, b.v]));
   // 日経平均・連動指数のグラフ
-  const show = nb.slice(-tf.bars), labels = show.map(b => barLabel(b.d, curTF));
+  const perOk = CH_PER.filter(([k, , days]) => k === 'all' || (Math.ceil(days / CH_PER_DAYS[curTF]) >= CH_PER_MIN[curTF] && Math.ceil(days / CH_PER_DAYS[curTF]) < nb.length));
+  if (!perOk.some(p => p[0] === chPer[curTF])) chPer[curTF] = 'all';
+  $('#chper').innerHTML = perOk.map(([k, l]) => `<button class="${k === chPer[curTF] ? 'on' : ''}" data-per="${k}">${l}</button>`).join('');
+  const perDays = CH_PER.find(p => p[0] === chPer[curTF])[2];
+  const show = nb.slice(-Math.ceil(perDays / CH_PER_DAYS[curTF]));
+  const longD = curTF === 'd' && show.length > 130;   // 半年を超える日足は年も表示
+  const labels = show.map(b => longD ? barLabel(b.d, 'w') : barLabel(b.d, curTF));
   const ln = (label, data, color, extra = {}) => Object.assign({type: 'line', label, data, borderColor: color, backgroundColor: color, pointRadius: 0, borderWidth: 2, tension: 0, spanGaps: true}, extra);
-  const xs = {ticks: {maxTicksLimit: 8, maxRotation: 0}};
+  const xs = {ticks: {maxTicksLimit: innerWidth <= 600 ? 5 : 8, maxRotation: 0}};   // スマホは日付が重ならないよう少なめ
   const vals = [...show.map(b => b.v), ...show.map(b => pMap[b.k]).filter(v => v != null)];
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.05;
   const ys = {min: Math.floor((lo - pad) / 500) * 500, max: Math.ceil((hi + pad) / 500) * 500, ticks: {callback: v => fmt0.format(v)}};
@@ -1179,7 +1193,7 @@ function renderChart() {
     mk('動画：上昇予想', shoMk(1), css('--pos'), 'triangle'), mk('動画：下落予想', shoMk(-1), css('--neg'), 'triangle'), mk('動画：二極化など', shoMk(0), PALETTE[5], 'rectRot')]},
     options: {plugins: {legend: {labels: {filter: it => !/動画/.test(it.text) || ['d', 'w'].includes(curTF)}}}, scales: {x: xs, y: ys}}});
   const extra = L && L.ahead && curTF === 'd' ? 1 : 0;   // 次の取引日の推定がある場合は1本先まで描く
-  const pLabels = extra ? [...labels, barLabel(L.dates[L.dates.length - 1], 'd')] : labels;
+  const pLabels = extra ? [...labels, barLabel(L.dates[L.dates.length - 1], longD ? 'w' : 'd')] : labels;
   const pData = show.map(b => r2(pMap[b.k] ?? null));
   if (extra) pData.push(r2(L.P[L.P.length - 1]));
   mkChart('ch-c2', {data: {labels: pLabels, datasets: [ln('連動指数', pData, PALETTE[1], {pointRadius: pData.map((_, i) => extra && i === pData.length - 1 ? 6 : 0)}),
@@ -1649,6 +1663,7 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 }));
 ['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
 $('#i-checks').addEventListener('change', renderInvestor);
+$('#chper').addEventListener('click', e => { const b = e.target.closest('[data-per]'); if (!b) return; chPer[curTF] = b.dataset.per; try { localStorage.setItem('chPer', JSON.stringify(chPer)); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 $('#tf').addEventListener('click', e => { const b = e.target.closest('[data-tf]'); if (!b) return; curTF = b.dataset.tf; try { localStorage.setItem('tf', curTF); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.csv;
