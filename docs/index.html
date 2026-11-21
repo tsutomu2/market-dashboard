@@ -139,6 +139,7 @@ header h1{padding-right:4px}
 .tipbar .ti i{display:inline-block;width:10px;height:10px;border-radius:2px}.tipidle{color:var(--muted)}
 #fs-info{height:6.4em;flex:none;overflow-y:auto;padding:6px 12px 0;margin:0;font-size:calc(var(--fs)*13px);line-height:1.35;align-content:flex-start}   /* 高さを固定（変わるとグラフが描き直されて値が消えるため） */
 @media (orientation:landscape) and (max-height:500px){#fs-info{height:2.9em}.fs-head{padding:4px 12px}}
+.leadwrap{float:right}.leadtg{font-size:calc(var(--fs)*12px);padding:3px 9px;margin-top:-2px}.leadtg.on{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -228,7 +229,7 @@ header h1{padding-right:4px}
     <div class="perrow"><span>表示期間</span><div class="seg" id="chper"></div></div>
     <div class="grid2">
       <div class="box"><h2 id="ch-t1">日経平均</h2><div class="chart" style="height:300px"><canvas id="ch-c1"></canvas></div></div>
-      <div class="box"><h2 id="ch-t2">連動指数</h2><div class="chart" style="height:300px"><canvas id="ch-c2"></canvas></div></div>
+      <div class="box"><h2><span id="ch-t2">連動指数</span><span id="ch-lead" class="leadwrap"></span></h2><p class="note" id="ch-n2"></p><div class="chart" style="height:300px"><canvas id="ch-c2"></canvas></div></div>
     </div>
     <div class="box"><h2 id="ch-t3">予測</h2><p class="note" id="ch-n3"></p>
       <div class="chart" style="height:360px"><canvas id="ch-c3"></canvas></div>
@@ -275,11 +276,19 @@ header h1{padding-right:4px}
       <p class="note">MACD（12,26,9）のクロス：▲ゴールデン、▼デッド。</p>
       <div class="chart" style="height:300px"><canvas id="c-chart1"></canvas></div>
       <div class="chart" style="height:130px"><canvas id="c-chart2"></canvas></div></div>
-    <div class="box"><h2>連動指数（米国株・VIXの合成）</h2>
-      <p class="note">前日の日経終値に、前夜の S&amp;P500・ナスダック・VIX の騰落を効かせた推定値。MACDは速め（8,17,6）。▲▼が日経より早めに出るように調整。</p>
+    <div class="box"><h2>連動指数（米国株・VIXの合成）<span id="c-lead3" class="leadwrap"></span></h2>
+      <p class="note" id="c-n3"></p>
       <div class="chart" style="height:300px"><canvas id="c-chart3"></canvas></div>
       <div class="chart" style="height:130px"><canvas id="c-chart4"></canvas></div></div>
   </div>
+  <div class="box"><h2>どこまで先読みできるか（検証）</h2>
+    <p class="note">2026/11/21に、過去約2年（各日の予測は、それより前の250日だけで学習）で確かめた結果です。「方向」は予測した上げ下げが当たった割合。比べる目安として、同じ期間に日経が上がった日の割合も載せています。</p>
+    <div class="wrap"><table><thead><tr><th>何日先</th><th>方向が当たった割合</th><th>強い予測だけ</th><th>実際に上がった割合</th><th style="text-align:left">判定</th></tr></thead><tbody>
+      <tr><td>翌日</td><td>64%</td><td>71%（±0.3%以上）</td><td>53%</td><td style="text-align:left;white-space:normal">先読みできる（前夜の米国の動きが翌日の東京に伝わる）</td></tr>
+      <tr><td>3日先</td><td>58%</td><td>62%</td><td>55%</td><td style="text-align:left;white-space:normal">わずか</td></tr>
+      <tr><td>5日先</td><td>55%</td><td>59%</td><td>57%</td><td style="text-align:left;white-space:normal">「いつも上がる」と言うのと同じ程度＝先読みできない</td></tr>
+      <tr><td>10日先</td><td>51%</td><td>54%</td><td>59%</td><td style="text-align:left;white-space:normal">先読みできない</td></tr></tbody></table></div>
+    <p class="note" style="margin-top:8px">25日線乖離・VIXの水準・値動きの勢い・ドル円・NS倍率を足しても、翌日の精度はほぼ変わりませんでした（方向64〜66%）。このデータで作れる先行指標は「1日先」が限界で、それ以上先の動きを示すように見せると誤解を招くため、連動指数は翌日の予測として先行表示しています。</p></div>
   <div class="box"><h2>シグナルの先行度（全期間の実績）</h2><div id="c-lead"></div></div>
   <div class="box"><h2>日経平均と各データの相関</h2>
     <p class="note">相関係数（r）：+1に近いほど同じ向き、-1に近いほど逆向きに動く。水準どうしの相関は、どちらも上昇傾向だと高く出やすいので、「値動き」の相関もあわせて見ます。米国のデータは前夜の値を東京の当日に対応させています。</p>
@@ -1006,6 +1015,13 @@ function solve(A, b) {  // 連立一次方程式（ガウスの消去法）
   }
   return M.map((r, i) => r[n] / r[i]);
 }
+/* 先行表示：連動指数（＝翌営業日の終値の予測）を、予測が分かった日（前夜の米国の引け後）の位置に置く。
+   オンにすると、オレンジの線が日経より1本先に動く。計算そのもの（シグナル・先行度の集計）は予測する日の位置のまま */
+let linkLead = true;
+try { linkLead = localStorage.getItem('linkLead') !== '0'; } catch (e) { /* 保存できない環境ではオン */ }
+const leadShift = a => a.map((_, i) => a[i + 1] ?? null);
+const leadBtn = () => `<button class="btn leadtg${linkLead ? ' on' : ''}" type="button">${linkLead ? '先行表示：オン' : '先行表示：オフ'}</button>`;
+const LEAD_NOTE = () => linkLead ? 'オレンジの線は「翌営業日の終値の予測」を、予測が分かった日（前夜の米国の引け後）の位置に描いています。オレンジが先に動き、翌日に日経がついてくる形です。最後の大きな点が次の取引日の予測。' : 'オレンジの線は、予測した日の位置に描いています（日経とほぼ重なります）。';
 function linkSeries() {
   const nk = D.daily.nikkei || []; if (nk.length < LINK.win + 30) return null;
   let dates = nk.map(r => r[0]), N = nk.map(r => r[1]);
@@ -1066,13 +1082,17 @@ function renderCorr() {
   const ys = {min: Math.floor((lo - pad) / 500) * 500, max: Math.ceil((hi + pad) / 500) * 500, ticks: {callback: v => fmt0.format(v)}};
   mkChart('c-chart1', {data: {labels, datasets: [ln('日経225', N.slice(s0).map(r2), PALETTE[0]), mk('ゴールデン', nUp, css('--pos'), 'triangle'), mk('デッド', nDn, css('--neg'), 'triangle')]},
     options: {plugins: {legend: {display: false}}, scales: {x: xs, y: ys}}});
-  const pts = P.slice(s0).map((v, k) => L.ahead && s0 + k === dates.length - 1 ? 6 : 0);
-  mkChart('c-chart3', {data: {labels, datasets: [ln('連動指数', P.slice(s0).map(r2), PALETTE[1], {pointRadius: pts}), ln('日経225（参考）', N.slice(s0).map(r2), PALETTE[0] + 'c0', {borderWidth: 1.5}),
-    mk('ゴールデン', pUp, css('--pos'), 'triangle'), mk('デッド', pDn, css('--neg'), 'triangle')]},
+  const Pd = linkLead ? leadShift(P) : P, pUpD = linkLead ? leadShift(pUp) : pUp, pDnD = linkLead ? leadShift(pDn) : pDn;
+  const bigK = linkLead ? dates.length - 1 - (L.ahead ? 1 : 0) : dates.length - 1;
+  const pts = Pd.slice(s0).map((v, k) => L.ahead && s0 + k === bigK ? 6 : 0);
+  $('#c-n3').innerHTML = '前日の日経終値に、前夜の S&amp;P500・ナスダック・VIX の騰落を効かせた翌日の終値の予測。MACDは速め（8,17,6）。' + LEAD_NOTE();
+  $('#c-lead3').innerHTML = leadBtn();
+  mkChart('c-chart3', {data: {labels, datasets: [ln(linkLead ? '連動指数（翌日の予測・先行表示）' : '連動指数', Pd.slice(s0).map(r2), PALETTE[1], {pointRadius: pts}), ln('日経225（参考）', N.slice(s0).map(r2), PALETTE[0] + 'c0', {borderWidth: 1.5}),
+    mk('ゴールデン', pUpD, css('--pos'), 'triangle'), mk('デッド', pDnD, css('--neg'), 'triangle')]},
     options: {plugins: {legend: {display: false}}, scales: {x: xs, y: ys}}});
   const hist = (id, h) => mkChart(id, {data: {labels, datasets: [{type: 'bar', label: 'MACDヒストグラム(%)', data: h.slice(s0).map(v => v == null ? null : Math.round(v * 1000) / 1000), backgroundColor: h.slice(s0).map(v => v >= 0 ? css('--pos') + '99' : css('--neg') + '99')}]},
     options: {plugins: {legend: {display: false}}, scales: {x: {display: false}, y: {ticks: {callback: v => v + '%'}}}}});
-  hist('c-chart2', sn.h); hist('c-chart4', sc.h);
+  hist('c-chart2', sn.h); hist('c-chart4', linkLead ? leadShift(sc.h) : sc.h);
   // 先行度
   const st = leadStats(sc.out, sn.out), ref = leadStats(crosses(N, LINK.fast, LINK.band).out, sn.out);
   const lastSig = o => o.length ? `${o[o.length - 1].t > 0 ? '▲ゴールデン' : '▼デッド'}（${md(dates[o[o.length - 1].i])}）` : '—';
@@ -1210,11 +1230,16 @@ function renderChart() {
   mkChart('ch-c1', {data: {labels, datasets: [ln('日経平均', show.map(b => r2(b.v)), PALETTE[0]), ln(curTF === 'd' ? '25日線' : '13本線', nkMa.map(r1), PALETTE[5], {borderWidth: 1, borderDash: [4, 3]}),
     mk('動画：上昇予想', shoMk(1), css('--pos'), 'triangle'), mk('動画：下落予想', shoMk(-1), css('--neg'), 'triangle'), mk('動画：二極化など', shoMk(0), PALETTE[5], 'rectRot')]},
     options: {plugins: {legend: {labels: {filter: it => !/動画/.test(it.text) || ['d', 'w'].includes(curTF)}}}, scales: {x: xs, y: ys}}});
-  const extra = L && L.ahead && curTF === 'd' ? 1 : 0;   // 次の取引日の推定がある場合は1本先まで描く
+  const leadOn = linkLead && curTF === 'd' && L;
+  const extra = !leadOn && L && L.ahead && curTF === 'd' ? 1 : 0;   // 次の取引日の推定がある場合は1本先まで描く
   const pLabels = extra ? [...labels, barLabel(L.dates[L.dates.length - 1], longD ? 'w' : 'd')] : labels;
-  const pData = show.map(b => r2(pMap[b.k] ?? null));
+  const lIdx = L ? Object.fromEntries(L.dates.map((d, i) => [d, i])) : {};
+  const pData = leadOn ? show.map(b => r2(L.P[(lIdx[b.d] ?? -9) + 1] ?? null)) : show.map(b => r2(pMap[b.k] ?? null));
   if (extra) pData.push(r2(L.P[L.P.length - 1]));
-  mkChart('ch-c2', {data: {labels: pLabels, datasets: [ln('連動指数', pData, PALETTE[1], {pointRadius: pData.map((_, i) => extra && i === pData.length - 1 ? 6 : 0)}),
+  const bigPt = i => (extra && i === pData.length - 1) || (leadOn && L.ahead && i === pData.length - 1) ? 6 : 0;
+  $('#ch-n2').innerHTML = curTF === 'd' ? LEAD_NOTE() : '週足・月足は、その足の最後の日の予測を描いています。';
+  $('#ch-lead').innerHTML = curTF === 'd' ? leadBtn() : '';
+  mkChart('ch-c2', {data: {labels: pLabels, datasets: [ln(leadOn ? '連動指数（翌日の予測・先行表示）' : '連動指数', pData, PALETTE[1], {pointRadius: pData.map((_, i) => bigPt(i))}),
     ln('日経平均（参考）', [...show.map(b => r2(b.v)), ...(extra ? [null] : [])], PALETTE[0] + 'c0', {borderWidth: 1.5})]},
     options: {scales: {x: xs, y: ys}}});
   $('#ch-t1').textContent = `日経平均（${tf.label}）`;
@@ -1813,6 +1838,7 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 }));
 ['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
 $('#i-checks').addEventListener('change', renderInvestor);
+document.addEventListener('click', e => { if (!e.target.closest('.leadtg')) return; linkLead = !linkLead; try { localStorage.setItem('linkLead', linkLead ? '1' : '0'); } catch (err) { /* 保存できなくても切り替える */ } renderAll(); });
 $('#chper').addEventListener('click', e => { const b = e.target.closest('[data-per]'); if (!b) return; chPer[curTF] = b.dataset.per; try { localStorage.setItem('chPer', JSON.stringify(chPer)); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 $('#tf').addEventListener('click', e => { const b = e.target.closest('[data-tf]'); if (!b) return; curTF = b.dataset.tf; try { localStorage.setItem('tf', curTF); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
