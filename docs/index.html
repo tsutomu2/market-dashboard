@@ -101,6 +101,20 @@ code{font-size:12px}
 .hlv{display:grid;grid-template-columns:minmax(120px,1.2fr) 1fr auto;gap:8px;align-items:center;padding:6px 2px;border-bottom:1px solid var(--line);font-size:13px}
 .hlv.now{font-weight:700;background:var(--hl);border-radius:6px}.hl2{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.hl2 i{display:block;height:100%}
 .hl3{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.hl3 small{display:block;color:var(--muted);font-size:11px;font-weight:400}
+/* グラフの全画面表示 */
+main .chart{cursor:zoom-in}
+main .chart::after{content:'⤢';position:absolute;right:2px;bottom:0;font-size:14px;line-height:1;color:var(--muted);opacity:.7;pointer-events:none}
+.fsbtn{float:right;font-size:12px;padding:3px 8px;margin-top:-2px}
+#fs{display:none;position:fixed;inset:0;z-index:100;background:var(--panel);flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#fs.on{display:flex}
+.fs-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)}
+#fs-title{flex:1;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fs-close{font:inherit;font-size:15px;font-weight:600;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.fs-hint{display:none;font-size:12px;color:var(--muted);padding:4px 12px 0}
+@media (orientation:portrait) and (max-width:600px){.fs-hint{display:block}}
+#fs-body{flex:1;min-height:0;position:relative;padding:8px 10px 10px}
+#fs-body canvas{width:100%!important;height:100%!important}
 </style>
 </head>
 <body>
@@ -181,8 +195,8 @@ code{font-size:12px}
 <!-- ============ チャート ============ -->
 <section class="page" id="p-chart">
   <div class="seg" id="tf"></div>
-  <div id="ch-tv" class="box" style="display:none"><h2>日経225（1時間足・リアルタイム）</h2>
-    <p class="note">TradingView のチャート（日経225のCFD）。連動指数と予測は日足のデータで作っているため、1時間足では表示していません。チャート上で足の長さや描画の変更もできます。</p>
+  <div id="ch-tv" class="box" style="display:none"><h2><span id="ch-tv-t">日経225（1時間足・リアルタイム）</span><button class="btn fsbtn" id="ch-tv-fs" type="button">⤢ 全画面</button></h2>
+    <p class="note" id="ch-tv-n"></p>
     <div id="ch-tvbox" style="height:540px"></div></div>
   <div id="ch-main">
     <div class="cards" id="ch-cards"></div>
@@ -309,6 +323,8 @@ code{font-size:12px}
 <li>画面上部の相場（TradingViewのウィジェット）：日経225＝CFD（OANDA、リアルタイム・24時間）、日経先物・TOPIX先物＝大阪取引所（20分遅れ）、ドル円＝リアルタイム、金・WTI原油＝TradingViewの価格（無料ウィジェットではCOMEX・NYMEXの先物そのものは表示できないため）。TOPIXの指数そのものも無料ウィジェットでは表示できないため先物で代用。</li>
 </ul></details>
 </main>
+<div id="fs" role="dialog" aria-modal="true"><div class="fs-head"><span id="fs-title"></span><button id="fs-close" type="button" aria-label="閉じる">✕ 閉じる</button></div>
+  <div class="fs-hint">スマホを横向きにすると、さらに大きく表示されます</div><div id="fs-body"></div></div>
 
 <script>
 const $ = (s, el = document) => el.querySelector(s);
@@ -320,7 +336,7 @@ const ymd = d => d.replaceAll('-', '/');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const PALETTE = ['#2f5d9e', '#d9822b', '#3a9e6f', '#b2457a', '#7b61b8', '#8a8a82'];
 const D = {margin: [], nikkei: [], investor: [], short: [], lev: [], breadth: [], sho: [], ai: {}, daily: {}, meta: {}};
-const charts = {};
+const charts = {}, chartCfg = {};
 
 /* 判定のしきい値（ここを書き換えると判定が変わります）
    出典：「動画」＝ノートブック「SHO手法まとめ」の解説動画、「近似」＝動画の考え方を数値化するために決めた値 */
@@ -382,6 +398,7 @@ function mkChart(id, cfg) {
     s.ticks = Object.assign({color: tick, font: {size: 11}}, s.ticks || {});
   }
   charts[id] = new Chart(document.getElementById(id), cfg);
+  chartCfg[id] = cfg;
 }
 function download(name, header, rows) {
   const csv = '﻿' + [header, ...rows].map(r => r.map(v => v == null ? '' : `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n');
@@ -1069,11 +1086,11 @@ function renderCorr() {
 
 /* ---------------- チャート（足の切り替え・予測） ---------------- */
 const TF = {
-  h1: {label: '1時間足'},
-  d: {label: '1日足', bars: 120, past: 40, h: 10},
-  w: {label: '1週足', bars: 104, past: 30, h: 8},
-  w2: {label: '2週足', bars: 78, past: 26, h: 6},
-  m: {label: '1ヶ月足', bars: 36, past: 24, h: 6},
+  m: {label: '月足', bars: 36, past: 24, h: 6},
+  w: {label: '週足', bars: 104, past: 30, h: 8},
+  d: {label: '日足', bars: 120, past: 40, h: 10},
+  h8: {label: '8時間足', tv: '240', tvLabel: '4時間足'},   // TradingView の無料ウィジェットは8時間（480）に対応せず日足に戻るため、4時間足で代用
+  h1: {label: '1時間足', tv: '60', tvLabel: '1時間足'},
 };
 let curTF = 'd';
 try { const v = localStorage.getItem('tf'); if (v && TF[v]) curTF = v; } catch (e) { /* 保存できない環境では既定値 */ }
@@ -1109,22 +1126,28 @@ function futureDates(last, tf, k) {
   return out;
 }
 function sdOf(a) { const m = a.reduce((s, v) => s + v, 0) / a.length; return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)); }
-function mountTv() {
-  const box = $('#ch-tvbox'); box.innerHTML = '';
+function mountTv(box = $('#ch-tvbox'), interval = (TF[curTF] && TF[curTF].tv) || '60') {
+  box.innerHTML = '';
   const c = document.createElement('div'); c.className = 'tradingview-widget-container'; c.style.height = '100%';
   const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; c.appendChild(w);
   const s = document.createElement('script'); s.async = true;
   s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  s.textContent = JSON.stringify({symbol: 'OANDA:JP225USD', interval: '60', timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true,
+  s.textContent = JSON.stringify({symbol: 'OANDA:JP225USD', interval, timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true,
     theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', allow_symbol_change: false, hide_side_toolbar: true, withdateranges: true});
-  c.appendChild(s); box.appendChild(c); box.dataset.mounted = '1';
+  c.appendChild(s); box.appendChild(c); box.dataset.mounted = interval;
 }
 function renderChart() {
   $('#tf').innerHTML = Object.entries(TF).map(([k, v]) => `<button class="${k === curTF ? 'on' : ''}" data-tf="${k}">${v.label}</button>`).join('');
-  const hourly = curTF === 'h1';
+  const hourly = !!TF[curTF].tv;
   $('#ch-tv').style.display = hourly ? '' : 'none';
   $('#ch-main').style.display = hourly ? 'none' : '';
-  if (hourly) { if (!$('#ch-tvbox').dataset.mounted) mountTv(); return; }
+  if (hourly) {
+    $('#ch-tv-t').textContent = `日経225（${TF[curTF].tvLabel}・リアルタイム）`;
+    $('#ch-tv-n').textContent = (curTF === 'h8' ? 'TradingView の無料チャートは8時間足に対応していないため、いちばん近い4時間足で表示しています。' : '') +
+      'TradingView のチャート（日経225のCFD）。連動指数と予測は日足のデータで作っているため、時間足では表示していません。チャート上で足の長さや描画の変更もできます。';
+    if ($('#ch-tvbox').dataset.mounted !== TF[curTF].tv) mountTv();
+    return;
+  }
   const tf = TF[curTF], L = linkSeries(), nk = D.daily.nikkei || [];
   if (!nk.length) return;
   const nb = resample(nk.map(r => r[0]), nk.map(r => r[1]), curTF);
@@ -1572,6 +1595,41 @@ function renderAll() {
   ({signal: renderSignal, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
+
+/* ---------------- グラフの全画面表示（タップで開く・横向き対応） ---------------- */
+let fsChart = null;
+function openFs(title, id) {
+  const fs = $('#fs'), body = $('#fs-body');
+  $('#fs-title').textContent = title || '';
+  body.innerHTML = '';
+  if (id === 'tv') {
+    const box = document.createElement('div'); box.style.height = '100%'; body.appendChild(box);
+    mountTv(box, (TF[curTF] && TF[curTF].tv) || '60');
+  } else {
+    const cfg = chartCfg[id]; if (!cfg) return;
+    const cv = document.createElement('canvas'); body.appendChild(cv);
+    fsChart = new Chart(cv, {type: cfg.type, data: {labels: cfg.data.labels, datasets: cfg.data.datasets.map(d => ({...d}))}, options: cfg.options, plugins: cfg.plugins});
+  }
+  fs.classList.add('on'); document.body.style.overflow = 'hidden';
+  if (!(history.state && history.state.fs)) history.pushState({fs: 1}, '');   // 戻る操作（スワイプ）で閉じられるように
+}
+function closeFs(fromPop) {
+  const fs = $('#fs'); if (!fs.classList.contains('on')) return;
+  if (fsChart) { fsChart.destroy(); fsChart = null; }
+  $('#fs-body').innerHTML = ''; fs.classList.remove('on'); document.body.style.overflow = '';
+  if (!fromPop && history.state && history.state.fs) history.back();
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('main .chart'); if (!c) return;
+  const cv = c.querySelector('canvas'); if (!cv || !charts[cv.id]) return;
+  const h = c.closest('.box') && c.closest('.box').querySelector('h2');
+  openFs(h ? h.textContent : '', cv.id);
+});
+$('#fs-close').addEventListener('click', () => closeFs());
+addEventListener('popstate', () => closeFs(true));
+addEventListener('keydown', e => { if (e.key === 'Escape') closeFs(); });
+$('#ch-tv-fs').addEventListener('click', () => openFs($('#ch-tv-t').textContent, 'tv'));
+
 /* ---------------- UI ---------------- */
 $('#i-checks').innerHTML = ENT.map(([k, l], i) => `<label><input type="checkbox" id="chk-${k}" ${i < 3 ? 'checked' : ''}> ${l}</label>`).join('');
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
@@ -1618,7 +1676,7 @@ function mountTape() {
   }
 }
 mountTape();
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); if (fsChart || $('#fs').classList.contains('on')) closeFs(); });
 tapeNarrow.addEventListener('change', mountTape);
 load();
 </script>
