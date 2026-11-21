@@ -9,7 +9,7 @@ Excelで手作業管理していた3種類の需給データを自動取得し�
 
 ## 構成
 - `scripts/fetch.py`：取得と推計。平日 17:35 / 21:35 JST に Actions から実行（`.github/workflows/update-data.yml`）
-- `docs/index.html`：アプリ（Chart.js、タブはシグナル・SHO手法で判断・チャート・人気動画の予想・信用残・テクニカル・連動指数・日経理論値・投資主体別）
+- `docs/index.html`：アプリ（Chart.js、タブはシグナル・SHO手法で判断・チャート・信用残・テクニカル・連動指数・日経理論値・投資主体別）
 - `docs/data/*.json`：データ。初期値はオーナーのExcel画面から転記したもの（src: "sheet"）
 - `docs/data/manual_eval.csv`：信用評価損益率の実績値（手入力）
 - `debug/`：取得失敗時のExcelダンプと `last_run.log`、AIコメント用の `snapshot.json`
@@ -60,7 +60,8 @@ YouTube「Sho's投資情報局」（@SHO1112）の手法にもとづく。YouTub
 - 先頭の結論：構え（JUDGEと同じ基準）＋急落直後（3日待て）なら「様子見：反発を待つ」。目安スコア＝各項目を追い風+1／心配−1／なし0とし★で重み付け（★1で過去3年逆だった項目は0.3）、−100〜+100
 - ほかに「SHO手法ならこう考える」（自動の文章）、底打ちチェックリスト8項目、値段のものさし（PER13・14・16倍、PBR2倍、25日線、200日線）、判断が変わる条件、動画の答え合わせ、ことばの説明
 
-## 人気動画の予想タブ（週1回）
+## 人気動画の予想タブ（2026-11-21 オーナーの指示で削除）
+- タブと画面のコード（renderYt など）は削除した。集めたデータ `docs/data/yt_consensus.json` は記録として残している（画面では読み込まない）。週1回の人気動画の集計も行わない。以下は削除前の記録
 - 目的：YouTube で過去1週間に再生数の多かった「日経平均・日本株全体の見通し」動画を約50本（1チャンネル3本まで、ショート・メンバー限定・個別銘柄だけの動画は除く）集め、NotebookLM で読ませて多数派の予想を出す（2026-11-18 オーナー指定）
 - 手順：オーナーの PC 上のセッション（内蔵ブラウザ）が YouTube 検索→NotebookLM→Googleドキュメント「人気動画予想_YYYY-MM-DD」に保存（一覧＝URL・チャンネル・タイトル・再生回数・公開日、回答＝タイトル｜方向｜期間｜目標レンジ｜理由｜指標｜売買の勧め）。このセッションは Google ドライブから読み、`docs/data/yt_consensus.json` の history に1週分を追加する
 - yt_consensus.json：{history:[{collected:"YYYY-MM-DD", source:"ドキュメント名", videos:[{url, channel, title, views, date, dir（1上昇/-1下落/0横ばい/2二極化）, horizon（1週間以内/1ヶ月以内/年末まで/来年以降）, low, high（日経平均の目標円、無ければnull）, reason, indicators, advice}], ai:{headline, points[]}}]}（古い順。過去の週は消さない＝答え合わせに使う）

@@ -74,7 +74,7 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .seg{display:inline-flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
 .seg button{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;padding:6px 12px;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--accent);color:#fff;font-weight:600}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid2>*{min-width:0}#yt-cmp td{white-space:normal}.grid2 .box{margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid2>*{min-width:0}.grid2 .box{margin-bottom:14px}
 @media (max-width:820px){.grid2{grid-template-columns:1fr;gap:0}}
 .concl{font-size:17px;font-weight:700;padding:10px 12px;margin:6px 0 4px;border-radius:10px;background:var(--hl)}
 .concl.pos{background:var(--posbg)}.concl.neg{background:var(--negbg)}
@@ -111,7 +111,6 @@ code{font-size:12px}
     <button class="tab on" data-page="signal">シグナル</button>
     <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="chart">チャート</button>
-    <button class="tab" data-page="yt">人気動画の予想</button>
     <button class="tab" data-page="margin">信用残</button>
     <button class="tab" data-page="tech">テクニカル</button>
     <button class="tab" data-page="corr">連動指数</button>
@@ -194,39 +193,6 @@ code{font-size:12px}
     <div class="box"><h2 id="ch-t3">予測</h2><p class="note" id="ch-n3"></p>
       <div class="chart" style="height:360px"><canvas id="ch-c3"></canvas></div>
       <p class="note" id="ch-bt" style="margin-top:8px"></p></div>
-  </div>
-</section>
-
-<!-- ============ 人気動画の予想 ============ -->
-<section class="page" id="p-yt">
-  <div class="box" id="yt-empty" style="display:none"><h2>人気動画の予想</h2>
-    <p class="note">YouTube で過去1週間に再生数の多かった日本株の見通し動画（約50本・1チャンネル3本まで）を NotebookLM で読み込み、上昇／下落の多数派・目標水準・理由を集計するタブです。まだデータがありません。PC上のセッションで動画を集めて Google ドキュメント「人気動画予想_日付」に保存し、このリポジトリのセッションに「保存した」と伝えると反映されます（週1回）。</p></div>
-  <div id="yt-body">
-  <div class="cards" id="yt-cards"></div>
-  <div class="box" id="yt-ai"></div>
-  <div class="grid2">
-    <div class="box"><h2>方向と期間</h2><p class="note">動画の本数。期間は動画が言っている予想の期間。</p><div class="chart" style="height:260px"><canvas id="yt-chart1"></canvas></div></div>
-    <div class="box"><h2>日経平均の目標と再生数</h2><p class="note">年末までの目標を数値で挙げた動画のみ（来年以降の長期目標は除く）。点の大きさ＝再生数。</p><div class="chart" style="height:260px"><canvas id="yt-chart2"></canvas></div></div>
-  </div>
-  <div class="grid2">
-    <div class="box"><h2>よく挙がる理由</h2><div id="yt-reasons"></div></div>
-    <div class="box"><h2>ダッシュボードの分析との比較</h2><div class="wrap" id="yt-cmp"></div></div>
-  </div>
-  <div class="box"><h2>答え合わせ（週ごと）</h2><p class="note">再生数で重み付けした強気度が +0.2 以上を「強気」、−0.2 以下を「弱気」として、集めた日の終値からの日経平均の騰落と比べます。○＝当たり。</p><div class="wrap" id="yt-check"></div></div>
-  <div class="box"><h2>動画一覧</h2><p class="note">内容は NotebookLM の要約からの分類です。売買を勧めるものではありません。見出しを押しても並び替えできます。</p>
-    <div class="controls" id="yt-ctl">
-      <label>並び順 <select id="yt-sort">
-        <option value="views-d">再生数の多い順</option><option value="views-a">再生数の少ない順</option>
-        <option value="date-d">公開日の新しい順</option><option value="date-a">公開日の古い順</option>
-        <option value="tgt-d">目標の高い順</option><option value="tgt-a">目標の低い順</option>
-        <option value="hz-a">期間の短い順</option><option value="hz-d">期間の長い順</option>
-        <option value="ch-a">チャンネル名順</option></select></label>
-      <label>方向 <select id="yt-fdir"><option value="all">すべて</option><option value="1">上昇だけ</option><option value="-1">下落だけ</option><option value="0">横ばいだけ</option><option value="2">二極化だけ</option></select></label>
-      <label>期間 <select id="yt-fhz"><option value="all">すべて</option><option>1週間以内</option><option>1ヶ月以内</option><option>年末まで</option><option>来年以降</option></select></label>
-      <label>目標 <select id="yt-ftg"><option value="all">すべて</option><option value="has">数値ありだけ</option></select></label>
-      <span class="note" id="yt-count" style="margin:0"></span>
-    </div>
-    <div class="wrap" id="yt-list"></div></div>
   </div>
 </section>
 
@@ -353,7 +319,7 @@ const md = d => { const [y, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
 const ymd = d => d.replaceAll('-', '/');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const PALETTE = ['#2f5d9e', '#d9822b', '#3a9e6f', '#b2457a', '#7b61b8', '#8a8a82'];
-const D = {margin: [], nikkei: [], investor: [], short: [], lev: [], breadth: [], sho: [], ai: {}, yt: {}, daily: {}, meta: {}};
+const D = {margin: [], nikkei: [], investor: [], short: [], lev: [], breadth: [], sho: [], ai: {}, daily: {}, meta: {}};
 const charts = {};
 
 /* 判定のしきい値（ここを書き換えると判定が変わります）
@@ -395,7 +361,7 @@ const TH_ROWS = [
 async function load() {
   const get = async f => { const r = await fetch(`data/${f}?v=${Date.now()}`); if (!r.ok) throw new Error(f); return r.json(); };
   try {
-    [D.margin, D.nikkei, D.investor, D.short, D.lev, D.breadth, D.sho, D.ai, D.yt, D.daily, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'short.json', 'lev1570.json', 'breadth.json', 'sho_views.json', 'ai_comment.json', 'yt_consensus.json', 'daily.json', 'meta.json'].map(f => get(f).catch(() => ['meta.json', 'daily.json', 'ai_comment.json', 'yt_consensus.json'].includes(f) ? {} : [])));
+    [D.margin, D.nikkei, D.investor, D.short, D.lev, D.breadth, D.sho, D.ai, D.daily, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'short.json', 'lev1570.json', 'breadth.json', 'sho_views.json', 'ai_comment.json', 'daily.json', 'meta.json'].map(f => get(f).catch(() => ['meta.json', 'daily.json', 'ai_comment.json'].includes(f) ? {} : [])));
   } catch (e) { showErr('データの読み込みに失敗しました: ' + e.message); }
   $('#updated').textContent = D.meta.updated ? D.meta.updated + (/^\d{4}-/.test(D.meta.updated) ? ' JST' : '') : '—';
   renderAll();
@@ -1446,103 +1412,6 @@ function renderJudge(sig, V) {
     steps.map((s, k) => `<div class="step"><div class="no">${k + 1}</div><div><div class="sh">${s.h}</div><div class="sr ${s.cls}">${s.r}</div><div class="c">${s.c}</div></div></div>`).join('');
 }
 
-/* ---------------- 人気動画の予想（YouTube 再生数上位の日本株見通しを NotebookLM で分析したもの） ---------------- */
-/* docs/data/yt_consensus.json：{history:[{week, collected, source, videos:[{url, channel, title, views, date, dir(+1上昇/-1下落/0横ばい/2二極化), horizon, low, high, reason, indicators, advice}], ai:{headline, points[]}}]}
-   history は古い順。最新の週を表示し、過去の週は「答え合わせ」に使う。 */
-const YT_DIR = {1: '上昇', '-1': '下落', 0: '横ばい', 2: '二極化'};
-const YT_COL = () => ({1: css('--pos'), '-1': css('--neg'), 0: PALETTE[5], 2: PALETTE[4]});
-const YT_KEYS = [['信用', /信用|売残|買残|追証|評価損益/], ['金利・日銀', /金利|日銀|利上げ|利下げ|国債/], ['ドル円・為替', /ドル円|為替|円安|円高/], ['米国株・半導体', /米国|ナスダック|S&P|エヌビディア|SOX|半導体/],
-  ['決算・業績', /決算|業績|EPS|PER|利益/], ['海外投資家・需給', /海外|外国人|需給|空売り|先物/], ['テクニカル', /移動平均|ボリンジャー|MACD|RSI|チャート|窓|高値|安値|サポート|レジスタンス/],
-  ['政治・選挙', /選挙|政権|首相|政策|トランプ|関税/], ['季節性・年末', /年末|12月|期日|損益通算|アノマリー|配当/], ['AI・ハイテク', /AI|ソフトバンク|キオクシア|アドバンテスト|東京エレクトロン/]];
-function ytWeek(w) {
-  const vids = (w.videos || []).filter(v => v.dir != null);
-  const tot = vids.length || 1, totV = vids.reduce((s, v) => s + (v.views || 0), 0) || 1;
-  const share = {}, shareV = {};
-  for (const d of [1, -1, 0, 2]) { const a = vids.filter(v => v.dir === d); share[d] = a.length / tot * 100; shareV[d] = a.reduce((s, v) => s + (v.views || 0), 0) / totV * 100; }
-  const score = vids.reduce((s, v) => s + (v.dir === 1 ? 1 : v.dir === -1 ? -1 : 0) * (v.views || 0), 0) / totV;   // −1〜+1：再生数で重み付けした強気度
-  // 目標の中央値は年末までの予想だけで計算（来年以降・10年後などの長期目標は桁が違うため除く）
-  const mids = vids.filter(v => v.horizon !== '来年以降').map(v => v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high || null).filter(Boolean).sort((a, b) => a - b);
-  const med = mids.length ? mids[Math.floor(mids.length / 2)] : null;
-  return {vids, share, shareV, score, mids, med, totV};
-}
-/* 集めた日（以前の最後の終値）から k 営業日後の日経の騰落率。まだ来ていなければ null */
-function nkAfter(d, k) {
-  const nk = D.daily.nikkei || []; let j = -1;
-  for (let i = 0; i < nk.length; i++) { if (nk[i][0] <= d) j = i; else break; }
-  return j >= 0 && j + k < nk.length ? (nk[j + k][1] / nk[j][1] - 1) * 100 : null;
-}
-function renderYt() {
-  const H = (D.yt && D.yt.history) || [], box = $('#p-yt');
-  if (!H.length) {
-    $('#yt-body').style.display = 'none';
-    $('#yt-empty').style.display = '';
-    return;
-  }
-  $('#yt-empty').style.display = 'none';
-  $('#yt-body').style.display = '';
-  const W = H[H.length - 1], S = ytWeek(W), lastN = (D.daily.nikkei || []).slice(-1)[0];
-  const lab = S.score >= 0.2 ? ['強気が多数', 'pos'] : S.score <= -0.2 ? ['弱気が多数', 'neg'] : ['強弱が拮抗', ''];
-  const pct = (o, d) => Math.round(o[d]) + '%';
-  $('#yt-cards').innerHTML =
-    card(`集めた動画（${ymd(W.collected)}）`, `${S.vids.length}本`, `過去1週間・再生数上位・1チャンネル3本まで。合計再生 ${fmt0.format(S.totV)}回`) +
-    card('人気動画の多数派', lab[0], `上昇 ${pct(S.share, 1)}・下落 ${pct(S.share, -1)}・横ばい ${pct(S.share, 0)}・二極化 ${pct(S.share, 2)}（本数）`, lab[1]) +
-    card('再生数で重み付けした強気度', (S.score >= 0 ? '+' : '') + S.score.toFixed(2), `−1（全員下落）〜＋1（全員上昇）。再生数ベース：上昇 ${pct(S.shareV, 1)}・下落 ${pct(S.shareV, -1)}`, S.score > 0 ? 'pos' : S.score < 0 ? 'neg' : '') +
-    card('日経平均の目標（中央値・年末まで）', S.med ? fmt0.format(S.med) + '円' : '—', S.mids.length ? `年末までの目標を数値で挙げた${S.mids.length}本。範囲 ${fmt0.format(S.mids[0])}〜${fmt0.format(S.mids[S.mids.length - 1])}円。現在 ${lastN ? fmt0.format(lastN[1]) + '円（' + md(lastN[0]) + '）' : '—'}` : '目標を数値で挙げた動画なし');
-  // 方向×期間の積み上げ
-  const HZ = ['1週間以内', '1ヶ月以内', '年末まで', '来年以降'], col = YT_COL();
-  mkChart('yt-chart1', {type: 'bar', data: {labels: HZ, datasets: [1, -1, 0, 2].map(d => ({label: YT_DIR[d], data: HZ.map(h => S.vids.filter(v => v.dir === d && (v.horizon || '').startsWith(h.slice(0, 2))).length), backgroundColor: col[d]}))},
-    options: {scales: {x: {stacked: true}, y: {stacked: true, ticks: {precision: 0}}}}});
-  // 目標水準の分布（再生数を点の大きさに）
-  const pts = S.vids.filter(v => (v.low || v.high) && v.horizon !== '来年以降').map(v => ({x: (v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high), y: v.views || 0, r: 4 + Math.sqrt((v.views || 0) / 20000), dir: v.dir, t: v.title}));
-  mkChart('yt-chart2', {type: 'bubble', data: {datasets: [1, -1, 0, 2].map(d => ({label: YT_DIR[d], data: pts.filter(p => p.dir === d), backgroundColor: col[d] + 'aa', borderColor: col[d]}))},
-    options: {plugins: {tooltip: {callbacks: {label: c => `${fmt0.format(c.raw.x)}円・${fmt0.format(c.raw.y)}回：${c.raw.t.slice(0, 30)}`}}},
-      scales: {x: {title: {display: true, text: '日経平均の目標（円）'}, ticks: {callback: v => fmt0.format(v)}}, y: {title: {display: true, text: '再生回数'}, ticks: {callback: v => fmt0.format(v)}}}}});
-  // よく挙がる理由
-  const cnt = YT_KEYS.map(([k, re]) => [k, S.vids.filter(v => re.test((v.reason || '') + ' ' + (v.indicators || ''))).length]).filter(x => x[1]).sort((a, b) => b[1] - a[1]);
-  $('#yt-reasons').innerHTML = cnt.length ? cnt.map(([k, n]) => `<div class="sig"><div class="n">${k}</div><div class="val">${n}本</div><div><div class="meter" style="width:80px;margin:0"><span style="width:${n / S.vids.length * 100}%;background:var(--accent)"></span></div></div></div>`).join('') : '<p class="note">理由の記載がありません</p>';
-  // AIのまとめ
-  $('#yt-ai').innerHTML = W.ai && W.ai.headline
-    ? `<div class="ailab">AIのまとめ（人気動画の予想 × ダッシュボードの分析）</div><div class="concl">${W.ai.headline}</div>` + ((W.ai.points || []).length ? `<ul class="aipts">${W.ai.points.map(p => `<li>${p}</li>`).join('')}</ul>` : '')
-    : '<p class="note">AIのまとめはまだありません。</p>';
-  // ダッシュボードとの比較
-  let stance = '—';
-  try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, ok = sg.rebound.filter(x => x.st === 'ok').length; stance = lit >= JUDGE.defendCrash && ok === 0 ? '守り（弱気寄り）' : lit <= JUDGE.attackCrash && ok >= JUDGE.attackRebound ? '攻め（強気寄り）' : '中立'; } catch (e) { /* データ不足 */ }
-  const sho = (D.sho || []).slice(-1)[0];
-  $('#yt-cmp').innerHTML = `<table><thead><tr><th>見方</th><th style="text-align:left">結論</th></tr></thead><tbody>
-    <tr><td>人気動画の多数派（再生数で重み付け）</td><td style="text-align:left">${lab[0]}（強気度 ${(S.score >= 0 ? '+' : '') + S.score.toFixed(2)}）</td></tr>
-    <tr><td>ダッシュボードの構え（需給・テクニカル）</td><td style="text-align:left">${stance}</td></tr>
-    <tr><td>AIの判断（今日の判断）</td><td style="text-align:left">${D.ai && D.ai.headline ? D.ai.headline.slice(0, 60) + '…' : '—'}</td></tr>
-    <tr><td>SHO（最新の動画）</td><td style="text-align:left">${sho ? sho.view + '（' + md(sho.date) + '）' : '—'}</td></tr></tbody></table>`;
-  // 答え合わせ（過去の週）
-  const rows = H.map(w => { const s = ytWeek(w), r5 = nkAfter(w.collected, 5), r20 = nkAfter(w.collected, 20);
-    const call = s.score >= 0.2 ? 1 : s.score <= -0.2 ? -1 : 0;
-    return `<tr><td>${ymd(w.collected)}</td><td>${s.vids.length}本</td><td class="${call > 0 ? 'pos' : call < 0 ? 'neg' : ''}">${call > 0 ? '強気' : call < 0 ? '弱気' : '拮抗'}（${(s.score >= 0 ? '+' : '') + s.score.toFixed(2)}）</td>` +
-      `<td>${r5 == null ? '未確定' : sgn(r5, fmt2) + '%' + (call ? (Math.sign(r5) === call ? ' ○' : ' ×') : '')}</td><td>${r20 == null ? '未確定' : sgn(r20, fmt2) + '%' + (call ? (Math.sign(r20) === call ? ' ○' : ' ×') : '')}</td></tr>`; }).reverse().join('');
-  $('#yt-check').innerHTML = `<table><thead><tr><th>集めた日</th><th>本数</th><th>多数派</th><th>5営業日後の日経</th><th>20営業日後</th></tr></thead><tbody>${rows}</tbody></table>`;
-  renderYtList();
-}
-/* 動画一覧（並び替え・絞り込み）。選んだ条件はこの端末に保存 */
-const YT_HZ_ORDER = {'1週間以内': 1, '1ヶ月以内': 2, '年末まで': 3, '来年以降': 4};
-const ytTarget = v => v.low && v.high ? (v.low + v.high) / 2 : v.low || v.high || null;
-function renderYtList() {
-  const H = (D.yt && D.yt.history) || []; if (!H.length) return;
-  const all = ytWeek(H[H.length - 1]).vids;
-  const [key, ord] = $('#yt-sort').value.split('-'), sign = ord === 'd' ? -1 : 1;
-  const fdir = $('#yt-fdir').value, fhz = $('#yt-fhz').value, ftg = $('#yt-ftg').value;
-  try { localStorage.setItem('ytList', JSON.stringify({sort: $('#yt-sort').value, fdir, fhz, ftg})); } catch (e) { /* 保存できなくても表示は変える */ }
-  const val = v => key === 'views' ? v.views || 0 : key === 'date' ? v.date || '' : key === 'tgt' ? ytTarget(v) : key === 'hz' ? YT_HZ_ORDER[v.horizon] || 9 : v.channel || '';
-  const vs = all.filter(v => (fdir === 'all' || v.dir === +fdir) && (fhz === 'all' || v.horizon === fhz) && (ftg === 'all' || ytTarget(v)))
-    .sort((a, b) => { const x = val(a), y = val(b);
-      if (x == null && y == null) return (b.views || 0) - (a.views || 0);
-      if (x == null) return 1; if (y == null) return -1;   // 目標なしは常に最後
-      return (x < y ? -1 : x > y ? 1 : (b.views || 0) - (a.views || 0) * 1) * (x === y ? 1 : sign); });
-  $('#yt-count').textContent = `${vs.length}本 / ${all.length}本`;
-  const th = (k, label, left) => `<th data-k="${k}" style="cursor:pointer${left ? ';text-align:left' : ''}">${label}${key === k ? (ord === 'd' ? ' ▼' : ' ▲') : ''}</th>`;
-  $('#yt-list').innerHTML = `<table><thead><tr>${th('ch', '動画', true)}${th('views', '再生')}${th('date', '公開')}<th>方向</th>${th('hz', '期間')}${th('tgt', '目標（円）')}<th style="text-align:left">主な理由</th></tr></thead><tbody>` +
-    vs.map(v => `<tr><td style="text-align:left;white-space:normal;min-width:220px"><a href="${v.url}" target="_blank" rel="noopener" style="color:var(--fg)">${v.title}</a><br><small style="color:var(--muted)">${v.channel || ''}</small></td><td>${fmt0.format(v.views || 0)}</td><td>${v.date ? md(v.date) : '—'}</td>` +
-      `<td class="${v.dir === 1 ? 'cpos' : v.dir === -1 ? 'cneg' : ''}">${YT_DIR[v.dir] || '—'}</td><td>${v.horizon || '—'}</td><td>${v.low || v.high ? [v.low, v.high].filter(Boolean).map(x => fmt0.format(x)).join('〜') : '—'}</td><td style="text-align:left;white-space:normal;min-width:180px">${v.reason || ''}</td></tr>`).join('') + '</tbody>';
-}
-
 /* ---------------- SHO手法で判断（やさしい説明つき） ---------------- */
 /* シグナル画面と同じ判定（buildSignals）を、SHO手法の「柱」ごとに並べ直し、初めての人にも分かる言葉で説明する */
 const SHO_EASY = {
@@ -1699,8 +1568,8 @@ function renderShoPage() {
 
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
-  $('#period-box').style.display = ['signal', 'sho', 'chart', 'yt'].includes(on) ? 'none' : '';
-  ({signal: renderSignal, sho: renderShoPage, chart: renderChart, yt: renderYt, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  $('#period-box').style.display = ['signal', 'sho', 'chart'].includes(on) ? 'none' : '';
+  ({signal: renderSignal, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 /* ---------------- UI ---------------- */
@@ -1712,16 +1581,6 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 }));
 ['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
 $('#i-checks').addEventListener('change', renderInvestor);
-['#yt-sort', '#yt-fdir', '#yt-fhz', '#yt-ftg'].forEach(id => $(id).addEventListener('change', renderYtList));
-$('#yt-list').addEventListener('click', e => {
-  const t = e.target.closest('th[data-k]'); if (!t) return;
-  const k = t.dataset.k, [cur, ord] = $('#yt-sort').value.split('-');
-  const next = cur === k ? (ord === 'd' ? 'a' : 'd') : (k === 'ch' || k === 'hz' ? 'a' : 'd');
-  const sel = $('#yt-sort'), v = `${k}-${next}`;
-  if (![...sel.options].some(o => o.value === v)) { const o = document.createElement('option'); o.value = v; o.textContent = `${t.textContent.replace(/[▲▼]/g, '').trim()}（${next === 'd' ? '降順' : '昇順'}）`; sel.appendChild(o); }
-  sel.value = v; renderYtList();
-});
-try { const st = JSON.parse(localStorage.getItem('ytList') || 'null'); if (st) { $('#yt-sort').value = st.sort; $('#yt-fdir').value = st.fdir; $('#yt-fhz').value = st.fhz; $('#yt-ftg').value = st.ftg; if (!$('#yt-sort').value) $('#yt-sort').value = 'views-d'; } } catch (e) { /* 既定の条件のまま */ }
 $('#tf').addEventListener('click', e => { const b = e.target.closest('[data-tf]'); if (!b) return; curTF = b.dataset.tf; try { localStorage.setItem('tf', curTF); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.csv;
