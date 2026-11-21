@@ -125,6 +125,14 @@ header h1{padding-right:4px}
 }
 .perrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.perrow>span{font-size:calc(var(--fs)*13px);color:var(--muted)}.perrow .seg{margin-bottom:0}
 @media (max-width:600px){.perrow .seg{flex:1}.perrow .seg button{padding:6px 1px}}
+.hph{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.hp{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.hpt{display:flex;align-items:center;gap:8px;font-weight:600;font-size:calc(var(--fs)*13px);color:var(--muted)}
+.hpt .no{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:calc(var(--fs)*12px)}
+.hpv{font-size:calc(var(--fs)*17px);font-weight:700;margin:6px 0 4px}
+.hpw{font-size:calc(var(--fs)*13px)}.hpb{font-size:calc(var(--fs)*12px);color:var(--muted);margin-top:4px}
+#h-fc .card .v{font-size:calc(var(--fs)*19px)}
+@media (max-width:820px){.hph{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -174,6 +182,7 @@ header h1{padding-right:4px}
 <!-- ============ SHO手法で判断 ============ -->
 <section class="page on" id="p-sho">
   <div class="box" id="h-top"></div>
+  <div class="box" id="h-fc"></div>
   <div class="box" id="h-plan"></div>
   <div class="grid2"><div class="box" id="h-check"></div><div class="box" id="h-ladder"></div></div>
   <div class="box" id="h-change"></div>
@@ -1507,6 +1516,104 @@ function shoItem(sig, prefix) {
 // +1＝上昇に追い風、−1＝下落の心配、0＝どちらでもない
 const shoTone = (x, kind) => x.st === 'na' ? null : kind === 'crash' ? (x.st === 'on' ? -1 : 0) : kind === 'rebound' ? (x.st === 'ok' ? 1 : 0) : (x.st === 'warn' ? -1 : 0);
 const shoWeight = x => x.stars === 1 && !x.unverified ? 0.3 : x.stars;   // 過去3年で逆に働いた項目（★1）は割り引く
+/* ---------------- SHO手法の予想（シナリオ） ----------------
+   SHO手法の考え方（需給で上限が決まる・急落は3〜4日目に自律反発・年末は信用期日と損益通算で投げ売り・期日通過後に戻す）を
+   今のデータ（PERの理論株価・25日線・信用売残）に当てはめて、年明けまでの「道筋の目安」を作る。
+   値動きの大きさ（過去250日の標準偏差）から、約68%・約95%の幅も重ねる。方向の確率を出すものではない。 */
+const easeIO = x => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+function buildShoForecast(sig) {
+  const t = techSeries(), i = t.c.length - 1, close = t.c[i], last = t.dates[i], nz = D.nikkei[D.nikkei.length - 1];
+  if (!nz || !nz.eps_w || i < 260) return null;
+  const eps = nz.eps_w, P = k => eps * k, P13 = P(13), P14 = P(14), P15 = P(15), P16 = P(16), ma25 = t.ma25[i];
+  const g = k => (shoItem(sig, k) || {}).x || {};
+  const supplyBad = g('二市場 信用売残').st === 'on';
+  const dm = (g('急落は3日待て').val || '').match(/^(\d+)日目/), dn = dm ? +dm[1] : null;
+  const today = new Date(last), yr = today.getFullYear(), mo = today.getMonth();
+  const xmas = `${yr}-12-25`, yearEnd = (mo === 10 || mo === 11) && last < xmas;
+  // 先の営業日（土日のみ除く。祝日は考えない目安）
+  const H = yearEnd ? 0 : 40;
+  let fut = futureDates(last, 'd', 80);
+  const kX = yearEnd ? fut.findIndex(d => d >= xmas) + 1 : null;                          // クリスマス（12/25）が何本先か
+  const endIdx = yearEnd ? fut.findIndex(d => d >= `${yr + 1}-01-23`) + 1 : H;            // 年明け1月下旬まで
+  fut = fut.slice(0, endIdx);
+  const n = fut.length, path = new Array(n + 1).fill(null); path[0] = close;
+  // ① 目先：急落後の自律反発（3〜4日目から）。戻りの目安は25日線とPER15倍の低いほう
+  const capA = Math.min(P15, ma25 || P15);
+  const A = capA > close * 1.005 ? capA : close * 1.015;
+  const kA = Math.min(n, dn != null && dn <= 4 ? 8 - dn : 5);
+  const seg = (k0, v0, k1, v1) => { for (let k = k0; k <= k1 && k <= n; k++) path[k] = v0 + (v1 - v0) * easeIO((k - k0) / Math.max(1, k1 - k0)); };
+  // 急落の直後（1〜2日目）は、反発の前にもう一度下を試すことがある
+  if (dn != null && dn <= 2) { const kd = 3 - dn; seg(0, close, kd, close * 0.99); seg(kd, close * 0.99, kA, A); } else seg(0, close, kA, A);
+  let B = null, C = null;
+  if (yearEnd && kX > kA + 3) {
+    // ② 12月：信用期日（6月高値の6ヶ月後）と損益通算の売り。需給が悪い（売残8,000億円未満）ならPER14倍まで、良ければ14〜15倍の中間まで
+    B = supplyBad ? P14 : (P14 + P15) / 2;
+    seg(kA, A, kX, B);
+    // ③ 期日・損益通算を過ぎた年明けは戻す。需給が悪ければPER15〜16倍の中間まで（PER16倍が上値の壁）、良ければPER16倍まで
+    C = supplyBad ? (P15 + P16) / 2 : P16;
+    seg(kX, B, n, C);
+  } else {
+    C = supplyBad ? P15 : P16;
+    seg(kA, A, n, C);
+  }
+  // 値動きの大きさ：過去250日の日次の対数騰落の標準偏差
+  const rets = t.c.slice(-251).map((v, k, a) => k ? Math.log(v / a[k - 1]) : null).slice(1);
+  const sd = sdOf(rets);
+  const band = z => [close, ...fut.map((_, k) => close * Math.exp(z * sd * Math.sqrt(k + 1)))];
+  return {close, last, fut, path, eps, P13, P14, P15, P16, ma25, A, kA, B, kX, C, supplyBad, dn, yearEnd, sd,
+    b1u: band(1), b1d: band(-1), b2u: band(2), b2d: band(-2)};
+}
+function renderShoForecast(sig) {
+  const box = $('#h-fc'); if (!box) return;
+  const F = buildShoForecast(sig);
+  if (!F) { box.innerHTML = '<h2>SHO手法の予想</h2><p class="note">データが足りません</p>'; return; }
+  const yen = v => fmt0.format(Math.round(v)) + '円', pct = v => sgn((v / F.close - 1) * 100, fmt2) + '%';
+  const dOf = k => F.fut[k - 1], mdk = k => k > 0 && dOf(k) ? md(dOf(k)) : '';
+  const S = shoStats(), last = (D.sho || []).slice(-1)[0];
+  const s5 = d => S.sum(S.res[d], 'r5', +d);
+  const V = buildVerify(), vb = V ? V.rows.filter(r => r.st === 'buy' && r.s.n >= 20) : [], vs = V ? V.rows.filter(r => r.st === 'sell' && r.s.n >= 20) : [];
+  const h20 = Math.min(20, F.fut.length);
+  // 時期ごとのシナリオ
+  const rows = [];
+  rows.push([`目先（〜${mdk(F.kA)}ごろ）`, F.dn != null && F.dn <= 4 ? `急落から${F.dn}日目。SHO手法の「急落は3日待て」：3〜4日目からの自律反発を待つ。戻りは25日線とPER15倍のあたりで止まりやすい` : '大きな急落の直後ではない。戻りの目安は25日線とPER15倍',
+    `${yen(F.A)}（${pct(F.A)}）まで戻る余地`, `25日線 ${yen(F.ma25)}・PER15倍 ${yen(F.P15)}`]);
+  if (F.B != null) rows.push([`12月（〜${md(dOf(F.kX))}ごろ）`, '6月高値で買った信用買いの期日（6ヶ月）と、年末の損益通算の売りが重なる。' + (F.supplyBad ? '空売りの残高が少なく（8,000億円未満）、下げても買い戻しの支えが弱い' : '空売りの残高があり、下げると買い戻しが入りやすい'),
+    `${yen(F.B)}（${pct(F.B)}）付近まで下げて底入れ`, F.supplyBad ? `PER14倍 ${yen(F.P14)}（強い底はPER13倍 ${yen(F.P13)}）` : `PER14〜15倍の中間`]);
+  rows.push([F.B != null ? `年明け（〜${md(F.fut[F.fut.length - 1])}ごろ）` : `1〜2ヶ月後（〜${md(F.fut[F.fut.length - 1])}ごろ）`, F.B != null ? '期日・損益通算の売りが出尽くしたあとは戻しやすい（SHOの「大バーゲンセール」の考え方）。' + (F.supplyBad ? 'ただし空売りの残高が8,000億円に戻るまではPER16倍が上値の壁' : '') : (F.supplyBad ? '空売りの残高が少ないあいだは、PER14〜16倍のレンジで上値が重い' : '空売りの残高があれば、PER16倍を超える上昇もありうる'),
+    `${yen(F.C)}（${pct(F.C)}）まで戻す`, F.supplyBad ? `上値の壁 PER16倍 ${yen(F.P16)}` : `PER16倍 ${yen(F.P16)}`]);
+  const lo68 = F.b1d[h20], hi68 = F.b1u[h20], lo95 = F.b2d[h20], hi95 = F.b2u[h20];
+  box.innerHTML = `<h2>SHO手法の予想（${md(F.last)} 終値 ${yen(F.close)} から）</h2>
+    <div class="concl">${F.B != null ? `目先は自律反発で${yen(F.A)}あたりまで戻る余地。12月は年末の売りで再び下げ、${md(dOf(F.kX))}ごろに${yen(F.B)}付近で底入れ、年明けに${yen(F.C)}へ戻す道筋` : `目先は${yen(F.A)}あたりまで戻る余地があり、その後は${yen(F.C)}に向かう道筋`}</div>
+    <p class="note">SHO手法の考え方を今のデータに当てはめた「道筋の目安」です（当たる確率を示すものではありません）。下のグラフの網かけは、過去1年の値動きの大きさから見た、普通に起こりうる幅です。</p>
+    <div class="chart" style="height:340px"><canvas id="h-fcc"></canvas></div>
+    <div class="hph">${rows.map((r, k) => `<div class="hp"><div class="hpt"><span class="no">${k + 1}</span>${r[0]}</div><div class="hpv">${r[2]}</div><div class="hpw">${r[1]}</div><div class="hpb">${r[3]}</div></div>`).join('')}</div>
+    <div class="cards" style="margin:12px 0 0">
+      ${card('20営業日後の幅（約68%）', `${fmt0.format(Math.round(lo68))}〜${fmt0.format(Math.round(hi68))}`, `約95%：${fmt0.format(Math.round(lo95))}〜${fmt0.format(Math.round(hi95))}円。方向は予想しない値動きの幅`)}
+      ${card('過去データ（今と同じ状態のあと）', `買い寄り ${vb.length}・売り寄り ${vs.length}`, vb.length ? vb.slice(0, 3).map(r => r.name + (r.kind === 'state' ? `（20日後上昇${Math.round(r.s.p20)}%）` : '')).join('、') : '目立った偏りなし', vb.length > vs.length ? 'pos' : vs.length > vb.length ? 'neg' : '')}
+      ${card('SHOの予想の当たり方（5日後）', `下落 ${Math.round(s5(-1).hit || 0)}%・上昇 ${Math.round(s5(1).hit || 0)}%`, `最新（${last ? md(last.date) : '—'}）は「${last ? last.view.replace(/（.*/, '') : '—'}」。二極化の後の5日平均 ${sgn(s5(0).avg, fmt2)}%`)}
+    </div>
+    <p class="note" style="margin-top:8px">上振れ・下振れする条件は下の「どうなったら判断が変わる？」を見てください。祝日は考えていないため、日付は目安です。売買を勧めるものではありません。</p>`;
+  // グラフ：直近60日の実績＋シナリオ＋値動きの幅＋PERの水準
+  const hist = 60, hd = t => t.dates.slice(-hist), T = techSeries();
+  const labels = [...hd(T), ...F.fut].map(d => md(d));
+  const nH = hist, pad = arr => [...new Array(nH - 1).fill(null), ...arr];
+  const histLine = [...T.c.slice(-hist).map(r2), ...F.fut.map(() => null)];
+  const flat = v => labels.map(() => r1(v));
+  const c = css('--muted');
+  mkChart('h-fcc', {data: {labels, datasets: [
+    {type: 'line', label: '約95%の幅', data: pad(F.b2u.map(r1)), borderWidth: 0, pointRadius: 0, backgroundColor: PALETTE[0] + '18', fill: '+1'},
+    {type: 'line', label: '_95下', data: pad(F.b2d.map(r1)), borderWidth: 0, pointRadius: 0},
+    {type: 'line', label: '約68%の幅', data: pad(F.b1u.map(r1)), borderWidth: 0, pointRadius: 0, backgroundColor: PALETTE[0] + '30', fill: '+1'},
+    {type: 'line', label: '_68下', data: pad(F.b1d.map(r1)), borderWidth: 0, pointRadius: 0},
+    {type: 'line', label: '日経平均（実績）', data: histLine, borderColor: PALETTE[0], backgroundColor: PALETTE[0], borderWidth: 2, pointRadius: 0},
+    {type: 'line', label: 'SHO手法のシナリオ', data: pad(F.path.map(r1)), borderColor: PALETTE[1], backgroundColor: PALETTE[1], borderWidth: 2.5, borderDash: [6, 4], pointRadius: 0},
+    {type: 'line', label: 'PER16倍（上値の壁）', data: flat(F.P16), borderColor: css('--neg'), backgroundColor: css('--neg'), borderWidth: 1, borderDash: [2, 3], pointRadius: 0},
+    {type: 'line', label: 'PER15倍', data: flat(F.P15), borderColor: c, backgroundColor: c, borderWidth: 1, borderDash: [2, 3], pointRadius: 0},
+    {type: 'line', label: 'PER14倍（下値の目安）', data: flat(F.P14), borderColor: css('--pos'), backgroundColor: css('--pos'), borderWidth: 1, borderDash: [2, 3], pointRadius: 0},
+  ]}, options: {plugins: {legend: {labels: {filter: it => !it.text.startsWith('_')}}, tooltip: {filter: it => !it.dataset.label.startsWith('_') && !it.dataset.label.includes('幅')}},
+    scales: {x: {ticks: {maxTicksLimit: innerWidth <= 600 ? 5 : 9, maxRotation: 0}}, y: {ticks: {callback: v => fmt0.format(v)}}}}});
+}
+
 function renderShoPage() {
   const box = $('#h-top'); if (!box) return;
   let sig;
@@ -1551,6 +1658,7 @@ function renderShoPage() {
     <p class="note" style="margin-top:6px">SHOの判断材料 ${pillars.reduce((a, p) => a + p.items.length, 0)}項目を「上昇の追い風」「下落の心配」に分け、重要度（★）で重み付けした目安：<b>${score > 0 ? '+' : ''}${score}</b>（−100〜+100）。急落サイン ${lit}/8・反発条件 ${okN}/${sig.rebound.length}。
     日経平均 ${fmt0.format(close)}円（前日比 ${sgn((close / t.c[i - 1] - 1) * 100, fmt2)}%）。${shoLast ? `SHOの最新動画（${md(shoLast.date)}）の結論：${shoLast.view}。` : ''}</p>`;
 
+  renderShoForecast(sig);
   // ② SHOならこう考える
   const plan = [];
   if (sell.st === 'on') plan.push(`<b>需給が悪い</b>：空売りの残高が${sell.val}と8,000億円を下回り、下げても買い戻しの支えが弱い。需給が悪いうちは「戻ったら売られる」と考えるのがSHO流。`);
