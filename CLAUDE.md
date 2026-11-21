@@ -13,6 +13,7 @@ Excelで手作業管理していた3種類の需給データを自動取得し�
 - `docs/data/*.json`：データ。初期値はオーナーのExcel画面から転記したもの（src: "sheet"）
 - `docs/data/manual_eval.csv`：信用評価損益率の実績値（手入力）
 - `debug/`：取得失敗時のExcelダンプと `last_run.log`、AIコメント用の `snapshot.json`
+- ホーム画面のアイコン：`docs/icon.svg`（元絵）から `apple-touch-icon.png`(180)・`icon-192.png`・`icon-512.png`・`favicon-32.png` を Playwright で書き出し。名前は「Sho's投資法」（`apple-mobile-web-app-title`・`manifest.webmanifest`）。ホーム画面から開くとSafariの枠なし（standalone）で表示
 - `scripts/snapshot.js`：アプリを裏で開いて計算結果を書き出す（AIコメント用）
 
 ## データ元（確認済み）
