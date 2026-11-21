@@ -1404,6 +1404,19 @@ const JUDGE = {
   riskPct: 1,       // 1回の損切りで失ってよい資金の割合（%）
   signalDays: 15,   // これより古い合図は「直近の合図なし」とみなす（営業日）
 };
+/* 東証の休場日（土日以外）。祝日で公表日が後ろにずれるのを計算するため */
+const JP_HOL = new Set(['2026-11-23', '2026-12-31', '2027-01-01', '2027-01-11', '2027-02-11', '2027-02-23', '2027-03-22', '2027-04-29', '2027-05-03', '2027-05-04', '2027-05-05',
+  '2027-07-19', '2027-08-11', '2027-09-20', '2027-09-23', '2027-10-11', '2027-11-03', '2027-11-23', '2027-12-31', '2028-01-03', '2028-01-10']);
+const isoD = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const isBiz = d => d.getDay() !== 0 && d.getDay() !== 6 && !JP_HOL.has(isoD(d)) && !/-01-0[23]$/.test(isoD(d));
+function bizAfter(dateStr, k) { const d = new Date(dateStr + 'T00:00:00'); let n = 0; while (n < k) { d.setDate(d.getDate() + 1); if (isBiz(d)) n++; } return d; }
+/* 次の公表日：信用残は週末（金）から2営業日目、投資主体別は4営業日目（祝日があれば後ろにずれる） */
+function nextPub(lastWeekEnd, k) {
+  const fri = new Date(lastWeekEnd + 'T00:00:00'); fri.setDate(fri.getDate() + 7);
+  const pub = bizAfter(isoD(fri), k), today = new Date(); today.setHours(0, 0, 0, 0);
+  const wd = '日月火水木金土'[pub.getDay()];
+  return pub < today ? `${jd(pub)}（${wd}）公表済み・取り込み待ち` : `${jd(pub)}（${wd}）`;
+}
 function nextWeekday(from, dow) { const d = new Date(from); d.setHours(0, 0, 0, 0); do d.setDate(d.getDate() + 1); while (d.getDay() !== dow); return d; }
 function renderJudge(sig, V) {
   const box = $('#s-judge'); if (!box) return;
@@ -1475,7 +1488,7 @@ function renderJudge(sig, V) {
   const wk = resample(t.dates, t.c, 'w'), wma = sma(wk.map(b => b.v), 13), wi = wk.length - 1;
   const wTrend = wk[wi].v > wma[wi] && wma[wi] > wma[wi - 1] ? '上昇基調' : wk[wi].v < wma[wi] && wma[wi] < wma[wi - 1] ? '下落基調' : '横ばい・転換途中';
   steps.push({h: '週1回の見直し', r: `週足：${wTrend}`, cls: wTrend === '上昇基調' ? 'pos' : wTrend === '下落基調' ? 'neg' : '',
-    c: `週足の終値 ${fmt0.format(wk[wi].v)}円、13週線 ${fmt0.format(wma[wi])}円。次の公表：信用残 ${jd(nextWeekday(now - 864e5, 2))}（火）〈現在 ${md(m.date)}申込分〉、投資主体別 ${jd(nextWeekday(now - 864e5, 4))}（木）〈現在 ${md(inv.week_end)}週分〉。`});
+    c: `週足の終値 ${fmt0.format(wk[wi].v)}円、13週線 ${fmt0.format(wma[wi])}円。次の公表：信用残 ${nextPub(m.date, 2)}〈現在 ${md(m.date)}申込分〉、投資主体別 ${nextPub(inv.week_end, 4)}〈現在 ${md(inv.week_end)}週分〉。`});
 
   // 結論
   let concl, ccls;
@@ -1736,13 +1749,13 @@ function renderShoPage() {
 
   // ⑥ 判断が変わる条件
   const up = [], dn2 = [];
-  if (sell.st === 'on') up.push('空売りの残高が8,000億円以上に戻る（火曜の信用残で確認）');
+  if (sell.st === 'on') up.push('空売りの残高が8,000億円以上に戻る（次の信用残の公表で確認。ふだんは火曜、祝日があると後ろにずれる）');
   if (vgc.st === 'on') up.push('恐怖指数（VIX）のMACDがデッドクロスに変わる');
   if (g('下落バンドウォーク終了').st !== 'ok') up.push('バンドの下側からの下げ止まり（下落バンドウォーク終了）');
   if (ma25 && close < ma25) up.push(`25日線（${fmt0.format(ma25)}円）を上に抜けて定着する`);
   if (nz && nz.eps_w) dn2.push(`PER14倍（${fmt0.format(nz.eps_w * TH.perSupport)}円）を割ると、13倍（${fmt0.format(nz.eps_w * 13)}円）までの下げを想定`);
   if (g('5日線と200日線のデッドクロス').st === 'warn') dn2.push('5日線が200日線の下のまま3〜4日目に反発しなければ、下げが続くパターン');
-  if (g('海外投資家の売り越し').st === 'on') dn2.push('海外投資家の売り越しが続く（木曜の投資主体別で確認）');
+  if (g('海外投資家の売り越し').st === 'on') dn2.push('海外投資家の売り越しが続く（次の投資主体別の公表で確認。ふだんは木曜）');
   if (g('日経レバ(1570)').st === 'on') dn2.push('1570の信用倍率が高いまま＝個人の投げ売りがまだ出ていない');
   $('#h-change').innerHTML = `<h2>どうなったら判断が変わる？</h2><div class="grid2"><div><div class="grp" style="color:var(--pos)">上向きに変わる条件</div><ul class="aipts">${up.map(x => `<li>${x}</li>`).join('') || '<li>—</li>'}</ul></div>
     <div><div class="grp" style="color:var(--neg)">さらに守りを固める条件</div><ul class="aipts">${dn2.map(x => `<li>${x}</li>`).join('') || '<li>—</li>'}</ul></div></div>`;
