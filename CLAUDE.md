@@ -10,6 +10,7 @@ Excelで手作業管理していた3種類の需給データを自動取得し�
 ## 構成
 - `scripts/fetch.py`：取得と推計。平日 17:35 / 21:35 JST に Actions から実行（`.github/workflows/update-data.yml`）
 - `docs/index.html`：アプリ（Chart.js、タブはSHO手法で判断（最初に開くタブ）・シグナル・チャート・信用残・テクニカル・連動指数・日経理論値・投資主体別）
+- 見出し：タイトル右の「↻ 更新」で画面とデータを読み込み直す（URLに ?r=時刻 を付けてキャッシュを避け、読み込み後に消す）。「データ更新」＝meta.json の updated、「画面の更新」＝読み込んだ日本時間
 - `docs/data/*.json`：データ。初期値はオーナーのExcel画面から転記したもの（src: "sheet"）
 - `docs/data/manual_eval.csv`：信用評価損益率の実績値（手入力）
 - `debug/`：取得失敗時のExcelダンプと `last_run.log`、AIコメント用の `snapshot.json`
