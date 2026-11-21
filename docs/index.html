@@ -346,6 +346,9 @@ const md = d => { const [y, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
 const ymd = d => d.replaceAll('-', '/');
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const PALETTE = ['#2f5d9e', '#d9822b', '#3a9e6f', '#b2457a', '#7b61b8', '#8a8a82'];
+/* ダークモードでは紺が背景に埋もれるため、明るい青に替える */
+const setPalette = () => { PALETTE[0] = matchMedia('(prefers-color-scheme: dark)').matches ? '#6f9be0' : '#2f5d9e'; };
+setPalette();
 const D = {margin: [], nikkei: [], investor: [], short: [], lev: [], breadth: [], sho: [], ai: {}, daily: {}, meta: {}};
 const charts = {}, chartCfg = {};
 
@@ -1049,7 +1052,7 @@ function renderCorr() {
   mkChart('c-chart1', {data: {labels, datasets: [ln('日経225', N.slice(s0).map(r2), PALETTE[0]), mk('ゴールデン', nUp, css('--pos'), 'triangle'), mk('デッド', nDn, css('--neg'), 'triangle')]},
     options: {plugins: {legend: {display: false}}, scales: {x: xs, y: ys}}});
   const pts = P.slice(s0).map((v, k) => L.ahead && s0 + k === dates.length - 1 ? 6 : 0);
-  mkChart('c-chart3', {data: {labels, datasets: [ln('連動指数', P.slice(s0).map(r2), PALETTE[1], {pointRadius: pts}), ln('日経225（参考）', N.slice(s0).map(r2), PALETTE[0] + '55', {borderWidth: 1}),
+  mkChart('c-chart3', {data: {labels, datasets: [ln('連動指数', P.slice(s0).map(r2), PALETTE[1], {pointRadius: pts}), ln('日経225（参考）', N.slice(s0).map(r2), PALETTE[0] + 'c0', {borderWidth: 1.5}),
     mk('ゴールデン', pUp, css('--pos'), 'triangle'), mk('デッド', pDn, css('--neg'), 'triangle')]},
     options: {plugins: {legend: {display: false}}, scales: {x: xs, y: ys}}});
   const hist = (id, h) => mkChart(id, {data: {labels, datasets: [{type: 'bar', label: 'MACDヒストグラム(%)', data: h.slice(s0).map(v => v == null ? null : Math.round(v * 1000) / 1000), backgroundColor: h.slice(s0).map(v => v >= 0 ? css('--pos') + '99' : css('--neg') + '99')}]},
@@ -1197,7 +1200,7 @@ function renderChart() {
   const pData = show.map(b => r2(pMap[b.k] ?? null));
   if (extra) pData.push(r2(L.P[L.P.length - 1]));
   mkChart('ch-c2', {data: {labels: pLabels, datasets: [ln('連動指数', pData, PALETTE[1], {pointRadius: pData.map((_, i) => extra && i === pData.length - 1 ? 6 : 0)}),
-    ln('日経平均（参考）', [...show.map(b => r2(b.v)), ...(extra ? [null] : [])], PALETTE[0] + '55', {borderWidth: 1})]},
+    ln('日経平均（参考）', [...show.map(b => r2(b.v)), ...(extra ? [null] : [])], PALETTE[0] + 'c0', {borderWidth: 1.5})]},
     options: {scales: {x: xs, y: ys}}});
   $('#ch-t1').textContent = `日経平均（${tf.label}）`;
   $('#ch-t2').textContent = `連動指数（${tf.label}）`;
@@ -1701,7 +1704,7 @@ function mountTape() {
   }
 }
 mountTape();
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); if (fsChart || $('#fs').classList.contains('on')) closeFs(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setPalette(); renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); if (fsChart || $('#fs').classList.contains('on')) closeFs(); });
 tapeNarrow.addEventListener('change', mountTape);
 /* 更新ボタン：画面（index.html）とデータを読み込み直す。URLに時刻を付けてキャッシュを使わせない（ホーム画面のアプリには再読み込みボタンが無いため） */
 $('#reload').addEventListener('click', () => { $('#reload').textContent = '↻ 更新中…'; $('#reload').disabled = true; location.replace(location.pathname + '?r=' + Date.now() + location.hash); });
