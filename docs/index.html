@@ -78,6 +78,19 @@ details{font-size:13px;color:var(--muted)}details summary{cursor:pointer}
 .meter span{display:block;height:100%}
 code{font-size:12px}
 .err{background:var(--negbg);color:var(--neg);padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none}
+/* SHO手法タブ */
+.hgauge{margin:10px 0 0}.hbar{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--neg),var(--line) 50%,var(--pos))}
+.hbar span{position:absolute;top:-4px;width:6px;height:20px;margin-left:-3px;border-radius:3px;background:var(--fg)}
+.hlab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px}
+.hitem{padding:10px 2px;border-bottom:1px solid var(--line)}.hitem:last-child{border-bottom:0}
+.hh{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.hn{font-weight:600;font-size:14px;flex:1 1 180px}.hv{font-variant-numeric:tabular-nums;font-size:14px}
+.hnow{font-size:14px;margin:4px 0 2px}.hnow small{color:var(--muted);font-size:11px;margin-left:4px}
+.hwhat{font-size:12px;color:var(--muted)}.hst{font-size:11px;color:#d9a21b;margin-top:2px}.hst small{color:var(--muted)}
+.hchk{list-style:none;padding:0;margin:4px 0 0}.hchk li{display:flex;gap:8px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:14px;color:var(--muted)}
+.hchk li span{width:20px;text-align:center;font-weight:700}.hchk li.ok{color:var(--fg)}.hchk li.ok span{color:var(--pos)}
+.hlv{display:grid;grid-template-columns:minmax(120px,1.2fr) 1fr auto;gap:8px;align-items:center;padding:6px 2px;border-bottom:1px solid var(--line);font-size:13px}
+.hlv.now{font-weight:700;background:var(--hl);border-radius:6px}.hl2{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.hl2 i{display:block;height:100%}
+.hl3{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.hl3 small{display:block;color:var(--muted);font-size:11px;font-weight:400}
 </style>
 </head>
 <body>
@@ -86,6 +99,7 @@ code{font-size:12px}
   <div class="sub">データ更新: <span id="updated">—</span>（JPX・日経公表値を自動取得）</div>
   <nav class="tabs">
     <button class="tab on" data-page="signal">シグナル</button>
+    <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="chart">チャート</button>
     <button class="tab" data-page="yt">人気動画の予想</button>
     <button class="tab" data-page="margin">信用残</button>
@@ -122,6 +136,37 @@ code{font-size:12px}
   <div class="cards" id="s-ref"></div>
   <details class="box"><summary>判定の基準と出典</summary><div class="wrap"><table id="s-th"></table></div>
     <p class="note">基準は index.html 冒頭の <code>TH</code> で変更できます。「近似」は、動画の考え方（トレンドラインなど目で引くもの）を数値で判定するために決めた値です。パラボリックは高値・安値データが無いため終値で計算しています。一目均衡表・フィボナッチ・エリオット波動は未対応です。</p></details>
+</section>
+
+<!-- ============ SHO手法で判断 ============ -->
+<section class="page" id="p-sho">
+  <div class="box" id="h-top"></div>
+  <div class="box" id="h-plan"></div>
+  <div class="grid2"><div class="box" id="h-check"></div><div class="box" id="h-ladder"></div></div>
+  <div class="box" id="h-change"></div>
+  <div class="box"><h2>SHO手法のしくみ（3つの順番で見る）</h2>
+    <ol class="aipts">
+      <li><b>まず需給</b>：空売りの残高（信用売残）や信用倍率で、「あとで出てくる買い・売り」がどちらに多いかを見る。空売りが多いほど下げにくく、信用買いが多いほど下げたときの投げ売りが大きい。</li>
+      <li><b>次に恐怖指数とチャート</b>：VIX（恐怖指数）が上向きか下向きか、ボリンジャーバンド・移動平均・RSIで勢いが続くか終わるかを見て、売買のタイミングを決める。</li>
+      <li><b>最後に値段のものさし</b>：PER・PBRで「どこまで下がれば割安か（PER14倍・13倍）」「どこが上値の壁か（PER16倍・PBR2倍）」を決め、損切りと利確の目安にする。</li>
+    </ol>
+    <p class="note">YouTube「Sho's投資情報局」の手法まとめ（9本）と最新100本の要約にもとづき、数値で判定できるものを自動で判定しています。各項目の★は重要度です（過去3年のデータでの効き目、データが足りないものは動画で触れた本数から）。</p></div>
+  <div id="h-pillars"></div>
+  <div class="box" id="h-track"></div>
+  <details class="box"><summary>ことばの説明</summary><ul class="aipts" style="color:var(--fg)">
+    <li><b>信用取引</b>：お金や株を証券会社から借りて売買すること。借りたものは6ヶ月以内に返す（信用期日）。</li>
+    <li><b>空売り（信用売り）</b>：借りた株を先に売り、あとで買い戻して返す取引。下がると利益になる。</li>
+    <li><b>信用売残・買残</b>：まだ返済されていない空売り・信用買いの残高。売残はいずれ「買い」、買残はいずれ「売り」になる。</li>
+    <li><b>ショートカバー（踏み上げ）</b>：空売りした人が損を抑えるために一斉に買い戻し、株価が急に上がること。</li>
+    <li><b>追証（おいしょう）</b>：信用買いの損が膨らみ、追加の保証金を求められること。払えないと強制的に売られ、下げが加速する。</li>
+    <li><b>VIX（恐怖指数）</b>：米国株の先行きの不安の大きさ。20以下は落ち着き、30以上は強い不安。</li>
+    <li><b>ボリンジャーバンド</b>：株価が収まりやすい幅を示す帯。外側に貼り付いて動くのが「バンドウォーク」。</li>
+    <li><b>MACD</b>：短期と長期の平均の差で勢いを見る指標。上に抜ける（ゴールデンクロス）と上向き、下に抜ける（デッドクロス）と下向き。</li>
+    <li><b>RSI</b>：買われすぎ・売られすぎの目安（0〜100）。70〜80以上で買われすぎ、20〜30以下で売られすぎ。</li>
+    <li><b>PER・PBR</b>：株価が1株利益の何倍か（PER）、1株純資産の何倍か（PBR）。低いほど割安。</li>
+    <li><b>SQ</b>：先物・オプションの清算日。米国は毎月第3金曜。前後に値動きが荒くなりやすい。</li>
+  </ul></details>
+  <p class="note">この画面は投資手法の考え方をデータに当てはめた参考情報で、売買を勧めるものではありません。判断はご自身で行ってください。</p>
 </section>
 
 <!-- ============ チャート ============ -->
@@ -1488,10 +1533,164 @@ function renderYtList() {
       `<td class="${v.dir === 1 ? 'cpos' : v.dir === -1 ? 'cneg' : ''}">${YT_DIR[v.dir] || '—'}</td><td>${v.horizon || '—'}</td><td>${v.low || v.high ? [v.low, v.high].filter(Boolean).map(x => fmt0.format(x)).join('〜') : '—'}</td><td style="text-align:left;white-space:normal;min-width:180px">${v.reason || ''}</td></tr>`).join('') + '</tbody>';
 }
 
+/* ---------------- SHO手法で判断（やさしい説明つき） ---------------- */
+/* シグナル画面と同じ判定（buildSignals）を、SHO手法の「柱」ごとに並べ直し、初めての人にも分かる言葉で説明する */
+const SHO_EASY = {
+  '二市場 信用売残': ['お金や株を借りて「空売り」している人の残高。空売りした人はいずれ必ず買い戻すので、多いほど下がったときの支え（買い戻し）になる。SHOは8,000億円を境目にしている。', '8,000億円を下回っていて、下がっても買い戻しの支えが弱い。', '8,000億円以上あり、下がると買い戻しが入りやすい。'],
+  '二市場の信用倍率': ['信用で買っている額 ÷ 空売りの額。高いほど「買った人」が多く、いずれ出てくる売り（返済売り）が控えている。3倍以上で警戒、5倍以上で危険とされる。', '買い方に大きく偏っていて、下がると投げ売りが連鎖しやすい。', '買い方の偏りは小さい。'],
+  '日経レバ(1570)': ['日経平均の約2倍動く人気ETF（1570）の信用倍率。1倍未満（空売りの方が多い）になると、買い戻しで急上昇（踏み上げ）しやすい。', '1倍を大きく上回り、強気の個人がまだ多い＝投げ売りが出きっていない。', '1倍未満で売り方が多く、踏み上げが起きやすい。'],
+  '信用評価損益率': ['信用で買った人が平均でどれだけ損をしているか。−10%以下で追証（追加の保証金）による売りが出やすく、−20%前後まで悪化すると投げ売りが出尽くして底になりやすい。', '損が大きく、追証の売りが出やすい水準。底が近いサインにもなるが、まだ悪化の途中かもしれない。', '損は大きくない。'],
+  'ショートカバー3条件': ['「売残8,000億円以上」「1570倍率1倍未満」「NS倍率の上昇」の3つ。そろうと空売りの買い戻しで急上昇しやすい、SHOの「爆上げ」条件。', 'まだそろっていない。大きな上昇は期待しにくい。', '3つそろった。急上昇が起きやすい。'],
+  '海外投資家の売り越し': ['日本株の売買の約6割を占める海外投資家が、その週に売ったか買ったか。売り越しが続くと相場の重しになる。', '売り越し。相場の重しになっている。', '買い越し。'],
+  '日本株の優位性低下': ['日経平均 ÷ S&P500（NS倍率）。下がっているときは、米国株に比べて日本株が選ばれていない。', '日本株が米国株より弱い。', '日本株が米国株より弱くなっている様子はない。'],
+  'NT倍率の低下': ['日経平均 ÷ TOPIX。下がるときは、日経平均に多い半導体・ハイテク株より、TOPIXに多い銀行・高配当株が強い（＝二極化）。', '半導体など日経平均型が弱く、バリュー株が優位。日経平均だけ見ると実際より弱く見えやすい。', '二極化は目立たない。'],
+  '上昇バンドウォーク終了': ['ボリンジャーバンド（値動きの幅の目安）の上側に沿って上がり続けたあと、その勢いが終わったサイン。終わると中央線（20日線）まで下がりやすい。', '上昇の勢いが終わったサインが出ている。', '出ていない。'],
+  '下落バンドウォーク終了': ['バンドの下側に沿って下がり続けたあと、下げ止まったサイン。出ると中央線まで戻りやすい。', 'まだ出ていない。', '下げ止まりのサインが出た。'],
+  'バンドウォーク中': ['バンドの外側に貼り付いて動いている状態。この間は「下がりすぎ」と逆らって買うと危ない。', 'バンドに貼り付いて動いている。値ごろ感で逆らわない。', '貼り付きはない。'],
+  '25日線（中央線）が鋭角': ['約1ヶ月の平均株価（25日線）の向き。急に下を向いていると、戻っても25日線で跳ね返されやすい。', '25日線が急に下を向いている。戻りはここで止まりやすい。', '25日線の傾きは緩やか。'],
+  '5日線と200日線のデッドクロス': ['1週間の平均株価が、約10ヶ月の平均を下に抜けた状態。長い目で見た流れが崩れたサイン。', '5日線が200日線の下。「3日待っても反発しない」パターンになりやすい。', '5日線は200日線の上。'],
+  '5日線と25日線のクロス': ['短期の平均が中期の平均を下に抜ける（デッドクロス）と下落入り、上に抜ける（ゴールデンクロス）と上昇入りのサイン。', 'デッドクロスが出た。', '直近の下抜けはない。'],
+  'RSIの下値ライン割れ': ['RSI（買われすぎ・売られすぎの指標）が、それまでの下値を割った。下げが加速しやすいサイン。', '下値を割った。', '割れていない。'],
+  '逆ダイバージェンス': ['株価は安値を更新したのにRSIは更新しない「逆行」＋RSIの上抜け＋MACDの上向き。3つそろうと上昇のスイッチが入る。', 'まだそろっていない。', 'そろった。上昇のスイッチが入りやすい。'],
+  '騰落レシオの売られすぎ': ['値上がり銘柄数 ÷ 値下がり銘柄数（100倍した値）。70前後以下は短期的な売られすぎで、反発の目安。', '売られすぎの水準ではない。', '売られすぎ。短期的な反発が起きやすい水準。'],
+  '急落は3日待て': ['大きく下げた日にあわてて買わず、3〜4日目の自律反発（自然な戻り）を待つ、というSHOの教え。', '今は3〜4日目ではない。', '今が3〜4日目。自律反発が起きやすいタイミング。'],
+  'VIXのMACDがゴールデンクロス': ['VIX（恐怖指数）が上向きに転じたサイン。投資家の不安が強まり、株が売られやすい。', '恐怖指数が上向き。', '恐怖指数は落ち着いている。'],
+  'VIXのMACDがデッドクロス': ['恐怖指数が下向きに転じたサイン。不安が和らぎ、株が底打ちしやすい。', 'まだ下向きに転じていない。', '恐怖指数が下向きに。底打ちのサイン。'],
+  '米国SQ週': ['米国の先物・オプションの清算日（毎月第3金曜）のある週。それまでに恐怖指数が落ち着かないと、売り仕掛けが出やすい。', '恐怖指数が上向きのまま。', '恐怖指数は下向き。'],
+  'PER16倍・PBR2倍': ['PERは株価が1株利益の何倍か、PBRは純資産の何倍か。SHOはPER16倍・PBR2倍を上値の壁と見る。', '日経平均は壁より下にあり、上値は重い。', '壁を上に抜けている。'],
+  'PER14倍・13倍': ['PER14倍・13倍の株価は、割安で買われやすい下値の目安。13倍は強い底。', 'まだその水準まで下がっていない。', 'PER14倍の水準に近い。割安感から買いが入りやすい。'],
+  '信用期日': ['信用買いは6ヶ月で返済期限が来る。高値から6ヶ月後や年末（節税の損出し売り）は売りが出やすい。SHOは「出尽くした安値（クリスマス頃〜大納会）を分けて拾う」。', '期日・年末の売りが出やすい時期。', '期日の売りは目立たない時期。'],
+};
+const SHO_PILLARS = [
+  ['需給（いちばん大事）', '誰がどれだけ買い・売りの「予約」を抱えているか。SHO手法の土台で、動画100本のうち97本で信用売残に触れている。', ['二市場 信用売残', '二市場の信用倍率', '日経レバ(1570)', '信用評価損益率', 'ショートカバー3条件']],
+  ['恐怖指数（VIX）', '投資家の不安の大きさ。上向きのあいだは売られやすく、下向きに転じると底打ちしやすい。', ['VIXのMACDがゴールデンクロス', 'VIXのMACDがデッドクロス', '米国SQ週']],
+  ['チャート（売買のタイミング）', 'ボリンジャーバンド・移動平均・RSIで、勢いが続くか終わるかを見る。', ['急落は3日待て', '騰落レシオの売られすぎ', '下落バンドウォーク終了', '上昇バンドウォーク終了', 'バンドウォーク中', '25日線（中央線）が鋭角', '5日線と200日線のデッドクロス', '5日線と25日線のクロス', 'RSIの下値ライン割れ', '逆ダイバージェンス']],
+  ['割安・割高（PER・PBR）', '利益や資産に比べて株価が高いか安いか。下値と上値の「ものさし」になる。', ['PER14倍・13倍', 'PER16倍・PBR2倍']],
+  ['海外マネーと日米比較', '日本株の主役である海外投資家の動きと、米国株との力関係。', ['海外投資家の売り越し', '日本株の優位性低下', 'NT倍率の低下']],
+  ['季節・イベント', '信用の返済期限や年末の売りなど、毎年くり返す売り買いの波。', ['信用期日']],
+];
+function shoItem(sig, prefix) {
+  for (const [kind, list] of [['crash', sig.crash], ['rebound', sig.rebound], ['caution', sig.caution]]) {
+    const x = list.find(y => y.name.startsWith(prefix)); if (x) return {x, kind};
+  }
+  return null;
+}
+// +1＝上昇に追い風、−1＝下落の心配、0＝どちらでもない
+const shoTone = (x, kind) => x.st === 'na' ? null : kind === 'crash' ? (x.st === 'on' ? -1 : 0) : kind === 'rebound' ? (x.st === 'ok' ? 1 : 0) : (x.st === 'warn' ? -1 : 0);
+const shoWeight = x => x.stars === 1 && !x.unverified ? 0.3 : x.stars;   // 過去3年で逆に働いた項目（★1）は割り引く
+function renderShoPage() {
+  const box = $('#h-top'); if (!box) return;
+  let sig;
+  try { sig = buildSignals(); } catch (e) { box.innerHTML = '<h2>SHO手法で見た今の相場</h2><p class="note">データが足りません</p>'; return; }
+  const t = techSeries(), i = t.c.length - 1, close = t.c[i], asof = t.dates[i], nz = D.nikkei[D.nikkei.length - 1];
+  if (t.c.length < 260) { box.innerHTML = '<h2>SHO手法で見た今の相場</h2><p class="note">データを読み込んでいます…</p>'; return; }
+  // 柱ごとの評価
+  let sum = 0, wsum = 0;
+  const pillars = SHO_PILLARS.map(([title, why, keys]) => {
+    const items = keys.map(k => { const r = shoItem(sig, k); if (!r) return null; const tone = shoTone(r.x, r.kind), w = shoWeight(r.x); return {...r, k, tone, w}; }).filter(Boolean);
+    let ps = 0, pw = 0;
+    for (const it of items) if (it.tone != null) { ps += it.tone * it.w; pw += it.w; sum += it.tone * it.w; wsum += it.w; }
+    const pos = items.filter(it => it.tone > 0).length, neg = items.filter(it => it.tone < 0 && it.w >= 1).length;
+    const lab = pos > neg ? ['追い風', 'pos'] : neg > pos ? ['逆風', 'neg'] : ['五分', ''];
+    return {title, why, items, lab};
+  });
+  const score = wsum ? Math.round(sum / wsum * 100) : 0;   // −100（下落の心配ばかり）〜+100（追い風ばかり）
+  const lit = sig.crash.filter(x => x.st === 'on').length, okN = sig.rebound.filter(x => x.st === 'ok').length;
+  const stance = lit >= JUDGE.defendCrash && okN === 0 ? 'defend' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? 'attack' : 'neutral';
+  const g = k => (shoItem(sig, k) || {}).x || {};
+  const sell = g('二市場 信用売残'), drop = g('急落は3日待て'), vgc = g('VIXのMACDがゴールデンクロス'), sc = g('ショートカバー3条件'), yearEnd = g('信用期日').st === 'warn';
+  const dropDay = (drop.val || '').match(/^(\d+)日目/), dn = dropDay ? +dropDay[1] : null;
+  const verdict = stance === 'defend' ? ['守り：新しい買いは控え、戻ったら減らす', 'neg']
+    : stance === 'attack' ? ['攻め：押し目（一時的な下げ）で買う構え', 'pos']
+    : dn && dn <= 2 ? ['様子見：急落の直後。3〜4日目の反発を待つ', 'neg']
+    : ['様子見：売り買いの材料がまじっている。量を半分に', ''];
+  // 価格のものさし
+  const ma25 = t.ma25[i], ma200 = t.ma200[i];
+  const lv = [];
+  if (nz && nz.eps_w) { lv.push(['PER13倍（強い底）', nz.eps_w * 13, 'pos'], ['PER14倍（下値の目安）', nz.eps_w * TH.perSupport, 'pos'], [`PER${TH.perResist}倍（上値の壁）`, nz.eps_w * TH.perResist, 'neg']); if (nz.pbr_w) lv.push([`PBR${TH.pbrResist}倍（天井の目安）`, nz.close / nz.pbr_w * TH.pbrResist, 'neg']); }
+  if (ma25) lv.push(['25日線（戻りの目標・壁）', ma25, '']);
+  if (ma200) lv.push(['200日線（長期の分かれ目）', ma200, '']);
+  lv.push(['いまの日経平均', close, 'now']);
+  lv.sort((a, b) => b[1] - a[1]);
+  const lo = Math.min(...lv.map(x => x[1])), hi = Math.max(...lv.map(x => x[1]));
+
+  // ① 結論
+  const shoLast = (D.sho || []).slice(-1)[0];
+  box.innerHTML = `<h2>SHO手法で見た今の相場（${md(asof)} 終値ベース）</h2>
+    <div class="concl ${verdict[1]}">${verdict[0]}</div>
+    <div class="hgauge"><div class="hbar"><span style="left:${(score + 100) / 2}%"></span></div><div class="hlab"><span>下落の心配が多い</span><span>五分</span><span>上昇の追い風が多い</span></div></div>
+    <p class="note" style="margin-top:6px">SHOの判断材料 ${pillars.reduce((a, p) => a + p.items.length, 0)}項目を「上昇の追い風」「下落の心配」に分け、重要度（★）で重み付けした目安：<b>${score > 0 ? '+' : ''}${score}</b>（−100〜+100）。急落サイン ${lit}/8・反発条件 ${okN}/${sig.rebound.length}。
+    日経平均 ${fmt0.format(close)}円（前日比 ${sgn((close / t.c[i - 1] - 1) * 100, fmt2)}%）。${shoLast ? `SHOの最新動画（${md(shoLast.date)}）の結論：${shoLast.view}。` : ''}</p>`;
+
+  // ② SHOならこう考える
+  const plan = [];
+  if (sell.st === 'on') plan.push(`<b>需給が悪い</b>：空売りの残高が${sell.val}と8,000億円を下回り、下げても買い戻しの支えが弱い。需給が悪いうちは「戻ったら売られる」と考えるのがSHO流。`);
+  else if (sell.st === 'off') plan.push(`<b>需給の支えあり</b>：空売りの残高が${sell.val}と8,000億円以上あり、下げると買い戻しが入りやすい。`);
+  if (dn != null) plan.push(dn <= 2 ? `<b>急落から${dn}日目</b>（${drop.val.replace(/^\d+日目/, '').replace(/[（）]/g, '')}）：あわてて買わず、3〜4日目の自律反発を待つ。`
+    : dn <= 4 ? `<b>急落から${dn}日目</b>：自律反発が起きやすいタイミング。反発しても25日線（${fmt0.format(ma25)}円）あたりで止まりやすい。`
+    : `<b>急落から${dn}日目</b>：3〜4日目に反発が弱かったなら、下落が続くパターンに注意。`);
+  if (vgc.st === 'on') plan.push(`<b>恐怖指数が上向き</b>（${vgc.val}）：VIXのMACDが下向き（デッドクロス）に変わるまでは、本格的な反発はまだ先と見る。`);
+  if (sc.val) plan.push(`<b>急上昇（踏み上げ）の条件は${sc.val}</b>：売残8,000億円以上・1570倍率1倍未満・NS倍率上昇がそろうまでは、大きな上昇は期待しにくい。`);
+  if (nz && nz.eps_w) plan.push(`<b>値段のものさし</b>：下値の目安はPER14倍の${fmt0.format(nz.eps_w * TH.perSupport)}円、強い底は13倍の${fmt0.format(nz.eps_w * 13)}円。上は25日線${fmt0.format(ma25)}円、PER${TH.perResist}倍${fmt0.format(nz.eps_w * TH.perResist)}円が壁。`);
+  if (yearEnd) plan.push('<b>年末の売り</b>：信用の返済期限や節税の損出し売りが重なる時期。投げ売りが出尽くした安値（クリスマス頃〜大納会）を、何回かに分けて拾う準備をする。');
+  $('#h-plan').innerHTML = `<h2>SHO手法ならこう考える</h2><ul class="aipts">${plan.map(p => `<li>${p}</li>`).join('')}</ul>
+    <p class="note">動画の考え方を、いまのデータに当てはめた自動の文章です。売買を勧めるものではありません。</p>`;
+
+  // ③ 柱ごと
+  const toneTag = it => it.tone == null ? '<span class="pill st-na">データなし</span>' : it.tone > 0 ? '<span class="pill st-buy">追い風</span>' : it.tone < 0 ? '<span class="pill st-sell">心配</span>' : '<span class="pill st-neutral">—</span>';
+  $('#h-pillars').innerHTML = pillars.map((p, pi) => `<div class="box"><h2>${pi + 1}. ${p.title}　<span class="pill st-${p.lab[1] === 'pos' ? 'buy' : p.lab[1] === 'neg' ? 'sell' : 'neutral'}">${p.lab[0]}</span></h2><p class="note">${p.why}</p>` +
+    p.items.map(it => { const e = SHO_EASY[Object.keys(SHO_EASY).find(k => it.k.startsWith(k) || it.x.name.startsWith(k))] || ['', '', ''];
+      const nowTxt = it.tone == null ? '' : (it.kind === 'rebound' ? (it.tone > 0 ? e[2] : e[1]) : (it.tone < 0 ? e[1] : e[2]));
+      return `<div class="hitem"><div class="hh"><span class="hn">${it.x.name.replace(/（.*/, '')}</span><span class="hv">${it.x.val}</span>${toneTag(it)}</div>
+        <div class="hnow">いま：${nowTxt}${it.x.stars === 1 && !it.x.unverified ? '<small>（過去3年のデータでは逆の結果が多かったため、軽く見ています）</small>' : ''}</div>
+        <div class="hwhat">${e[0]}</div><div class="hst">${starTxt(it.x.stars)} <small>重要度</small></div></div>`; }).join('') + '</div>').join('');
+
+  // ④ 反発のチェックリスト
+  const chk = [
+    ['空売りの残高が8,000億円以上に戻る', sell.st === 'off'],
+    ['1570の信用倍率が1倍未満になる', g('日経レバ(1570)').st === 'off'],
+    ['恐怖指数（VIX）のMACDが下向きに', g('VIXのMACDがデッドクロス').st === 'ok'],
+    ['下落バンドウォークが終わる', g('下落バンドウォーク終了').st === 'ok'],
+    ['騰落レシオが売られすぎ（70前後以下）', g('騰落レシオの売られすぎ').st === 'ok'],
+    ['急落から3〜4日目', drop.st === 'ok'],
+    ['PER14倍の水準に近づく', g('PER14倍・13倍').st === 'ok'],
+    ['逆ダイバージェンス＋RSI突破＋MACD上向き', g('逆ダイバージェンス').st === 'ok'],
+  ];
+  const nOk = chk.filter(c => c[1]).length;
+  $('#h-check').innerHTML = `<h2>底打ち・反発のチェックリスト　<b>${nOk}/${chk.length}</b></h2>
+    <p class="note">SHO手法で「下げ止まり」とされる条件。そろうほど反発しやすいとされます。</p>
+    <ul class="hchk">${chk.map(([l, v]) => `<li class="${v ? 'ok' : ''}"><span>${v ? '✓' : '—'}</span>${l}</li>`).join('')}</ul>`;
+
+  // ⑤ 値段のものさし
+  $('#h-ladder').innerHTML = `<h2>日経平均はいまどこ？（値段のものさし）</h2>
+    <p class="note">PERは${nz ? md(nz.date) : '—'}時点の1株利益（${nz && nz.eps_w ? fmt0.format(nz.eps_w) + '円' : '—'}）から計算。いまの値との差を％で表示。</p>` +
+    lv.map(([l, v, c]) => `<div class="hlv ${c === 'now' ? 'now' : ''}"><span class="hl1">${l}</span><span class="hl2"><i style="width:${hi > lo ? (v - lo) / (hi - lo) * 100 : 50}%;background:${c === 'pos' ? 'var(--pos)' : c === 'neg' ? 'var(--neg)' : c === 'now' ? 'var(--accent)' : 'var(--muted)'}"></i></span><span class="hl3">${fmt0.format(v)}円${c === 'now' ? '' : `<small>${sgn((v / close - 1) * 100, fmt2)}%</small>`}</span></div>`).join('');
+
+  // ⑥ 判断が変わる条件
+  const up = [], dn2 = [];
+  if (sell.st === 'on') up.push('空売りの残高が8,000億円以上に戻る（火曜の信用残で確認）');
+  if (vgc.st === 'on') up.push('恐怖指数（VIX）のMACDがデッドクロスに変わる');
+  if (g('下落バンドウォーク終了').st !== 'ok') up.push('バンドの下側からの下げ止まり（下落バンドウォーク終了）');
+  if (ma25 && close < ma25) up.push(`25日線（${fmt0.format(ma25)}円）を上に抜けて定着する`);
+  if (nz && nz.eps_w) dn2.push(`PER14倍（${fmt0.format(nz.eps_w * TH.perSupport)}円）を割ると、13倍（${fmt0.format(nz.eps_w * 13)}円）までの下げを想定`);
+  if (g('5日線と200日線のデッドクロス').st === 'warn') dn2.push('5日線が200日線の下のまま3〜4日目に反発しなければ、下げが続くパターン');
+  if (g('海外投資家の売り越し').st === 'on') dn2.push('海外投資家の売り越しが続く（木曜の投資主体別で確認）');
+  if (g('日経レバ(1570)').st === 'on') dn2.push('1570の信用倍率が高いまま＝個人の投げ売りがまだ出ていない');
+  $('#h-change').innerHTML = `<h2>どうなったら判断が変わる？</h2><div class="grid2"><div><div class="grp" style="color:var(--pos)">上向きに変わる条件</div><ul class="aipts">${up.map(x => `<li>${x}</li>`).join('') || '<li>—</li>'}</ul></div>
+    <div><div class="grp" style="color:var(--neg)">さらに守りを固める条件</div><ul class="aipts">${dn2.map(x => `<li>${x}</li>`).join('') || '<li>—</li>'}</ul></div></div>`;
+
+  // ⑦ 動画の答え合わせ（要約）
+  const S = shoStats(), s5d = S.sum(S.res[-1], 'r5', -1), s5u = S.sum(S.res[1], 'r5', 1);
+  $('#h-track').innerHTML = `<h2>SHOの予想はどのくらい当たった？</h2>
+    <p class="note">最新100本の動画の結論と、5営業日後の日経平均。</p>
+    <div class="cards" style="margin-bottom:0">${card('「下がる」と言った動画', s5d.n ? `当たり ${Math.round(s5d.hit)}%` : '—', `${S.res[-1].length}本・5日後の平均 ${sgn(s5d.avg, fmt2)}%`, 'pos')}${card('「上がる」と言った動画', s5u.n ? `当たり ${Math.round(s5u.hit)}%` : '—', `${S.res[1].length}本・5日後の平均 ${sgn(s5u.avg, fmt2)}%`)}${card('同じ期間の全日', `上昇 ${Math.round(S.base.up)}%`, `5日後の平均 ${sgn(S.base.avg, fmt2)}%`)}</div>
+    <p class="note" style="margin-top:8px">「下がる」という警告はよく当たり、「上がる」は外れることが多い傾向です。警告のサインは重く、強気の見方は控えめに受け取るのが無難です。</p>`;
+}
+
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
-  $('#period-box').style.display = ['signal', 'chart', 'yt'].includes(on) ? 'none' : '';
-  ({signal: renderSignal, chart: renderChart, yt: renderYt, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  $('#period-box').style.display = ['signal', 'sho', 'chart', 'yt'].includes(on) ? 'none' : '';
+  ({signal: renderSignal, sho: renderShoPage, chart: renderChart, yt: renderYt, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 /* ---------------- UI ---------------- */
