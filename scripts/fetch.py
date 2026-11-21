@@ -136,9 +136,55 @@ def parse_margin(content: bytes, prev: dict | None) -> dict | None:
     return res
 
 
+MARGIN_YEARS = 3  # 信用残の履歴を何年分持つか（画面の「3年分を表示」用）
+
+
+def backfill_margin(by_date: dict) -> None:
+    """JPX「信用取引現在高 過去推移表」（margin/05.html の *_mtsk.xls、2002年からの週次・二市場合計）で、
+    3年分に足りない古い週を埋める。シートから転記した週（src: sheet）は公表値と違えば公表値に直す。
+    週次の最新（mtcurrent）で取った週（src: jpx）は触らない。"""
+    start = (dt.date.today() - dt.timedelta(days=365 * MARGIN_YEARS + 14)).isoformat()
+    if any(d <= start for d in by_date):   # すでに3年分ある（初回に埋めたあとは毎回は取りに行かない）
+        return
+    import xlrd  # 古い Excel（.xls）用
+    html = get(f"{JPX}/markets/statistics-equities/margin/05.html").text
+    m = re.search(r'href="([^"]*?_mtsk\.xls)"', html)
+    if not m:
+        log("margin history: 過去推移表（_mtsk.xls）が見つからない")
+        return
+    url = m.group(1) if m.group(1).startswith("http") else JPX + m.group(1)
+    book = xlrd.open_workbook(file_contents=get(url).content)
+    ws = book.sheet_by_index(0)
+    added = fixed = 0
+    for i in range(ws.nrows):
+        c0 = ws.cell(i, 0)
+        if c0.ctype != xlrd.XL_CELL_DATE:
+            continue
+        d = xlrd.xldate_as_datetime(c0.value, book.datemode).date().isoformat()
+        if d < start:
+            continue
+        try:
+            sell_sh, sell, buy_sh, buy = (int(ws.cell(i, k).value) for k in (9, 10, 11, 12))  # 合計（売残 株数・金額、買残 株数・金額）
+        except (TypeError, ValueError):
+            continue
+        old = by_date.get(d)
+        if old is None:
+            by_date[d] = {"date": d, "sell": sell, "buy": buy, "sell_shares": sell_sh, "buy_shares": buy_sh, "src": "jpx_hist"}
+            added += 1
+        elif old.get("src") == "sheet" and (old["sell"] != sell or old["buy"] != buy):
+            log(f"margin {d}: シート値を公表値に修正 {old['sell']}/{old['buy']} -> {sell}/{buy}")
+            old.update({"sell": sell, "buy": buy, "sell_shares": sell_sh, "buy_shares": buy_sh})
+            fixed += 1
+    log(f"margin history: {added}週を追加、{fixed}週を修正（{start}以降）")
+
+
 def update_margin() -> None:
     rows = load_json("margin.json")
     by_date = {r["date"]: r for r in rows}
+    try:
+        backfill_margin(by_date)
+    except Exception as e:  # noqa: BLE001
+        log(f"margin history error: {e}")
     html = get(f"{JPX}/markets/statistics-equities/margin/04.html").text
     links = sorted(set(re.findall(r'href="([^"]*?(\d{8})_mtcurrent\.xlsx)"', html)), key=lambda x: x[1])
     for href, ymd in links:

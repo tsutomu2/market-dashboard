@@ -168,7 +168,7 @@ header h1{padding-right:4px}
 <div class="err" id="err"></div>
 <div class="controls" id="period-box">
   <label>期間 <select id="period">
-    <option value="13">直近13週</option><option value="26" selected>直近26週</option><option value="52">直近52週</option><option value="9999">全期間</option>
+    <option value="13">直近13週</option><option value="26" selected>直近26週</option><option value="52">直近52週</option><option value="156">直近3年</option><option value="9999">全期間</option>
   </select></label>
 </div>
 
@@ -313,7 +313,7 @@ header h1{padding-right:4px}
   <div class="box"><h2>週次マトリックス</h2>
     <p class="note">二市場（東京・名古屋）合計、金額ベース。<span class="badge b-act">実績</span>はシート/公表値、<span class="badge b-est">推計</span>は自動計算。売り残の網掛け＝8,000億円未満（空売り枯渇＝急落サインの②）。</p>
     <div class="wrap"><table id="m-table"></table></div>
-    <p><button class="btn" data-csv="margin">CSVダウンロード</button></p></div>
+    <p><button class="btn" id="m-more" type="button"></button> <button class="btn" data-csv="margin">CSVダウンロード</button></p></div>
 </section>
 
 <!-- ============ 日経理論値 ============ -->
@@ -481,10 +481,14 @@ function renderMargin() {
     {type: 'line', label: '買い残', data: rows.map(r => r.buy), borderColor: PALETTE[2], backgroundColor: PALETTE[2], yAxisID: 'y', pointRadius: 2, tension: 0},
     {type: 'bar', label: '売り残', data: rows.map(r => r.sell), backgroundColor: PALETTE[3] + '99', yAxisID: 'y1'}]},
     options: {scales: {x: {}, y: {position: 'left', ticks: {callback: v => (v / 1e6).toFixed(2) + '兆'}}, y1: {position: 'right', grid: {drawOnChartArea: false}, ticks: {callback: v => fmt0.format(v / 100) + '億'}}}}});
+  // 表は「展開」で3年分（持っている全部）を表示。グラフは上の期間のまま
+  let mExpand = false; try { mExpand = localStorage.getItem('mExpand') === '1'; } catch (e) { /* 既定はたたむ */ }
+  const trows = mExpand ? all : rows;
+  $('#m-more').textContent = mExpand ? '▲ たたむ（上で選んだ期間だけ表示）' : `▼ 展開して${(all.length / 52).toFixed(1).replace(/\.0$/, '')}年分を表示（${all.length}週・${ymd(all[0].date)}〜）`;
   const t = $('#m-table');
   t.innerHTML = '<thead><tr><th>申込日</th><th>売り残</th><th>前週比</th><th>買い残</th><th>前週比</th><th>信用倍率</th><th>評価損益率</th><th>日経平均</th></tr></thead>';
   const tb = document.createElement('tbody');
-  rows.slice().reverse().forEach(r => {
+  trows.slice().reverse().forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${ymd(r.date)}</td><td class="${r.sell < TH.sellBalance ? 'warn' : ''}">${fmt0.format(r.sell)}</td><td class="${r.dsell < 0 ? 'neg' : 'pos'}">${sgn(r.dsell)}</td><td>${fmt0.format(r.buy)}</td><td class="${r.dbuy < 0 ? 'neg' : 'pos'}">${sgn(r.dbuy)}</td>` +
       `<td>${r.ratio ? fmt2.format(r.ratio) : '—'}</td>` +
@@ -1367,7 +1371,7 @@ function renderVerify(V) {
   for (const r of V.rows) {
     const det = r.kind === 'state' ? `今と同じ状態だった${r.s.n}日のあと：5日後 ${sgn(r.s.m5, fmt2)}%（上昇${Math.round(r.s.p5)}%）、20日後 ${sgn(r.s.m20, fmt2)}%（上昇${Math.round(r.s.p20)}%）`
       : r.kind === 'custom' ? `今と同じ状態だった${r.s.n}日：${r.s.custom}`
-      : `値と、公表後5営業日の日経騰落との相関 r=${r.s.r == null ? '—' : (r.s.r >= 0 ? '+' : '') + r.s.r.toFixed(2)}（${r.s.n}週・日）。少ないので参考`;
+      : `値と、公表後5営業日の日経騰落との相関 r=${r.s.r == null ? '—' : (r.s.r >= 0 ? '+' : '') + r.s.r.toFixed(2)}（${r.s.n}週・日）。${r.s.n < 60 ? '少ないので参考' : '週次の相関なので参考'}`;
     html += `<div class="sig"><div class="n"><span class="stars">${starTxt(r.stars)}</span>${r.name}<small>${r.tab}｜${r.now}</small></div><div class="val">信頼度 ${rel(r.s)}</div><div><span class="pill st-${cl[r.st]}">${lab[r.st]}</span></div><div class="c">${det}</div></div>`;
   }
   box.innerHTML = `<h2>各画面の指標と日経平均の関係（過去データで検証）</h2>` +
@@ -1880,6 +1884,7 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 ['#period', '#n-base', '#n-pers', '#n-bands', '#i-mode', '#i-unit'].forEach(s => $(s).addEventListener('change', renderAll));
 $('#i-checks').addEventListener('change', renderInvestor);
 document.addEventListener('click', e => { if (!e.target.closest('.leadtg')) return; linkLead = !linkLead; try { localStorage.setItem('linkLead', linkLead ? '1' : '0'); } catch (err) { /* 保存できなくても切り替える */ } renderAll(); });
+$('#m-more').addEventListener('click', () => { let v = false; try { v = localStorage.getItem('mExpand') === '1'; localStorage.setItem('mExpand', v ? '0' : '1'); } catch (e) { /* 保存できない環境 */ } renderMargin(); if (v) $('#m-table').scrollIntoView({block: 'start'}); });
 $('#chper').addEventListener('click', e => { const b = e.target.closest('[data-per]'); if (!b) return; chPer[curTF] = b.dataset.per; try { localStorage.setItem('chPer', JSON.stringify(chPer)); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 $('#tf').addEventListener('click', e => { const b = e.target.closest('[data-tf]'); if (!b) return; curTF = b.dataset.tf; try { localStorage.setItem('tf', curTF); } catch (err) { /* 保存できなくても表示は切り替える */ } renderChart(); });
 document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click', () => {
