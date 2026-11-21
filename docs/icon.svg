@@ -4,6 +4,7 @@
     <linearGradient id="band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7aa7e6" stop-opacity=".35"/><stop offset="1" stop-color="#7aa7e6" stop-opacity=".08"/></linearGradient>
   </defs>
   <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(256 262) scale(0.66) translate(-256 -262)">
   <!-- ボリンジャーバンド風の帯 -->
   <path d="M40 330 C130 300 190 250 260 225 S400 140 472 100 L472 210 C400 245 330 300 260 320 S130 400 40 420 Z" fill="url(#band)"/>
   <g stroke-linecap="round">
@@ -17,6 +18,7 @@
     <polyline points="60,380 175,330 250,280 325,262 440,150" fill="none" stroke="#ffd25a" stroke-width="14" stroke-linejoin="round"/>
     <polygon points="468,118 470,188 410,150" fill="#ffd25a"/>
   </g>
-  <text x="256" y="92" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-weight="800" font-size="78" fill="#ffffff" letter-spacing="2">Sho's</text>
-  <text x="256" y="478" text-anchor="middle" font-family="Hiragino Sans, Noto Sans CJK JP, sans-serif" font-weight="700" font-size="48" fill="#cfe0ff" letter-spacing="6">投資法</text>
+  </g>
+  <text x="256" y="132" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-weight="800" font-size="132" fill="#ffffff" letter-spacing="1">Sho's</text>
+  <text x="256" y="482" text-anchor="middle" font-family="Hiragino Sans, Noto Sans CJK JP, sans-serif" font-weight="800" font-size="108" fill="#ffffff" letter-spacing="4">投資法</text>
 </svg>
