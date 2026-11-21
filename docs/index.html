@@ -110,6 +110,7 @@ main .chart::after{content:'⤢';position:absolute;right:2px;bottom:0;font-size:
 #fs.on{display:flex}
 .fs-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)}
 #fs-title{flex:1;font-weight:600;font-size:calc(var(--fs)*15px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fs-tip{font:inherit;font-size:calc(var(--fs)*13px);padding:8px 10px;border-radius:10px;border:1px solid var(--accent);background:var(--bg);color:var(--accent);cursor:pointer;white-space:nowrap}#fs-tip.off{border-color:var(--line);color:var(--muted)}
 #fs-close{font:inherit;font-size:calc(var(--fs)*15px);font-weight:600;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
 .fs-hint{display:none;font-size:calc(var(--fs)*12px);color:var(--muted);padding:4px 12px 0}
 @media (orientation:portrait) and (max-width:600px){.fs-hint{display:block}}
@@ -343,7 +344,7 @@ header h1{padding-right:4px}
 <li>画面上部の相場（TradingViewのウィジェット）：日経225＝CFD（OANDA、リアルタイム・24時間）、日経先物・TOPIX先物＝大阪取引所（20分遅れ）、ドル円＝リアルタイム、金・WTI原油＝TradingViewの価格（無料ウィジェットではCOMEX・NYMEXの先物そのものは表示できないため）。TOPIXの指数そのものも無料ウィジェットでは表示できないため先物で代用。</li>
 </ul></details>
 </main>
-<div id="fs" role="dialog" aria-modal="true"><div class="fs-head"><span id="fs-title"></span><button id="fs-close" type="button" aria-label="閉じる">✕ 閉じる</button></div>
+<div id="fs" role="dialog" aria-modal="true"><div class="fs-head"><span id="fs-title"></span><button id="fs-tip" type="button"></button><button id="fs-close" type="button" aria-label="閉じる">✕ 閉じる</button></div>
   <div class="fs-hint">スマホを横向きにすると、さらに大きく表示されます</div><div id="fs-body"></div></div>
 
 <script>
@@ -1733,6 +1734,17 @@ function renderAll() {
 
 /* ---------------- グラフの全画面表示（タップで開く・横向き対応） ---------------- */
 let fsChart = null;
+/* グラフをタップしたときに出る値の吹き出し（ツールチップ）の表示・非表示。選んだ状態は localStorage（tipOn）に保存 */
+const TIP_EVENTS = ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'];
+let tipOn = true;
+try { tipOn = localStorage.getItem('tipOn') !== '0'; } catch (e) { /* 保存できない環境では表示する */ }
+function applyTip() {
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.events = tipOn ? TIP_EVENTS : [];
+    [...Object.values(charts), fsChart].forEach(c => { if (c) { if (!tipOn) c.tooltip.setActiveElements([], {x: 0, y: 0}); c.update('none'); } });
+  }
+  const b = $('#fs-tip'); if (b) { b.textContent = tipOn ? '値の表示：あり' : '値の表示：なし'; b.classList.toggle('off', !tipOn); }
+}
 function openFs(title, id) {
   const fs = $('#fs'), body = $('#fs-body');
   $('#fs-title').textContent = title || '';
@@ -1761,6 +1773,8 @@ document.addEventListener('click', e => {
   openFs(h ? h.textContent : '', cv.id);
 });
 $('#fs-close').addEventListener('click', () => closeFs());
+$('#fs-tip').addEventListener('click', () => { tipOn = !tipOn; try { localStorage.setItem('tipOn', tipOn ? '1' : '0'); } catch (e) { /* 保存できなくても切り替える */ } applyTip(); });
+applyTip();
 addEventListener('popstate', () => closeFs(true));
 addEventListener('keydown', e => { if (e.key === 'Escape') closeFs(); });
 $('#ch-tv-fs').addEventListener('click', () => openFs($('#ch-tv-t').textContent, 'tv'));
