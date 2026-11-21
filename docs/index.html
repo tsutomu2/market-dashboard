@@ -108,8 +108,8 @@ code{font-size:12px}
   <h1>マーケット需給ダッシュボード</h1>
   <div class="sub">データ更新: <span id="updated">—</span>（JPX・日経公表値を自動取得）</div>
   <nav class="tabs">
-    <button class="tab on" data-page="signal">シグナル</button>
-    <button class="tab" data-page="sho">SHO手法で判断</button>
+    <button class="tab on" data-page="sho">SHO手法で判断</button>
+    <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
     <button class="tab" data-page="margin">信用残</button>
     <button class="tab" data-page="tech">テクニカル</button>
@@ -128,7 +128,7 @@ code{font-size:12px}
 </div>
 
 <!-- ============ シグナル ============ -->
-<section class="page on" id="p-signal">
+<section class="page" id="p-signal">
   <div class="box" id="s-judge"></div>
   <div class="cards" id="s-summary"></div>
   <div class="box" id="s-sho"></div>
@@ -148,7 +148,7 @@ code{font-size:12px}
 </section>
 
 <!-- ============ SHO手法で判断 ============ -->
-<section class="page" id="p-sho">
+<section class="page on" id="p-sho">
   <div class="box" id="h-top"></div>
   <div class="box" id="h-plan"></div>
   <div class="grid2"><div class="box" id="h-check"></div><div class="box" id="h-ladder"></div></div>

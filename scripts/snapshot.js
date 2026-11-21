@@ -24,7 +24,7 @@ server.listen(0, async () => {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.route(/^https?:\/\/(?!localhost)/, r => r.abort());   // 外部の読み込みは止める
-  await page.goto(`http://localhost:${port}/`);
+  await page.goto(`http://localhost:${port}/#signal`);   // 最初に開くタブはSHO手法なので、シグナル画面を開く
   await page.waitForFunction(() => document.querySelector('#s-judge .concl'), null, { timeout: 30000 });
   const snap = await page.evaluate(() => {
     const txt = el => (el ? el.innerText.replace(/\s+\n/g, '\n').trim() : '');
