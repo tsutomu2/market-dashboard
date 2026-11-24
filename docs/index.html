@@ -1967,7 +1967,10 @@ function renderTrCheck() {
   if (TRS.status === 'start') {
     box.innerHTML = head + (left > 0
       ? `<div class="trmsg neg">待ち時間中です。あと約${left}分たってから、もう一度チェックしてください。</div><button class="btn trbig" disabled>チェックを始める</button>`
-      : `<button class="btn trbig trgo" id="tr-start" type="button">チェックを始める</button>`) + trClaudeHtml();
+      : `<button class="btn trbig trgo" id="tr-start" type="button">チェックを始める</button>`)
+      + `<button class="btn trbig" id="tr1m-open" type="button">${TR1M_OPEN ? '▲ 1分足のテクニカル根拠を閉じる' : '📈 1分足のテクニカル根拠を見る'}</button>`
+      + (TR1M_OPEN ? `<div class="trmat">${tr1mHtml()}</div>` : '') + trClaudeHtml();
+    if (TR1M_OPEN) trMountTv();
   } else if (TRS.status === 'q') {
     const q = TR_Q[TRS.i], neg = TRS.flip[TRS.i];
     let sub = q.sub || '';
@@ -2082,6 +2085,7 @@ function trClaudePrompt() {
     '■上げの材料', ...m.filter(x => x[0] > 0).map(ln),
     '■下げの材料', ...m.filter(x => x[0] < 0).map(ln),
     '■確認', ...m.filter(x => x[0] === 0).map(ln),
+    tr1mText() ? `■1分足（TradingViewを見て自分で確認）：${tr1mText()}` : '',
     sho ? `■参考：YouTube「Sho's投資情報局」の最新の結論（${md(sho.date)}）：${sho.view}` : '',
     pend.dir ? `■私が考えている方向：${pend.dir === 'buy' ? '買い（上がる）' : '売り（下がる）'}　根拠：${(pend.reasons || []).join('、') || '未選択'}` : '■私が考えている方向：まだ決めていない',
     '',
@@ -2108,10 +2112,89 @@ function trMaterialsHtml() {
     <div class="grid2"><div><div class="grp pos">▲ 上げの材料</div><ul class="trli">${up.map(li).join('') || '<li>なし</li>'}</ul></div>
     <div><div class="grp neg">▼ 下げの材料</div><ul class="trli">${dn.map(li).join('') || '<li>なし</li>'}</ul></div></div>
     ${nt.length ? `<div class="grp">● 確認しておくこと</div><ul class="trli">${nt.map(li).join('')}</ul>` : ''}
-    <h3>分足（1分・5分など）の確認</h3>
-    <p class="note">分足のデータはこのアプリでは取れないため、TradingView の画面で確かめてください。上のテクニカル判定は、移動平均・オシレーターの「買い・売り」の多数決です（上のタブで1分・5分・15分などを切り替えられます）。下の1分足チャートで、MACDのクロスが近いか、ボリンジャーバンドのどこにいるかを見ます。</p>
-    <div class="trtv" id="tr-ta"></div><div class="trtv" id="tr-1m" style="height:460px"></div>
+    ${tr1mHtml()}
     <p class="note">自分の根拠と合っているかを確かめてから、アプリを開きましょう。材料は機械的に並べたもので、売買を勧めるものではありません。</p></div>`;
+}
+/* ---- 1分足のテクニカル根拠（2026-11-25 オーナー指定） ----
+   1分足のデータはこのアプリでは取れないため、TradingView の1分足（MACD・ボリンジャー・RSI付き）とテクニカル判定を表示し、
+   見えたことをタップで選ぶと、上げ・下げの根拠と「買い寄り／売り寄り／方向感なし」をまとめる。選んだ内容は30分だけ有効（localStorage tr1m） */
+let TR1M_OPEN = false;
+const TR1M_TTL = 30 * 60000;
+const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見方, 根拠の分類]
+  ['mgc', 1, 'MACDがゴールデンクロスした（しそう）', 'チャート下の欄：青い線がオレンジの線を下から上に抜ける。棒（ヒストグラム）がマイナスから縮んでいる', 'MACDのクロス（分足）'],
+  ['m0u', 1, 'MACDが0の線より上', '青い線が0の線より上＝上向きの勢いの中', 'MACDのクロス（分足）'],
+  ['bmu', 1, 'ボリンジャーの真ん中の線より上', '真ん中の線（20本の平均）の上で動いている', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
+  ['bbl', 1, '−2σ（下の線）に触れて反発した', '下の線に触れたあと、陽線（上げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
+  ['rsu', 1, 'RSIが30以下から上向きに戻った', 'RSIの欄：30の線を下から上に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
+  ['hlu', 1, '安値が切り上がっている', '前の安値を割らずに、安値が少しずつ高くなっている', '節目の価格（PER・高値安値・25日線）'],
+  ['tau', 1, 'テクニカル判定が「買い」「強い買い」', '上の判定（まとめ）の針が右側', null],
+  ['mdc', -1, 'MACDがデッドクロスした（しそう）', '青い線がオレンジの線を上から下に抜ける。棒がプラスから縮んでいる', 'MACDのクロス（分足）'],
+  ['m0d', -1, 'MACDが0の線より下', '青い線が0の線より下＝下向きの勢いの中', 'MACDのクロス（分足）'],
+  ['bmd', -1, 'ボリンジャーの真ん中の線より下', '真ん中の線（20本の平均）の下で動いている', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
+  ['bbh', -1, '+2σ（上の線）に触れて反落した', '上の線に触れたあと、陰線（下げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
+  ['rsd', -1, 'RSIが70以上から下向きに戻った', 'RSIの欄：70の線を上から下に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
+  ['hld', -1, '高値が切り下がっている', '前の高値を超えられず、高値が少しずつ低くなっている', '節目の価格（PER・高値安値・25日線）'],
+  ['tad', -1, 'テクニカル判定が「売り」「強い売り」', '上の判定（まとめ）の針が左側', null],
+  ['bwk', 0, 'バンドに沿って動き続けている（バンドウォーク）', '+2σや−2σの線に沿って足が並ぶ。逆張り（反発・反落ねらい）はしない', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
+  ['sqz', 0, 'バンドの幅が狭くなっている', '大きく動く前のことが多い。どちらに抜けるかを見てから', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
+  ['flt', 0, '値動きが小さく方向がはっきりしない', '無理に入らず、見送るのも選択肢', null],
+];
+function tr1mGet() { const v = trGet('tr1m', {t: 0, on: []}) || {}; return Date.now() - (v.t || 0) < TR1M_TTL ? v : {t: 0, on: []}; }
+function tr1mJudge(on) {
+  const it = TR1M.filter(x => on.includes(x[0])), up = it.filter(x => x[1] > 0).length, dn = it.filter(x => x[1] < 0).length, d = up - dn;
+  return {it, up, dn, dir: !it.length ? null : d >= 2 ? 'buy' : d <= -2 ? 'sell' : 'flat'};
+}
+function tr1mText() {
+  const v = tr1mGet(); if (!v.on.length) return '';
+  const j = tr1mJudge(v.on), hm = new Date(v.t).toTimeString().slice(0, 5);
+  return `${hm}確認、上げ${j.up}・下げ${j.dn}（${j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし'}）：${j.it.map(x => x[2]).join('、')}`;
+}
+function tr1mSumHtml() {
+  const v = tr1mGet(), j = tr1mJudge(v.on);
+  if (!j.it.length) return '<p class="note">チャートを見て、当てはまるものをタップしてください（いくつでも）。</p>';
+  const m = trMaterials(), mu = m.filter(x => x[0] > 0).length, mdn = m.filter(x => x[0] < 0).length;
+  const day = mu - mdn >= 2 ? 'buy' : mdn - mu >= 2 ? 'sell' : 'flat', pend = trGet('trPending', {}) || {};
+  const word = {buy: '買い寄り', sell: '売り寄り', flat: '方向感なし'};
+  const warn = [];
+  if (j.dir !== 'flat' && day !== 'flat' && j.dir !== day) warn.push(`日足の材料（上げ${mu}・下げ${mdn}＝${word[day]}）と逆向きです。短い時間の逆行は長続きしにくいので、量を減らすか見送りも考えましょう。`);
+  if (pend.dir && j.dir !== 'flat' && pend.dir !== j.dir) warn.push(`選んでいる方向（${pend.dir === 'buy' ? '買い' : '売り'}）と1分足（${word[j.dir]}）が逆です。`);
+  if (v.on.includes('bwk') && (v.on.includes('bbl') || v.on.includes('bbh'))) warn.push('バンドウォーク中の反発・反落ねらいは、そのまま走られやすい形です。');
+  if (j.dir === 'flat') warn.push('上げと下げの根拠の差が小さく、方向感がありません。入るなら根拠がそろうまで待ちましょう。');
+  const li = x => `<li>${x[2]}</li>`;
+  return `<div class="trbal"><span class="pos">上げ ${j.up}</span><span class="trbar"><i style="width:${j.up / Math.max(1, j.up + j.dn) * 100}%"></i></span><span class="neg">下げ ${j.dn}</span></div>
+    <div class="trmsg ${j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : ''}"><b>1分足は「${word[j.dir]}」</b>（${new Date(v.t).toTimeString().slice(0, 5)}の確認）
+      ${j.it.filter(x => x[1] > 0).length ? `<br><span class="pos">▲ 上げ：</span>${j.it.filter(x => x[1] > 0).map(x => x[2]).join('／')}` : ''}
+      ${j.it.filter(x => x[1] < 0).length ? `<br><span class="neg">▼ 下げ：</span>${j.it.filter(x => x[1] < 0).map(x => x[2]).join('／')}` : ''}
+      ${j.it.filter(x => x[1] === 0).length ? `<br>● 注意：${j.it.filter(x => x[1] === 0).map(x => x[2]).join('／')}` : ''}</div>
+    ${warn.map(w => `<p class="note neg">⚠ ${w}</p>`).join('')}
+    <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「今回の根拠」に入れる</button><button class="btn" id="tr1m-clear" type="button">選び直す</button></div>
+    <p class="note" id="tr1m-msg">1分足はすぐ変わるため、選んだ内容は30分たつと消えます。「Claudeに聞く」の質問文にも入ります。</p>`;
+}
+function tr1mHtml() {
+  const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
+    .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
+  return `<div id="tr1m"><h3>1分足のテクニカル根拠</h3>
+    <p class="note">1分足のデータはこのアプリでは取れないため、TradingView の画面で確かめます。上の判定は、オシレーター・移動平均の「買い・売り」の多数決です（タブで1分・5分・15分などに切替）。下のチャートは1分足で、MACD・ボリンジャーバンド・RSI付きです。</p>
+    <div class="trtv" id="tr-ta"></div><div class="trtv" id="tr-1m" style="height:520px"></div>
+    <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
+    <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
+    ${grp(1, '▲ 上げの形', 'pos')}${grp(-1, '▼ 下げの形', 'neg')}${grp(0, '● 注意', '')}
+    <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
+}
+function tr1mSave(quiet) {
+  const on = [...document.querySelectorAll('#tr1m .trchip.on')].map(b => b.dataset.v);
+  trSet('tr1m', {t: on.length ? Date.now() : 0, on});
+  const s = $('#tr1m-sum'); if (s) s.innerHTML = tr1mSumHtml();
+}
+function tr1mAdd() {
+  const v = tr1mGet(), j = tr1mJudge(v.on), pend = trGet('trPending', {}) || {};
+  const add = [...new Set(j.it.map(x => x[4]).filter(Boolean))], rs = [...new Set([...(pend.reasons || []), ...add])];
+  const dir = pend.dir || (j.dir === 'buy' || j.dir === 'sell' ? j.dir : null);
+  trSet('trPending', {date: trToday(), dir, reasons: rs});
+  const d = $('#trp-dir'), r = $('#trp-rs');
+  if (d && r) { d.innerHTML = trChips(TR_DIRS, dir, true); r.innerHTML = trChips(TR_REASONS, rs); trPendingCheck(); }
+  else if (!TR_EDIT) trFormFill();
+  $('#tr1m-msg').innerHTML = `<span class="pos">「今回の根拠」に入れました：${add.join('、') || '（分類できる根拠なし）'}${!pend.dir && dir ? `／方向：${dir === 'buy' ? '買い' : '売り'}` : ''}</span>${d ? '' : '<br>チェックを通過すると、根拠の欄に入った状態で表示されます。'}`;
 }
 function trMountTv() {
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2120,10 +2203,10 @@ function trMountTv() {
     const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; c.appendChild(w);
     const s = document.createElement('script'); s.async = true; s.src = src; s.textContent = JSON.stringify(cfg); c.appendChild(s); box.appendChild(c); };
   put('tr-ta', 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js',
-    {interval: '1m', width: '100%', isTransparent: false, height: 420, symbol: 'OANDA:JP225USD', showIntervalTabs: true, displayMode: 'single', locale: 'ja', colorTheme: dark ? 'dark' : 'light'});
+    {interval: '1m', width: '100%', isTransparent: false, height: 450, symbol: 'OANDA:JP225USD', showIntervalTabs: true, displayMode: 'multiple', locale: 'ja', colorTheme: dark ? 'dark' : 'light'});
   put('tr-1m', 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',
     {symbol: 'OANDA:JP225USD', interval: '1', timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
-      allow_symbol_change: false, hide_side_toolbar: true, studies: ['MACD@tv-basicstudies', 'BB@tv-basicstudies']});
+      allow_symbol_change: false, hide_side_toolbar: true, studies: ['MACD@tv-basicstudies', 'BB@tv-basicstudies', 'RSI@tv-basicstudies']});
 }
 
 /* ---- 損益の記録 ---- */
@@ -2226,7 +2309,11 @@ document.addEventListener('click', e => {
   else if (e.target.closest('#tr-cancel')) trEndEdit();
   else if (e.target.closest('.trchip')) { const c = e.target.closest('.trchip'), g = c.parentElement;
     if (g.id === 'tr-dir' || g.id === 'trp-dir') { const was = c.classList.contains('on'); g.querySelectorAll('.trchip').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); } else c.classList.toggle('on');
-    if (g.id.startsWith('trp-')) trPendingCheck(); }
+    if (g.id.startsWith('trp-')) trPendingCheck();
+    if (g.closest('#tr1m')) tr1mSave(); }
+  else if (e.target.closest('#tr1m-open')) { TR1M_OPEN = !TR1M_OPEN; renderTrCheck(); if (TR1M_OPEN) $('#tr1m').scrollIntoView({block: 'start'}); }
+  else if (e.target.closest('#tr1m-clear')) { trSet('tr1m', {t: 0, on: []}); $('#tr1m').querySelectorAll('.trchip.on').forEach(x => x.classList.remove('on')); tr1mSave(true); }
+  else if (e.target.closest('#tr1m-add')) tr1mAdd();
   else if (e.target.closest('#tr-apps.trlock a')) { e.preventDefault(); $('#trp-msg').scrollIntoView({block: 'center'}); }
   else if (e.target.closest('#tr-claude')) { e.target.closest('#tr-claude').href = 'https://claude.ai/new?q=' + encodeURIComponent(trClaudePrompt()); }
   else if (e.target.closest('#tr-claude-copy')) { const txt = trClaudePrompt(), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
