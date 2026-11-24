@@ -191,8 +191,8 @@ header h1{padding-right:4px}
   <div class="hrow"><h1>マーケット需給ダッシュボード</h1><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻ 更新</button></div>
   <div class="sub upd"><span>データ更新：<b id="updated">—</b></span><span>画面の更新：<b id="loaded">—</b></span></div>
   <nav class="tabs">
-    <button class="tab on" data-page="sho">SHO手法で判断</button>
-    <button class="tab" data-page="trade">短期トレード</button>
+    <button class="tab on" data-page="trade">短期トレード</button>
+    <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
     <button class="tab" data-page="margin">信用残</button>
@@ -212,7 +212,7 @@ header h1{padding-right:4px}
 </div>
 
 <!-- ============ 短期トレード ============ -->
-<section class="page" id="p-trade">
+<section class="page on" id="p-trade">
   <div class="box" id="tr-sched"><div id="tr-sched-main"></div>
     <details class="stev"><summary>日本・米国などの経済指標カレンダー（TradingView・重要度 中以上）</summary><div class="trtv" id="tr-evtv"></div></details></div>
   <div class="box" id="tr-check"></div>
@@ -259,7 +259,7 @@ header h1{padding-right:4px}
 </section>
 
 <!-- ============ SHO手法で判断 ============ -->
-<section class="page on" id="p-sho">
+<section class="page" id="p-sho">
   <div class="box" id="h-top"></div>
   <div class="box" id="h-fc"></div>
   <div class="box" id="h-vid"></div>
