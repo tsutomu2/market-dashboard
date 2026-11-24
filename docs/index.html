@@ -162,6 +162,15 @@ header h1{padding-right:4px}
 .trbal{display:flex;align-items:center;gap:8px;font-weight:700;font-size:calc(var(--fs)*14px)}.trbar{flex:1;height:10px;border-radius:5px;background:var(--neg);overflow:hidden}.trbar i{display:block;height:100%;background:var(--pos)}
 .trli{margin:4px 0 8px;padding-left:18px;font-size:calc(var(--fs)*14px);line-height:1.5}.trli li{margin-bottom:6px}.trli small{color:var(--muted);font-size:calc(var(--fs)*12px)}
 .grp.pos{color:var(--pos)}.grp.neg{color:var(--neg)}.trtv{margin:8px 0;border-radius:10px;overflow:hidden}
+.trchips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.trchip{font:inherit;font-size:calc(var(--fs)*13px);padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+.trchip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.trlock a{opacity:.35;pointer-events:auto}.trtag{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;margin:1px 3px 1px 0;border-radius:999px;background:var(--line)}
+.trform input[type=time]{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
+#tr-editing{background:var(--warn);color:var(--warnfg)}
+.trrec{padding:10px 2px;border-bottom:1px solid var(--line)}.trrec.hl{background:var(--hl)}
+.trr1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.trrt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:calc(var(--fs)*13px)}
+.trrv{font-size:calc(var(--fs)*17px);font-variant-numeric:tabular-nums}.trrb{margin-left:auto;display:flex;gap:6px}.trrb .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}
+.trr2{font-size:calc(var(--fs)*13px);color:var(--muted);margin:2px 0}
 </style>
 </head>
 <body>
@@ -195,12 +204,16 @@ header h1{padding-right:4px}
   <div class="box"><h2>損益を記録</h2>
     <p class="note">その日の<b>現時点の損益の合計</b>を入力します。2回目以降も「その時点の合計」を入れると、前回との差がその回の損益になります。</p>
     <div class="trform">
-      <label>日付 <input type="date" id="tr-date"></label>
+      <div class="trmsg" id="tr-editing" style="display:none"></div>
+      <div class="trrow"><label>日付 <input type="date" id="tr-date"></label><label>時刻 <input type="time" id="tr-time"></label></div>
+      <div><div class="grp">入った方向</div><div class="trchips" id="tr-dir"></div></div>
+      <div><div class="grp">入った根拠（あてはまるものを全部）</div><div class="trchips" id="tr-rs"></div></div>
       <div class="trrow"><button class="btn" id="tr-sign" data-sign="+" type="button">勝ち（＋）</button><input type="number" id="tr-amt" inputmode="numeric" min="0" step="1" placeholder="今日の合計（円）"><span>円</span></div>
       <input type="text" id="tr-memo" placeholder="メモ（銘柄・根拠・反省など、なくても可）">
       <div class="note" id="tr-prev"></div><div id="tr-diff"></div>
-      <button class="btn trbig trgo" id="tr-save" type="button">記録する</button>
+      <div class="trrow"><button class="btn trbig trgo" id="tr-save" type="button">記録する</button><button class="btn" id="tr-cancel" type="button" style="display:none">訂正をやめる</button></div>
     </div></div>
+  <div class="box"><h2>根拠ごとの成績</h2><p class="note">どの根拠で入ったときに勝てているか。1回の取引に根拠が複数あれば、それぞれに数えます。</p><div class="wrap" id="tr-rstat"></div></div>
   <div class="cards" id="tr-sum"></div>
   <div class="box"><h2>日ごとの損益（直近30日）</h2><div class="chart" style="height:220px"><canvas id="tr-chart"></canvas></div></div>
   <div class="box"><h2>月ごとの損益（今年）</h2><div class="wrap" id="tr-month"></div></div>
@@ -1865,6 +1878,13 @@ const TR_Q = [
   {k: 'env', pos: '今日の地合い（このアプリの構え・前夜の米国）を確認しましたか？', neg: '地合いを確認しないまま始めようとしていますか？',
     stop: '全体の流れに逆らう取引は、勝ちにくくなります。「SHO手法で判断」タブで今日の構えを確認してから始めましょう。', cool: 0},
 ];
+const TR_DIRS = [['buy', '買い（上がる）'], ['sell', '売り（下がる）']];
+const TR_REASONS = ['MACDのクロス（分足）', 'MACDのクロス（日足）', '移動平均線（5日・25日線）', 'ボリンジャーバンド（±2σ・バンドウォーク）', 'RSI・騰落レシオ（売られすぎ・過熱）',
+  '節目の価格（PER・高値安値・25日線）', '連動指数・前夜の米国', 'VIX（恐怖指数）', '需給（信用残・1570倍率・海外勢）', 'SHO手法の判断・動画', 'ニュース・発表', 'その他（メモに記入）'];
+const trChips = (list, sel, single) => list.map(x => { const [v, l] = Array.isArray(x) ? x : [x, x];
+  return `<button type="button" class="trchip${(single ? sel === v : (sel || []).includes(v)) ? ' on' : ''}" data-v="${v}">${l}</button>`; }).join('');
+const chipVals = el => [...el.querySelectorAll('.trchip.on')].map(b => b.dataset.v);
+let TR_EDIT = null;   // 訂正中の記録のid
 const TR_APPS = [
   ['iSPEED（株）を開く', 'https://apps.apple.com/jp/app/id389339704'],
   ['iSPEED 先物OPを開く', 'https://apps.apple.com/jp/app/id584769039'],
@@ -1917,11 +1937,31 @@ function renderTrCheck() {
   } else if (TRS.status === 'done') {
     box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b><br>10問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
       ${trMaterialsHtml()}
-      <div class="trapps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
+      <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">入る方向と根拠（2つ以上）を選ぶと、アプリを開くボタンが押せるようになります。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
+        <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
+        <div class="grp">根拠</div><div class="trchips" id="trp-rs">${trChips(TR_REASONS, (trGet('trPending', {}) || {}).reasons || [])}</div>
+        <div class="note" id="trp-msg"></div></div>
+      <div class="trapps" id="tr-apps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
       <p class="note">楽天証券のアプリ（App Store のページ）が開きます。インストール済みなら「開く」を押してください。取引が終わったら、下の「損益を記録」に入力します。</p>
       <button class="btn" id="tr-reset" type="button">チェックをやり直す</button>`;
     trMountTv();
+    trPendingCheck();
   }
+}
+/* 準備OK画面で選んだ根拠：2つ以上＋方向でアプリのボタンを有効に。選んだ内容は記録フォームの初期値にする */
+function trPendingCheck() {
+  const d = $('#trp-dir'), r = $('#trp-rs'); if (!d || !r) return;
+  const dir = chipVals(d)[0] || null, rs = chipVals(r), ok = dir && rs.length >= 2;
+  trSet('trPending', {date: trToday(), dir, reasons: rs});
+  $('#tr-apps').classList.toggle('trlock', !ok);
+  $('#trp-msg').innerHTML = ok ? `<span class="pos">OK：${rs.length}つの根拠で${dir === 'buy' ? '買い' : '売り'}。</span>` : `<span class="neg">${!dir ? '方向を選んでください。' : ''}${rs.length < 2 ? `根拠をあと${2 - rs.length}つ以上選んでください。` : ''}</span>`;
+  if (!TR_EDIT) trFormFill();
+}
+function trFormFill(rec) {
+  // 記録フォームに値を入れる（rec が無ければ、今日の「今回の根拠」を初期値に）
+  const pend = trGet('trPending', {}) || {}, src = rec || (pend.date === trToday() ? pend : {});
+  $('#tr-dir').innerHTML = trChips(TR_DIRS, src.dir, true);
+  $('#tr-rs').innerHTML = trChips(TR_REASONS, src.reasons || []);
 }
 
 /* ---- アプリを開く前の「上げ下げの判断材料」 ----
@@ -2025,7 +2065,7 @@ function renderTrade() {
   $('#tr-sum').innerHTML = cardP('今日', today) + cardP('今週（月曜から）', wk0) + cardP('今月', mo0) + cardP('今年', yr0);
   // 入力フォーム（日付は今日。前回の合計を表示）
   const dsel = ($('#tr-date') && $('#tr-date').value) || today;
-  const lastCum = day[dsel];
+  const lastCum = TR_EDIT ? trPrevCum(dsel, $('#tr-time').value) : day[dsel];
   $('#tr-prev').textContent = lastCum == null ? `${ymd(dsel)} の記録はまだありません（1回目は、入力した合計がそのままこの回の損益）` : `${ymd(dsel)} の前回の合計：${yen0(lastCum)}`;
   trPreview();
   // 日ごとの損益（直近30日）
@@ -2039,22 +2079,60 @@ function renderTrade() {
     `<tr><td>${+k.slice(5)}月</td><td class="${ms[k].v >= 0 ? 'pos' : 'neg'}">${yen0(ms[k].v)}</td><td>${ms[k].n}日</td><td>${ms[k].w}／${ms[k].l}</td></tr>`).join('')}</tbody></table>` : '<p class="note">今年の記録はまだありません。</p>';
   // 記録の一覧（新しい順・直近60件）
   const rev = rows.slice().reverse().slice(0, 60);
-  $('#tr-hist').innerHTML = rev.length ? `<table><thead><tr><th>日付・時刻</th><th>その時点の合計</th><th>この回の損益</th><th style="text-align:left">メモ</th><th></th></tr></thead><tbody>${rev.map(r =>
-    `<tr><td>${md(r.date)} ${r.t}</td><td>${yen0(r.cum)}</td><td class="${r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : ''}">${yen0(r.diff)}</td><td style="text-align:left;white-space:normal">${(r.memo || '').replace(/[<>&]/g, c => ({'<': '&lt;', '>': '&gt;', '&': '&amp;'}[c]))}</td><td><button class="btn trdel" data-id="${r.id}" type="button" aria-label="削除">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="note">まだ記録がありません。</p>';
+  const esc = v => String(v || '').replace(/[<>&]/g, c => ({'<': '&lt;', '>': '&gt;', '&': '&amp;'}[c]));
+  $('#tr-hist').innerHTML = rev.length ? rev.map(r =>
+    `<div class="trrec${TR_EDIT === r.id ? ' hl' : ''}"><div class="trr1"><span class="trrt">${md(r.date)} ${r.t}</span><b class="trrv ${r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : ''}">${yen0(r.diff)}</b>` +
+    `<span class="trrb"><button class="btn tredit" data-id="${r.id}" type="button">✎ 訂正</button><button class="btn trdel" data-id="${r.id}" type="button">✕ 削除</button></span></div>` +
+    `<div class="trr2">その時点の合計 ${yen0(r.cum)}${r.dir ? `・<b>${r.dir === 'buy' ? '買い' : '売り'}</b>` : ''}</div>` +
+    `${(r.reasons || []).length ? `<div>${r.reasons.map(x => `<span class="trtag">${x.replace(/（.*/, '')}</span>`).join('')}</div>` : ''}${r.memo ? `<div class="trr2">${esc(r.memo)}</div>` : ''}</div>`).join('') : '<p class="note">まだ記録がありません。</p>';
+  // 根拠ごとの成績
+  const st = {}; rows.forEach(r => (r.reasons || []).forEach(k => { st[k] = st[k] || {n: 0, w: 0, l: 0, v: 0}; st[k].n++; st[k].v += r.diff; if (r.diff > 0) st[k].w++; else if (r.diff < 0) st[k].l++; }));
+  const ds = {}; rows.forEach(r => { if (!r.dir) return; const k = r.dir === 'buy' ? '買いで入った' : '売りで入った'; ds[k] = ds[k] || {n: 0, w: 0, l: 0, v: 0}; ds[k].n++; ds[k].v += r.diff; if (r.diff > 0) ds[k].w++; else if (r.diff < 0) ds[k].l++; });
+  const trow = (k, o) => `<tr><td style="white-space:normal">${k}</td><td>${o.n}回</td><td>${o.w}／${o.l}</td><td>${Math.round(o.w / Math.max(1, o.w + o.l) * 100)}%</td><td class="${o.v >= 0 ? 'pos' : 'neg'}">${yen0(o.v)}</td></tr>`;
+  const keys = Object.keys(st).sort((a, b) => st[b].v - st[a].v);
+  $('#tr-rstat').innerHTML = keys.length || Object.keys(ds).length ? `<table><thead><tr><th>根拠</th><th>回数</th><th>勝ち／負け</th><th>勝率</th><th>損益の合計</th></tr></thead><tbody>${Object.keys(ds).map(k => trow(k, ds[k])).join('')}${keys.map(k => trow(k, st[k])).join('')}</tbody></table>` : '<p class="note">根拠をチェックして記録すると、ここに根拠ごとの成績が出ます。</p>';
+  if (!TR_EDIT && !$('#tr-dir').innerHTML) trFormFill();
+}
+function trPrevCum(d, t) {
+  const r = trRows().filter(x => x.date === d && x.id !== TR_EDIT && (!t || x.t <= t));
+  return r.length ? r[r.length - 1].cum : 0;
 }
 function trPreview() {
   const box = $('#tr-diff'); if (!box) return;
   const amt = +($('#tr-amt').value || NaN), sign = $('#tr-sign').dataset.sign === '-' ? -1 : 1;
-  const d = $('#tr-date').value || trToday(), prev = trDayTotals(trRows())[d] ?? 0;
+  const d = $('#tr-date').value || trToday(), prev = trPrevCum(d, $('#tr-time').value);
   box.innerHTML = isNaN(amt) ? '' : `この回の損益：<b class="${sign * amt - prev >= 0 ? 'pos' : 'neg'}">${yen0(sign * amt - prev)}</b>（${yen0(prev)} → ${yen0(sign * amt)}）`;
 }
+const nowHM = () => { const n = new Date(); return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; };
 function trSave() {
   const amt = +($('#tr-amt').value || NaN); if (isNaN(amt)) { $('#tr-amt').focus(); return; }
   const sign = $('#tr-sign').dataset.sign === '-' ? -1 : 1, d = $('#tr-date').value || trToday();
-  const now = new Date(), t = d === trToday() ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : '23:59';
-  const L = trGet('trLog', []); L.push({id: Date.now(), date: d, t, cum: sign * amt, memo: $('#tr-memo').value.trim()}); trSet('trLog', L);
-  $('#tr-amt').value = ''; $('#tr-memo').value = '';
+  const t = $('#tr-time').value || (d === trToday() ? nowHM() : '23:59');
+  const rec = {date: d, t, cum: sign * amt, memo: $('#tr-memo').value.trim(), dir: chipVals($('#tr-dir'))[0] || null, reasons: chipVals($('#tr-rs'))};
+  const L = trGet('trLog', []);
+  if (TR_EDIT) { const k = L.findIndex(r => r.id === TR_EDIT); if (k >= 0) L[k] = {...L[k], ...rec}; }
+  else L.push({id: Date.now(), ...rec});
+  trSet('trLog', L);
+  if (!TR_EDIT) trSet('trPending', {});   // 根拠を使い終わったので、次の取引のために空にする
+  trEndEdit();
+}
+function trStartEdit(id) {
+  const r = trGet('trLog', []).find(x => x.id === id); if (!r) return;
+  TR_EDIT = id;
+  $('#tr-date').value = r.date; $('#tr-time').value = r.t;
+  const b = $('#tr-sign'); b.dataset.sign = r.cum < 0 ? '-' : '+'; b.textContent = r.cum < 0 ? '負け（−）' : '勝ち（＋）'; b.classList.toggle('neg', r.cum < 0);
+  $('#tr-amt').value = Math.abs(r.cum); $('#tr-memo').value = r.memo || '';
+  trFormFill(r);
+  $('#tr-editing').style.display = ''; $('#tr-editing').innerHTML = `<b>訂正中：</b>${md(r.date)} ${r.t} の記録（合計 ${yen0(r.cum)}）。直して「訂正する」を押してください。`;
+  $('#tr-save').textContent = '訂正する'; $('#tr-cancel').style.display = '';
   renderTrade();
+  $('#tr-editing').scrollIntoView({block: 'center'});
+}
+function trEndEdit() {
+  TR_EDIT = null;
+  $('#tr-amt').value = ''; $('#tr-memo').value = ''; $('#tr-time').value = ''; $('#tr-date').value = trToday();
+  $('#tr-editing').style.display = 'none'; $('#tr-save').textContent = '記録する'; $('#tr-cancel').style.display = 'none';
+  trFormFill(); renderTrade();
 }
 document.addEventListener('click', e => {
   if (e.target.closest('#tr-start')) trStart();
@@ -2062,10 +2140,16 @@ document.addEventListener('click', e => {
   else if (e.target.closest('[data-tra]')) trAnswer(e.target.closest('[data-tra]').dataset.tra === '1');
   else if (e.target.closest('#tr-sign')) { const b = $('#tr-sign'); b.dataset.sign = b.dataset.sign === '-' ? '+' : '-'; b.textContent = b.dataset.sign === '-' ? '負け（−）' : '勝ち（＋）'; b.classList.toggle('neg', b.dataset.sign === '-'); trPreview(); }
   else if (e.target.closest('#tr-save')) trSave();
-  else if (e.target.closest('.trdel')) { const id = +e.target.closest('.trdel').dataset.id; if (confirm('この記録を削除しますか？')) { trSet('trLog', trGet('trLog', []).filter(r => r.id !== id)); renderTrade(); } }
-  else if (e.target.closest('#tr-csv')) download('トレード記録', ['日付', '時刻', 'その時点の合計', 'この回の損益', 'メモ'], trRows().map(r => [r.date, r.t, r.cum, r.diff, r.memo || '']));
+  else if (e.target.closest('.trdel')) { const id = +e.target.closest('.trdel').dataset.id; if (confirm('この記録を削除しますか？')) { trSet('trLog', trGet('trLog', []).filter(r => r.id !== id)); if (TR_EDIT === id) trEndEdit(); else renderTrade(); } }
+  else if (e.target.closest('.tredit')) trStartEdit(+e.target.closest('.tredit').dataset.id);
+  else if (e.target.closest('#tr-cancel')) trEndEdit();
+  else if (e.target.closest('.trchip')) { const c = e.target.closest('.trchip'), g = c.parentElement;
+    if (g.id === 'tr-dir' || g.id === 'trp-dir') { const was = c.classList.contains('on'); g.querySelectorAll('.trchip').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); } else c.classList.toggle('on');
+    if (g.id.startsWith('trp-')) trPendingCheck(); }
+  else if (e.target.closest('#tr-apps.trlock a')) { e.preventDefault(); $('#trp-msg').scrollIntoView({block: 'center'}); }
+  else if (e.target.closest('#tr-csv')) download('トレード記録', ['日付', '時刻', 'その時点の合計', 'この回の損益', 'メモ', '方向', '根拠'], trRows().map(r => [r.date, r.t, r.cum, r.diff, r.memo || '', r.dir || '', (r.reasons || []).join('／')]));
 });
-document.addEventListener('input', e => { if (e.target.closest('#tr-amt, #tr-date')) { if (e.target.id === 'tr-date') renderTrade(); else trPreview(); } });
+document.addEventListener('input', e => { if (e.target.closest('#tr-amt, #tr-date, #tr-time')) { if (e.target.id === 'tr-date') renderTrade(); else trPreview(); } });
 document.addEventListener('change', e => {
   if (!e.target.closest('#tr-import')) return;
   const f = e.target.files[0]; if (!f) return;
@@ -2075,7 +2159,7 @@ document.addEventListener('change', e => {
       const c = line.split(',').map(s => s.replace(/^"|"$/g, '').replaceAll('""', '"'));
       if (!/^\d{4}-\d\d-\d\d$/.test(c[0]) || isNaN(+c[2])) return;
       if (have.has(c[0] + c[1] + +c[2])) return;
-      L.push({id: Date.now() + i, date: c[0], t: c[1] || '00:00', cum: +c[2], memo: c[4] || ''}); n++;
+      L.push({id: Date.now() + i, date: c[0], t: c[1] || '00:00', cum: +c[2], memo: c[4] || '', dir: c[5] || null, reasons: c[6] ? c[6].split('／') : []}); n++;
     });
     trSet('trLog', L); e.target.value = ''; alert(`${n}件を読み込みました`); renderTrade();
   });
