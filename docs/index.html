@@ -1967,7 +1967,7 @@ function renderTrCheck() {
   if (TRS.status === 'start') {
     box.innerHTML = head + (left > 0
       ? `<div class="trmsg neg">待ち時間中です。あと約${left}分たってから、もう一度チェックしてください。</div><button class="btn trbig" disabled>チェックを始める</button>`
-      : `<button class="btn trbig trgo" id="tr-start" type="button">チェックを始める</button>`);
+      : `<button class="btn trbig trgo" id="tr-start" type="button">チェックを始める</button>`) + trClaudeHtml();
   } else if (TRS.status === 'q') {
     const q = TR_Q[TRS.i], neg = TRS.flip[TRS.i];
     let sub = q.sub || '';
@@ -1987,6 +1987,7 @@ function renderTrCheck() {
         <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
         <div class="grp">根拠</div><div class="trchips" id="trp-rs">${trChips(TR_REASONS, (trGet('trPending', {}) || {}).reasons || [])}</div>
         <div class="note" id="trp-msg"></div></div>
+      ${trClaudeHtml()}
       <div class="trapps" id="tr-apps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
       <p class="note">楽天証券のアプリ（App Store のページ）が開きます。インストール済みなら「開く」を押してください。取引が終わったら、下の「損益を記録」に入力します。</p>
       <button class="btn" id="tr-reset" type="button">チェックをやり直す</button>`;
@@ -2063,6 +2064,40 @@ function trMaterials() {
     const up = lv.filter(x => x[1] > c).sort((a, b) => a[1] - b[1])[0], dn = lv.filter(x => x[1] < c).sort((a, b) => b[1] - a[1])[0];
     out.push([0, '近くの値段の節目', `上：${up ? `${up[0]} ${fmtY(up[1])}（${sgn((up[1] / c - 1) * 100, fmt2)}%）` : '—'}　下：${dn ? `${dn[0]} ${fmtY(dn[1])}（${sgn((dn[1] / c - 1) * 100, fmt2)}%）` : '—'}`]); }
   return out;
+}
+/* Claude に「今の根拠」を調べてもらう：判断材料・選んだ方向と根拠を質問文にして、claude.ai を質問入りで開く（?q=）。
+   ページにAPIキーを置かない（公開ページのため）。開けない端末のために、質問文のコピーも用意する */
+function trClaudePrompt() {
+  const m = trMaterials(), t = techSeries(), last = t.dates[t.dates.length - 1];
+  let stance = '';
+  try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, okN = sg.rebound.filter(x => x.st === 'ok').length;
+    stance = `${lit >= JUDGE.defendCrash && okN === 0 ? '守り' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? '攻め' : '中立'}（急落サイン${lit}/8・反発条件${okN}/${sg.rebound.length}）`; } catch (e) { /* 読み込み前 */ }
+  const pend = trGet('trPending', {}) || {}, sho = (D.sho || []).slice(-1)[0];
+  const ln = x => `・${x[1]}（${x[2]}）`;
+  const now = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}).format(new Date());
+  return [
+    `日経平均（日経225先物・CFD）の短期トレードを考えています。今は${now}（日本時間）です。`,
+    `私のダッシュボードの判断材料（日足・${md(last)}終値まで）：`,
+    `■今日の構え：${stance || '—'}`,
+    '■上げの材料', ...m.filter(x => x[0] > 0).map(ln),
+    '■下げの材料', ...m.filter(x => x[0] < 0).map(ln),
+    '■確認', ...m.filter(x => x[0] === 0).map(ln),
+    sho ? `■参考：YouTube「Sho's投資情報局」の最新の結論（${md(sho.date)}）：${sho.view}` : '',
+    pend.dir ? `■私が考えている方向：${pend.dir === 'buy' ? '買い（上がる）' : '売り（下がる）'}　根拠：${(pend.reasons || []).join('、') || '未選択'}` : '■私が考えている方向：まだ決めていない',
+    '',
+    'お願い：',
+    '1. 今の日経平均・日経先物・米国株先物・ドル円・VIXの最新の動きと、今日これから予定されている重要な発表（日銀・米国の経済指標・要人発言など）をウェブで調べてください。',
+    '2. それと上の材料を合わせて、「上がると考える根拠」と「下がると考える根拠」を整理してください。',
+    '3. 私が考えている方向と根拠について、弱い点・見落としている点・入るなら損切りを置くべき目安を指摘してください。',
+    '4. 最後に「今は入る条件がそろっているか／見送るべき理由があるか」を、理由とともに短くまとめてください。',
+    '最終判断は自分でします。売買の推奨ではなく、判断材料の整理としてお願いします。',
+  ].filter(Boolean).join('\n');
+}
+function trClaudeHtml() {
+  return `<div class="trmat"><h3>Claudeに今の根拠を調べてもらう</h3>
+    <p class="note">上の判断材料と、選んだ方向・根拠を質問文にして Claude を開きます。最新の値動きや今日の発表をウェブで調べたうえで、上げ・下げの根拠と見落としを整理してもらえます（返事は Claude の画面に出ます）。</p>
+    <div class="trapps"><a class="btn trbig trgo" id="tr-claude" href="#" target="_blank" rel="noopener">Claudeに聞く</a><button class="btn" id="tr-claude-copy" type="button">質問文をコピー</button></div>
+    <p class="note" id="tr-claude-msg">Claude アプリに質問が入らないときは「質問文をコピー」を押し、Claude に貼り付けてください。</p></div>`;
 }
 function trMaterialsHtml() {
   const m = trMaterials(), up = m.filter(x => x[0] > 0), dn = m.filter(x => x[0] < 0), nt = m.filter(x => x[0] === 0);
@@ -2193,6 +2228,9 @@ document.addEventListener('click', e => {
     if (g.id === 'tr-dir' || g.id === 'trp-dir') { const was = c.classList.contains('on'); g.querySelectorAll('.trchip').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); } else c.classList.toggle('on');
     if (g.id.startsWith('trp-')) trPendingCheck(); }
   else if (e.target.closest('#tr-apps.trlock a')) { e.preventDefault(); $('#trp-msg').scrollIntoView({block: 'center'}); }
+  else if (e.target.closest('#tr-claude')) { e.target.closest('#tr-claude').href = 'https://claude.ai/new?q=' + encodeURIComponent(trClaudePrompt()); }
+  else if (e.target.closest('#tr-claude-copy')) { const txt = trClaudePrompt(), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }); }
   else if (e.target.closest('#tr-csv')) download('トレード記録', ['日付', '時刻', 'その時点の合計', 'この回の損益', 'メモ', '方向', '根拠'], trRows().map(r => [r.date, r.t, r.cum, r.diff, r.memo || '', r.dir || '', (r.reasons || []).join('／')]));
 });
 document.addEventListener('input', e => { if (e.target.closest('#tr-amt, #tr-date, #tr-time')) { if (e.target.id === 'tr-date') renderTrade(); else trPreview(); } });
