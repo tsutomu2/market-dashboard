@@ -158,6 +158,10 @@ header h1{padding-right:4px}
 .trform input[type=date],.trform input[type=number],.trform input[type=text]{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
 .trrow{display:flex;gap:8px;align-items:center}.trrow input{flex:1;min-width:0}#tr-sign{font-weight:700;color:var(--pos);white-space:nowrap}#tr-sign.neg{color:var(--neg)}
 #tr-diff{font-size:calc(var(--fs)*15px)}.trdel{padding:2px 8px}
+.trmat h3{font-size:calc(var(--fs)*15px);margin:14px 0 6px}
+.trbal{display:flex;align-items:center;gap:8px;font-weight:700;font-size:calc(var(--fs)*14px)}.trbar{flex:1;height:10px;border-radius:5px;background:var(--neg);overflow:hidden}.trbar i{display:block;height:100%;background:var(--pos)}
+.trli{margin:4px 0 8px;padding-left:18px;font-size:calc(var(--fs)*14px);line-height:1.5}.trli li{margin-bottom:6px}.trli small{color:var(--muted);font-size:calc(var(--fs)*12px)}
+.grp.pos{color:var(--pos)}.grp.neg{color:var(--neg)}.trtv{margin:8px 0;border-radius:10px;overflow:hidden}
 </style>
 </head>
 <body>
@@ -1911,11 +1915,94 @@ function renderTrCheck() {
     box.innerHTML = head + `<div class="trmsg neg"><b>ストップ：今は取引しないでください</b><br>${q.stop}${q.cool ? `<br><small>${q.cool >= 60 ? '1時間' : q.cool + '分'}たつまで、チェックをやり直せません。</small>` : ''}</div>
       <button class="btn trbig" id="tr-reset" type="button" ${left > 0 ? 'disabled' : ''}>${left > 0 ? `あと約${left}分` : '最初からやり直す'}</button>`;
   } else if (TRS.status === 'done') {
-    box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b><br>10問すべて確認できました。決めた損切り・量・利益確定の目標を守って取引しましょう。</div>
+    box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b><br>10問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
+      ${trMaterialsHtml()}
       <div class="trapps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
       <p class="note">楽天証券のアプリ（App Store のページ）が開きます。インストール済みなら「開く」を押してください。取引が終わったら、下の「損益を記録」に入力します。</p>
       <button class="btn" id="tr-reset" type="button">チェックをやり直す</button>`;
+    trMountTv();
   }
+}
+
+/* ---- アプリを開く前の「上げ下げの判断材料」 ----
+   日足（このアプリのデータ）から自動で書けるものを、上げ材料・下げ材料・注意に分けて並べる。
+   分足（1分・5分など）のデータは手元に無いため、TradingView のテクニカル判定と1分足チャート（MACD・ボリンジャー付き）を表示して目で確かめてもらう。 */
+function trMaterials() {
+  const t = techSeries(), i = t.c.length - 1, out = [];   // [向き(+1上げ/-1下げ/0注意), 見出し, 説明]
+  if (i < 210) return out;
+  const c = t.c[i], fmtY = v => fmt0.format(Math.round(v)) + '円';
+  // ① 前夜の米国からの翌日の推定（連動指数）
+  const L = linkSeries();
+  if (L && L.ahead) { const p = L.P[L.P.length - 1], ch = (p / c - 1) * 100;
+    if (Math.abs(ch) >= 0.3) out.push([Math.sign(ch), `前夜の米国から見た今日の推定 ${sgn(ch, fmt2)}%`, `連動指数の推定 ${fmtY(p)}。±0.3%以上の推定は、過去に方向が約7割当たった`]);
+    else out.push([0, `前夜の米国から見た今日の推定 ${sgn(ch, fmt2)}%（ほぼ横ばい）`, '方向感は弱い。寄り付き後の動きを見てから']); }
+  else out.push([0, '前夜の米国のデータがまだ入っていない', '上の「日経225（CFD）」「日経先物」の前日比で方向を確かめる']);
+  // ② 日足MACD：クロスの直後・目前
+  const h = t.hist, h0 = h[i], h1 = h[i - 1], h2 = h[i - 2], typ = Math.abs(h.slice(i - 60, i).reduce((s, v) => s + Math.abs(v || 0), 0) / 60);
+  if (h0 > 0 && h1 <= 0) out.push([1, '日足MACDがゴールデンクロスした', '上昇の勢いに変わり始めたサイン']);
+  else if (h0 < 0 && h1 >= 0) out.push([-1, '日足MACDがデッドクロスした', '下落の勢いに変わり始めたサイン']);
+  else if (h0 < 0 && h0 > h1 && h1 > h2 && Math.abs(h0) < typ * 0.5) out.push([1, '日足MACDがゴールデンクロスに近づいている', 'ヒストグラムが3日続けてゼロに近づいている（まだ下向きの勢いの中）']);
+  else if (h0 > 0 && h0 < h1 && h1 < h2 && Math.abs(h0) < typ * 0.5) out.push([-1, '日足MACDがデッドクロスに近づいている', 'ヒストグラムが3日続けてゼロに近づいている（まだ上向きの勢いの中）']);
+  else out.push([h0 > 0 ? 1 : -1, `日足MACDは${h0 > 0 ? 'ゴールデンクロス' : 'デッドクロス'}の状態が続いている`, h0 > 0 ? '上向きの流れの中' : '下向きの流れの中']);
+  // ③ 連動指数（速め）のMACD：日経より早く出やすい合図
+  if (L) { const sc = crosses(L.P, LINK.fast, LINK.band), last = sc.out[sc.out.length - 1];
+    if (last && L.dates.length - 1 - last.i <= 3) out.push([last.t, `連動指数（速め）が${last.t > 0 ? '▲ゴールデンクロス' : '▼デッドクロス'}（${md(L.dates[last.i])}）`, '日経より少し早く出やすい合図。約4回に1回はダマシ']); }
+  // ④ 25日線・5日線
+  const dev = (c / t.ma25[i] - 1) * 100;
+  if (dev <= -5) out.push([1, `25日線から${fmt2.format(dev)}%下に離れている（売られすぎ）`, '過去3年では、このあと戻りやすかった（逆張りの材料）']);
+  else if (dev >= 5) out.push([-1, `25日線から+${fmt2.format(dev)}%上に離れている（買われすぎ）`, '短期的な反落に注意']);
+  else out.push([0, `25日線 ${fmtY(t.ma25[i])}（今との差 ${sgn(dev, fmt2)}%）`, c < t.ma25[i] ? '25日線が上値の壁になりやすい' : '25日線が下値の支えになりやすい']);
+  const d5 = t.ma5[i] - t.ma25[i], d5p = t.ma5[i - 1] - t.ma25[i - 1];
+  if (d5 < 0 && d5 > d5p && Math.abs(d5) / c < 0.01) out.push([1, '5日線が25日線を上に抜けそう（ゴールデンクロス目前）', `5日線 ${fmtY(t.ma5[i])}・25日線 ${fmtY(t.ma25[i])}`]);
+  else if (d5 > 0 && d5 < d5p && Math.abs(d5) / c < 0.01) out.push([-1, '5日線が25日線を下に抜けそう（デッドクロス目前）', `5日線 ${fmtY(t.ma5[i])}・25日線 ${fmtY(t.ma25[i])}`]);
+  // ⑤ RSI・ボリンジャー
+  const r = t.rsi[i], z = t.z[i];
+  if (r <= 30) out.push([1, `RSI ${r.toFixed(1)}（売られすぎ）`, '短期の反発が起きやすい水準']); else if (r >= 70) out.push([-1, `RSI ${r.toFixed(1)}（買われすぎ）`, '短期の反落に注意']);
+  if (z <= -2) out.push([1, `ボリンジャーバンドの−2σ以下（${z.toFixed(2)}σ）`, '過去3年では反発しやすかった。ただしバンドに沿って下がり続ける「バンドウォーク」なら逆らわない']);
+  else if (z >= 2) out.push([-1, `ボリンジャーバンドの+2σ以上（${z.toFixed(2)}σ）`, '過熱。バンドウォーク中なら無理に逆らわない']);
+  // ⑥ 恐怖指数・騰落レシオ・需給・値段の節目
+  const vx = (D.daily.vix || []).slice(-2);
+  if (vx.length === 2) { const [a, b] = [vx[0][1], vx[1][1]];
+    out.push([b >= 25 ? 1 : b > a ? -1 : 1, `VIX（恐怖指数）${b.toFixed(2)}（前日 ${a.toFixed(2)}）`, b >= 25 ? '25以上は不安が強い状態。過去3年では、このあと反発しやすかった' : b > a ? '不安が強まっている' : '不安は落ち着く方向']); }
+  const br = (D.breadth || []).filter(x => x.adr5 != null).slice(-1)[0];
+  if (br) { if (br.adr5 <= 70) out.push([1, `騰落レシオ（5日）${br.adr5.toFixed(1)}（売られすぎ）`, '短期の反発の目安']); else if (br.adr5 >= 120) out.push([-1, `騰落レシオ（5日）${br.adr5.toFixed(1)}（過熱）`, '追いかけて買うのは控える目安']); }
+  try { const sg = buildSignals(), g = k => [...sg.crash, ...sg.rebound, ...sg.caution].find(x => x.name.startsWith(k)) || {};
+    if (g('二市場 信用売残').st === 'on') out.push([-1, `信用売残 ${g('二市場 信用売残').val}（8,000億円未満）`, '空売りの買い戻しによる支えが弱く、戻りは売られやすい']);
+    if (g('日経レバ(1570)').st === 'on') out.push([-1, `1570の信用倍率 ${g('日経レバ(1570)').val}`, '強気の個人が多く、投げ売りが出きっていない']);
+    const dr = g('急落は3日待て'), m = (dr.val || '').match(/^(\d+)日目/);
+    if (m && +m[1] <= 4) out.push([+m[1] >= 3 ? 1 : 0, `急落から${m[1]}日目`, +m[1] >= 3 ? '3〜4日目は自律反発が起きやすいタイミング' : '急落の直後。あわてず3〜4日目の反発を待つのがSHO手法']);
+  } catch (e) { /* データ読み込み前 */ }
+  const nz = D.nikkei[D.nikkei.length - 1];
+  if (nz && nz.eps_w) { const lv = [['PER13倍', nz.eps_w * 13], ['PER14倍', nz.eps_w * 14], ['PER15倍', nz.eps_w * 15], ['PER16倍', nz.eps_w * 16], ['25日線', t.ma25[i]], ['200日線', t.ma200[i]]];
+    const up = lv.filter(x => x[1] > c).sort((a, b) => a[1] - b[1])[0], dn = lv.filter(x => x[1] < c).sort((a, b) => b[1] - a[1])[0];
+    out.push([0, '近くの値段の節目', `上：${up ? `${up[0]} ${fmtY(up[1])}（${sgn((up[1] / c - 1) * 100, fmt2)}%）` : '—'}　下：${dn ? `${dn[0]} ${fmtY(dn[1])}（${sgn((dn[1] / c - 1) * 100, fmt2)}%）` : '—'}`]); }
+  return out;
+}
+function trMaterialsHtml() {
+  const m = trMaterials(), up = m.filter(x => x[0] > 0), dn = m.filter(x => x[0] < 0), nt = m.filter(x => x[0] === 0);
+  const t = techSeries(), last = t.dates[t.dates.length - 1];
+  const li = x => `<li><b>${x[1]}</b><br><small>${x[2]}</small></li>`;
+  return `<div class="trmat"><h3>上げ下げの判断材料（日足・${md(last)}終値まで）</h3>
+    <div class="trbal"><span class="pos">上げ材料 ${up.length}</span><span class="trbar"><i style="width:${up.length / Math.max(1, up.length + dn.length) * 100}%"></i></span><span class="neg">下げ材料 ${dn.length}</span></div>
+    <div class="grid2"><div><div class="grp pos">▲ 上げの材料</div><ul class="trli">${up.map(li).join('') || '<li>なし</li>'}</ul></div>
+    <div><div class="grp neg">▼ 下げの材料</div><ul class="trli">${dn.map(li).join('') || '<li>なし</li>'}</ul></div></div>
+    ${nt.length ? `<div class="grp">● 確認しておくこと</div><ul class="trli">${nt.map(li).join('')}</ul>` : ''}
+    <h3>分足（1分・5分など）の確認</h3>
+    <p class="note">分足のデータはこのアプリでは取れないため、TradingView の画面で確かめてください。上のテクニカル判定は、移動平均・オシレーターの「買い・売り」の多数決です（上のタブで1分・5分・15分などを切り替えられます）。下の1分足チャートで、MACDのクロスが近いか、ボリンジャーバンドのどこにいるかを見ます。</p>
+    <div class="trtv" id="tr-ta"></div><div class="trtv" id="tr-1m" style="height:460px"></div>
+    <p class="note">自分の根拠と合っているかを確かめてから、アプリを開きましょう。材料は機械的に並べたもので、売買を勧めるものではありません。</p></div>`;
+}
+function trMountTv() {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const put = (id, src, cfg) => { const box = document.getElementById(id); if (!box) return; box.innerHTML = '';
+    const c = document.createElement('div'); c.className = 'tradingview-widget-container'; c.style.height = '100%';
+    const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; c.appendChild(w);
+    const s = document.createElement('script'); s.async = true; s.src = src; s.textContent = JSON.stringify(cfg); c.appendChild(s); box.appendChild(c); };
+  put('tr-ta', 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js',
+    {interval: '1m', width: '100%', isTransparent: false, height: 420, symbol: 'OANDA:JP225USD', showIntervalTabs: true, displayMode: 'single', locale: 'ja', colorTheme: dark ? 'dark' : 'light'});
+  put('tr-1m', 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',
+    {symbol: 'OANDA:JP225USD', interval: '1', timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
+      allow_symbol_change: false, hide_side_toolbar: true, studies: ['MACD@tv-basicstudies', 'BB@tv-basicstudies']});
 }
 
 /* ---- 損益の記録 ---- */
