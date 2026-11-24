@@ -173,6 +173,7 @@ header h1{padding-right:4px}
 .trr2{font-size:calc(var(--fs)*13px);color:var(--muted);margin:2px 0}
 @keyframes swl{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}@keyframes swr{from{transform:translateX(-40px);opacity:.3}to{transform:none;opacity:1}}
 .page.swl{animation:swl .18s ease-out}.page.swr{animation:swr .18s ease-out}
+.hvauto{cursor:default}.hvauto iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 </style>
 </head>
 <body>
@@ -1724,7 +1725,50 @@ function renderShoForecast(sig) {
 
 /* SHOの最新動画（sho_views.json の url があるものの新しい2本）。サムネイルを押すとその場で再生（youtube-nocookie の埋め込み） */
 const ytId = u => { const m = (u || '').match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/); return m ? m[1] : null; };
+/* 最新2本をYouTubeから自動で表示：公式の IFrame Player API で、チャンネルの「動画（ショート・ライブ以外）」の再生リスト
+   UULF＋チャンネルID の0番目・1番目を読み込む（新しい順）。読み込めなければ UU（全アップロード）に、それも駄目なら要約済みの2本を出す。
+   結論（上昇・下落など）は NotebookLM で要約済みの動画（sho_views.json の url と一致したもの）だけに出す */
+const SHO_CH = 'K9Pl6bbWqMC_x7IDca2tIg';   // チャンネルID UCK9Pl6bbWqMC_x7IDca2tIg の UC の後ろ
+let ytApi = 0, ytPlayers = [], ytList = 'UULF' + SHO_CH;
+function ytAutoBox() {
+  const box = $('#h-vid'); if (!box) return;
+  if (box.dataset.auto) { ytAutoInfo(); return; }   // 2回目以降はプレーヤーを作り直さない（再生中に止まらないように）
+  box.dataset.auto = '1'; box.style.display = '';
+  box.innerHTML = `<h2>Sho's投資情報局の最新動画</h2><p class="note">YouTubeから自動で新しい2本（ショート・ライブを除く）を表示しています。結論は、NotebookLMで要約が済んだ動画にだけ出ます。</p>
+    <div class="hvids">${[0, 1].map(i => `<div class="hv1"><div class="hvp hvauto"><div id="ytp${i}"></div></div><div class="hvt" id="ytt${i}"><span class="hvd">${i ? '1つ前の動画' : 'いちばん新しい動画'}</span></div><div class="hvn" id="ytn${i}">読み込み中…</div><div class="hvw" id="ytw${i}"></div></div>`).join('')}</div>
+    <p class="note"><a class="hvl" href="https://www.youtube.com/@SHO1112/videos" target="_blank" rel="noopener">チャンネルの動画一覧を開く ↗</a></p>`;
+  const make = () => {
+    if (ytApi === 2) return; ytApi = 2;
+    ytPlayers = [0, 1].map(i => new YT.Player('ytp' + i, {host: 'https://www.youtube-nocookie.com', width: '100%', height: '100%',
+      playerVars: {playsinline: 1, rel: 0},
+      events: {onReady: e => e.target.cuePlaylist({listType: 'playlist', list: ytList, index: i}),
+        onStateChange: e => { if (e.data === YT.PlayerState.CUED) ytAutoInfo(); },
+        onError: () => { if (ytList.startsWith('UULF')) { ytList = 'UU' + SHO_CH; ytPlayers.forEach((p, k) => p.cuePlaylist({listType: 'playlist', list: ytList, index: k})); } }}}));
+  };
+  if (window.YT && YT.Player) make();
+  else if (!ytApi) {
+    ytApi = 1; window.onYouTubeIframeAPIReady = make;
+    const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => { ytApi = -1; delete box.dataset.auto; renderShoVideosStatic(); };
+    document.head.appendChild(sc);
+    setTimeout(() => { if (ytApi !== 2) { ytApi = -1; delete box.dataset.auto; renderShoVideosStatic(); } }, 12000);   // 読み込めなければ要約済みの2本
+  }
+}
+function ytAutoInfo() {
+  const dirTxt = d => d === 1 ? ['上昇', 'buy'] : d === -1 ? ['下落', 'sell'] : ['二極化・もみ合い', 'neutral'];
+  ytPlayers.forEach((p, i) => {
+    let v = null; try { v = p.getVideoData && p.getVideoData(); } catch (e) { /* まだ準備中 */ }
+    if (!v || !v.video_id) return;
+    const m = (D.sho || []).find(x => ytId(x.url) === v.video_id);
+    $('#ytn' + i).textContent = v.title || '';
+    $('#ytt' + i).innerHTML = `<span class="hvd">${i ? '1つ前の動画' : 'いちばん新しい動画'}${m ? '・' + ymd(m.date) : ''}</span>` + (m ? `<span class="pill st-${dirTxt(m.dir)[1]}">${dirTxt(m.dir)[0]}</span>` : '');
+    $('#ytw' + i).innerHTML = m ? m.view : '<span class="tipidle">結論はまだありません（NotebookLMでの要約待ち）</span>';
+  });
+}
 function renderShoVideos() {
+  if (ytApi !== -1) { ytAutoBox(); return; }
+  renderShoVideosStatic();
+}
+function renderShoVideosStatic() {
   const box = $('#h-vid'); if (!box) return;
   const vs = (D.sho || []).filter(v => ytId(v.url)).slice(-2).reverse();
   if (!vs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
