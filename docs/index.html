@@ -152,6 +152,15 @@ header h1{padding-right:4px}
 .trq{font-size:calc(var(--fs)*19px);font-weight:700;margin:10px 0 4px;line-height:1.5}
 .trn{font-size:calc(var(--fs)*12px);color:var(--muted);margin-top:4px}
 .trprog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}.trprog span{display:block;height:100%;background:var(--accent)}
+.stbar{position:relative;height:22px;border-radius:6px;background:var(--line);overflow:hidden;margin:10px 0 2px}.stbar i{position:absolute;top:0;bottom:0}
+.stbar i.stt{background:var(--posbg);top:6px;bottom:6px}.stbar i.stc{background:#e6b54a}.stbar i.sta{background:var(--neg)}.stbar i.sto{background:var(--line)}
+.stnow{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1px;background:var(--accent)}
+.sttick{position:relative;height:16px;font-size:calc(var(--fs)*11px);color:var(--muted)}.sttick span{position:absolute;transform:translateX(-50%)}.sttick span:first-child{transform:none}
+.stleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:calc(var(--fs)*12px);color:var(--muted);margin:4px 0 8px}.stleg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.stleg i.stt{background:var(--posbg);border:1px solid var(--pos)}.stleg i.stc{background:#e6b54a}.stleg i.sta{background:var(--neg)}.stleg i.sto{background:var(--line)}.stnow2{display:inline-block;width:3px;height:12px;background:var(--accent);margin-right:4px;vertical-align:-1px}
+.sttab{width:100%}.sttab td{padding:5px 6px;vertical-align:top;text-align:left;white-space:normal}.sttab td:first-child,.sttab td:nth-child(2){white-space:nowrap;width:1%}.sttab tr.past{opacity:.45}.sttab tr.big td{font-weight:700}.trli li.past{opacity:.45}
+.stk{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;border-radius:999px;background:var(--line);white-space:nowrap}.stk.big{background:var(--neg);color:#fff}.stk.open{background:var(--posbg);color:var(--pos)}.stk.close{background:var(--negbg);color:var(--neg)}
+.trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trmsg{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:calc(var(--fs)*15px);line-height:1.6}.trmsg.neg{background:var(--negbg)}.trmsg.pos{background:var(--posbg)}
 .trapps{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
 .trform{display:flex;flex-direction:column;gap:10px;max-width:520px}
@@ -203,6 +212,8 @@ header h1{padding-right:4px}
 
 <!-- ============ 短期トレード ============ -->
 <section class="page" id="p-trade">
+  <div class="box" id="tr-sched"><div id="tr-sched-main"></div>
+    <details class="stev"><summary>日本・米国などの経済指標カレンダー（TradingView・重要度 中以上）</summary><div class="trtv" id="tr-evtv"></div></details></div>
   <div class="box" id="tr-check"></div>
   <div class="box"><h2>損益を記録</h2>
     <p class="note">その日の<b>現時点の損益の合計</b>を入力します。2回目以降も「その時点の合計」を入れると、前回との差がその回の損益になります。</p>
@@ -1974,6 +1985,7 @@ function renderTrCheck() {
   } else if (TRS.status === 'q') {
     const q = TR_Q[TRS.i], neg = TRS.flip[TRS.i];
     let sub = q.sub || '';
+    if (q.k === 'event') sub = schedText() || '今日は大きな発表の予定はありません（上の「今日の時間割」）。';
     if (q.k === 'env') { try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, okN = sg.rebound.filter(x => x.st === 'ok').length;
       sub = `参考：今日の構えは「${lit >= JUDGE.defendCrash && okN === 0 ? '守り' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? '攻め' : '中立'}」（急落サイン ${lit}/8・反発条件 ${okN}/${sg.rebound.length}）`; } catch (e) { /* データ読み込み前 */ } }
     box.innerHTML = head + `<div class="trprog"><span style="width:${TRS.i / TR_Q.length * 100}%"></span></div><div class="trn">${TRS.i + 1} / ${TR_Q.length}</div>
@@ -2085,6 +2097,7 @@ function trClaudePrompt() {
     '■上げの材料', ...m.filter(x => x[0] > 0).map(ln),
     '■下げの材料', ...m.filter(x => x[0] < 0).map(ln),
     '■確認', ...m.filter(x => x[0] === 0).map(ln),
+    schedText() ? `■今日の時間割（このアプリの計算）：${schedText()}` : '',
     tr1mText() ? `■1分足（TradingViewを見て自分で確認）：${tr1mText()}` : '',
     sho ? `■参考：YouTube「Sho's投資情報局」の最新の結論（${md(sho.date)}）：${sho.view}` : '',
     pend.dir ? `■私が考えている方向：${pend.dir === 'buy' ? '買い（上がる）' : '売り（下がる）'}　根拠：${(pend.reasons || []).join('、') || '未選択'}` : '■私が考えている方向：まだ決めていない',
@@ -2115,6 +2128,140 @@ function trMaterialsHtml() {
     ${tr1mHtml()}
     <p class="note">自分の根拠と合っているかを確かめてから、アプリを開きましょう。材料は機械的に並べたもので、売買を勧めるものではありません。</p></div>`;
 }
+/* ---- 今日の時間割：寄り付き・引け・重要発表・避けたい時間帯（2026-11-25 オーナー指定） ----
+   時刻はすべて日本時間。1日を「朝8時〜翌朝6時（ナイトの終わり）」で区切る。米国の時刻は夏時間を自動で判定する。
+   重要発表の日程は公表済みの予定（2026-11 時点で確認：FRB・日銀・米労働省）。変更されることがあるので、細かい予定は TradingView の経済指標カレンダーで確かめる */
+const EV_DAYS = {
+  fomc: ['2026-12-09', '2027-01-27', '2027-03-17', '2027-04-28', '2027-06-09', '2027-07-28', '2027-09-15', '2027-11-17'],   // 結果発表の日（米国の日付）。2027年10月は方針の議論のみ
+  boj: ['2026-12-18', '2027-01-22', '2027-03-18', '2027-04-28', '2027-06-11', '2027-07-22', '2027-09-22', '2027-10-29', '2027-12-17'],   // 会合2日目
+  nfp: ['2026-12-04', '2027-01-08', '2027-02-05', '2027-03-05', '2027-04-02', '2027-05-07', '2027-06-04', '2027-07-02', '2027-08-06', '2027-09-03', '2027-10-08', '2027-11-05', '2027-12-03'],   // 米国の雇用統計
+  cpi: ['2027-01-13', '2027-02-11', '2027-03-10', '2027-04-13', '2027-05-12', '2027-06-10', '2027-07-14', '2027-08-11', '2027-09-14', '2027-10-14', '2027-11-10', '2027-12-10'],   // 米国の消費者物価（2026年12月の分は未確認）
+};
+const uymd = d => d.toISOString().slice(0, 10);   // UTCの部品を日付として使う
+const nthDow = (y, m, dow, n) => { const d = new Date(Date.UTC(y, m, 1)); d.setUTCDate(1 + (dow - d.getUTCDay() + 7) % 7 + (n - 1) * 7); return d; };
+const lastDow = (y, m, dow) => { const d = new Date(Date.UTC(y, m + 1, 0)); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() - dow + 7) % 7); return d; };
+function usDst(s) { const y = +s.slice(0, 4); return s >= uymd(nthDow(y, 2, 0, 2)) && s < uymd(nthDow(y, 10, 0, 1)); }
+function usHoliday(s) {   // NYSE の休場日と短縮取引（13時まで）
+  const y = +s.slice(0, 4), obs = (m, d) => { const x = new Date(Date.UTC(y, m, d)), w = x.getUTCDay(); if (w === 6) x.setUTCDate(d - 1); if (w === 0) x.setUTCDate(d + 1); return uymd(x); };
+  // 復活祭（グレゴリオ暦の計算）→ その2日前の聖金曜日
+  const g = (() => { const A = y % 19, B = Math.floor(y / 100), C = y % 100, D = Math.floor(B / 4), E = B % 4, F = Math.floor((B + 8) / 25), G = Math.floor((B - F + 1) / 3),
+    H = (19 * A + B - D - G + 15) % 30, I = Math.floor(C / 4), K = C % 4, L = (32 + 2 * E + 2 * I - H - K) % 7, M = Math.floor((A + 11 * H + 22 * L) / 451),
+    mo = Math.floor((H + L - 7 * M + 114) / 31) - 1, da = ((H + L - 7 * M + 114) % 31) + 1; return new Date(Date.UTC(y, mo, da - 2)); })();
+  const tg = nthDow(y, 10, 4, 4), tg1 = new Date(tg); tg1.setUTCDate(tg.getUTCDate() + 1);
+  const close = {[obs(0, 1)]: '元日', [uymd(nthDow(y, 0, 1, 3))]: 'キング牧師の日', [uymd(nthDow(y, 1, 1, 3))]: '大統領の日', [uymd(g)]: '聖金曜日', [uymd(lastDow(y, 4, 1))]: '戦没者追悼記念日',
+    [obs(5, 19)]: '奴隷解放記念日', [obs(6, 4)]: '独立記念日', [uymd(nthDow(y, 8, 1, 1))]: 'レイバーデー', [uymd(tg)]: '感謝祭', [obs(11, 25)]: 'クリスマス'};
+  if (close[s]) return {closed: close[s]};
+  const xe = new Date(Date.UTC(y, 11, 24)), w = xe.getUTCDay();
+  if (s === uymd(tg1) || (s === uymd(xe) && w >= 1 && w <= 5)) return {early: s === uymd(tg1) ? '感謝祭の翌日' : 'クリスマス・イブ'};
+  return null;
+}
+function sqDay(y, m) {   // 第2金曜（休みなら前の営業日）
+  const d = nthDow(y, m, 5, 2); while (JP_HOL.has(uymd(d)) || d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() - 1); return uymd(d);
+}
+const jpBiz = s => { const w = new Date(s + 'T00:00:00Z').getUTCDay(); return w !== 0 && w !== 6 && !JP_HOL.has(s) && !/-01-0[23]$/.test(s) && !/-12-31$/.test(s); };
+const usBiz = s => { const w = new Date(s + 'T00:00:00Z').getUTCDay(); return w !== 0 && w !== 6 && !(usHoliday(s) || {}).closed; };
+const hm = t => `${t >= 1440 ? '翌' : ''}${Math.floor(t % 1440 / 60)}:${String(t % 60).padStart(2, '0')}`;
+function jstNow() { const n = new Date(Date.now() + 9 * 3600e3); return {s: uymd(n), m: n.getUTCHours() * 60 + n.getUTCMinutes()}; }
+// その日（日本時間の日付 s）の時間割：spans＝[開始分, 終了分, 種類(trade/avoid/care/off), 見出し, 理由]、pts＝[分, 見出し, 種類(open/close/ev/big)]
+function daySchedule(s) {
+  const sp = [], pt = [], et = usDst(s) ? 13 * 60 : 14 * 60, jp = jpBiz(s), us = usBiz(s), ush = usHoliday(s), y = +s.slice(0, 4), mo = +s.slice(5, 7) - 1;
+  const isEv = k => EV_DAYS[k].includes(s), sq = sqDay(y, mo) === s, majorSq = sq && [2, 5, 8, 11].includes(mo);
+  const notes = [];
+  if (jp) {
+    sp.push([525, 690, 'trade', '先物（日中）・現物 前場'], [690, 750, 'care', '昼休み（現物は休み・先物は取引あり）', '取引が薄く、急に動くことがある'], [750, 945, 'trade', '先物（日中）・現物 後場'],
+      [945, 1020, 'off', '先物は休み（日中とナイトの間）'], [1020, 1800, 'trade', '先物（ナイト）']);
+    sp.push([525, 555, 'avoid', '寄り付き直後', '先物8:45・現物9:00の寄り付きは注文が集中し、値が飛びやすい'],
+      [750, 765, 'care', '後場の寄り付き', '昼休みの間のニュースで値が飛ぶことがある'],
+      [925, 945, 'avoid', '引け前後', '現物の引け（15:30）と先物日中の引け（15:45）のオークションに注文が集中する'],
+      [1020, 1035, 'care', 'ナイトの始まり', '欧州の動きを受けて値が飛ぶことがある'],
+      [1620, 1800, 'care', '早朝の薄い時間', '取引が少なく、少しの注文で動きやすい']);
+    pt.push([525, '先物 日中の寄り付き', 'open'], [540, '現物（東証）の寄り付き', 'open'], [690, '現物 前場の引け', 'close'], [750, '現物 後場の寄り付き', 'open'],
+      [930, '現物（東証）の大引け', 'close'], [945, '先物 日中の引け', 'close'], [1020, '先物 ナイトの寄り付き', 'open'], [1800, '先物 ナイトの引け', 'close']);
+    pt.push([530, '日本の経済指標（発表がある日）', 'ev']);
+    if (sq) { sp.push([525, 570, 'avoid', majorSq ? 'メジャーSQの算出' : 'SQの算出', '寄り付きの値で清算されるため、寄りに大きな注文が出る']); pt.push([540, majorSq ? 'メジャーSQ（寄り付きで算出）' : 'SQ（寄り付きで算出）', 'big']); }
+    if (isEv('boj')) { sp.push([690, 810, 'avoid', '日銀 金融政策の発表', '発表の時刻は決まっていない（昼ごろが多い）。発表の瞬間に大きく動く'], [930, 1000, 'avoid', '日銀総裁の会見', '発言で円・株が動く']);
+      pt.push([690, '日銀 金融政策の発表（時刻未定・昼ごろが多い）', 'big'], [930, '日銀総裁の会見', 'big']); }
+  } else notes.push('今日は東証・大阪取引所が休み（日中・ナイトの取引なし）');
+  if (us) {
+    const t830 = 8 * 60 + 30 + et, t930 = 9 * 60 + 30 + et, t1000 = 10 * 60 + et, tc = (ush && ush.early ? 13 * 60 : 16 * 60) + et;
+    const big = isEv('nfp') ? '米国の雇用統計' : isEv('cpi') ? '米国の消費者物価（CPI）' : '';
+    const thu = new Date(s + 'T00:00:00Z').getUTCDay() === 4;
+    sp.push([t830 - 15, t830 + 15, big ? 'avoid' : 'care', big || '米国の経済指標', big ? '月に1度の最重要指標。発表の瞬間に大きく動く' : '発表がある日は値が飛ぶ（毎週木曜は新規失業保険申請件数）']);
+    pt.push([t830, big ? big : `米国の経済指標（発表がある日${thu ? '・木曜は失業保険' : ''}）`, big ? 'big' : 'ev']);
+    sp.push([t930 - 5, t930 + 30, 'care', '米国株の寄り付き', 'ニューヨークの寄り付き直後は値動きが大きい']); pt.push([t930, '米国株（NY）の寄り付き', 'open']);
+    pt.push([t1000, '米国の経済指標（ISMなど、発表がある日）', 'ev']);
+    if (tc < 1800) pt.push([tc, `米国株の引け${ush && ush.early ? `（${ush.early}で短縮）` : ''}`, 'close']);
+    if (isEv('fomc')) { const tf = 14 * 60 + et; sp.push([tf - 15, tf + 60, 'avoid', 'FOMC（米国の金利）', '結果の発表と議長会見で大きく動く']); pt.push([tf, 'FOMCの結果発表', 'big'], [tf + 30, 'FRB議長の会見', 'big']); }
+    if (ush && ush.early) notes.push(`今夜の米国は${ush.early}のため短縮取引（13時＝日本時間${hm(13 * 60 + et)}まで）。取引が薄い`);
+  } else if (ush && ush.closed) notes.push(`今夜の米国は${ush.closed}で休場。夜間は取引が薄く、方向感が出にくい`);
+  pt.sort((a, b) => a[0] - b[0]);
+  return {s, sp, pt, notes, jp, us, sq, majorSq};
+}
+function upcomingEvents(from, days) {
+  const out = [], d0 = new Date(from + 'T00:00:00Z');
+  for (let k = 0; k <= days; k++) { const d = new Date(d0); d.setUTCDate(d0.getUTCDate() + k); const s = uymd(d), y = d.getUTCFullYear(), m = d.getUTCMonth(), et = usDst(s) ? 13 : 14;
+    if (EV_DAYS.boj.includes(s)) out.push([s, '日銀 金融政策の発表', '昼ごろ（時刻未定）']);
+    if (EV_DAYS.nfp.includes(s)) out.push([s, '米国の雇用統計', `${8 + et}:30`]);
+    if (EV_DAYS.cpi.includes(s)) out.push([s, '米国の消費者物価（CPI）', `${8 + et}:30`]);
+    if (EV_DAYS.fomc.includes(s)) out.push([s, 'FOMCの結果発表', `翌${14 + et - 24}:00`]);
+    if (sqDay(y, m) === s) out.push([s, [2, 5, 8, 11].includes(m) ? 'メジャーSQ' : 'SQ', '寄り付き']);
+    const h = usHoliday(s); if (h) out.push([s, h.closed ? `米国休場（${h.closed}）` : `米国短縮取引（${h.early}）`, '']);
+    if (JP_HOL.has(s)) out.push([s, '東証休場', '']); }
+  return out;
+}
+// 今の状態：避けたい・注意の時間帯にいるか、次の予定まで何分か
+function schedNow() {
+  const n = jstNow(); let s = n.s, m = n.m;
+  if (m < 360) { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); s = uymd(d); m += 1440; }   // 朝6時より前は前の日の続き
+  const sc = daySchedule(s), inS = sc.sp.filter(x => x[0] <= m && m < x[1]);
+  const bad = inS.find(x => x[2] === 'avoid') || inS.find(x => x[2] === 'care'), trading = inS.some(x => x[2] === 'trade');
+  const next = sc.pt.find(x => x[0] > m && (x[2] === 'big' || x[2] === 'open' || x[2] === 'close')), nextBad = sc.sp.filter(x => x[2] === 'avoid' && x[0] > m).sort((a, b) => a[0] - b[0])[0];
+  return {sc, m, bad, trading, next, nextBad};
+}
+const inMin = d => d >= 60 ? `${Math.floor(d / 60)}時間${d % 60 ? `${d % 60}分` : ''}` : `${d}分`;
+function schedText() {   // Claude の質問文・チェックの質問に添える短い文
+  const st = schedNow(), out = [];
+  if (st.bad) out.push(`今は「${st.bad[3]}」（${hm(st.bad[0])}〜${hm(st.bad[1])}、${st.bad[2] === 'avoid' ? '避けたい時間帯' : '注意'}）`);
+  if (st.nextBad) out.push(`次の避けたい時間帯：${hm(st.nextBad[0])}〜 ${st.nextBad[3]}（あと${inMin(st.nextBad[0] - st.m)}）`);
+  const big = st.sc.pt.filter(x => x[2] === 'big' && x[0] > st.m).map(x => `${hm(x[0])} ${x[1]}`);
+  if (big.length) out.push('今日の重要発表：' + big.join('、'));
+  return out.join('。');
+}
+function renderSched() {
+  const box = $('#tr-sched-main'); if (!box) return;
+  const st = schedNow(), sc = st.sc, m = st.m, d = new Date(sc.s + 'T00:00:00Z');
+  const W = ['日', '月', '火', '水', '木', '金', '土'][d.getUTCDay()], T0 = 480, T1 = 1800, pc = t => ((Math.min(Math.max(t, T0), T1) - T0) / (T1 - T0) * 100).toFixed(2);
+  const cls = {trade: 'stt', avoid: 'sta', care: 'stc', off: 'sto'};
+  const bar = sc.sp.map(x => `<i class="${cls[x[2]]}" style="left:${pc(x[0])}%;width:${pc(x[1]) - pc(x[0])}%" title="${hm(x[0])}〜${hm(x[1])} ${x[3]}"></i>`).join('');
+  const ticks = [480, 720, 960, 1200, 1440, 1680].map(t => `<span style="left:${pc(t)}%">${hm(t).replace('翌', '')}</span>`).join('');
+  const msg = st.bad ? `<div class="trmsg ${st.bad[2] === 'avoid' ? 'neg' : 'warnbox'}"><b>今は${st.bad[2] === 'avoid' ? '避けたい時間帯' : '注意の時間帯'}：${st.bad[3]}</b>（〜${hm(st.bad[1])}）<br><small>${st.bad[4] || ''}</small></div>`
+    : `<div class="trmsg ${st.trading ? 'pos' : ''}"><b>${st.trading ? '今は取引時間中で、避けたい時間帯ではありません' : '今は日経先物の取引時間外です'}</b>${st.nextBad ? `<br><small>次の避けたい時間帯：${hm(st.nextBad[0])}〜 ${st.nextBad[3]}（あと${inMin(st.nextBad[0] - m)}）</small>` : ''}</div>`;
+  const row = x => { const past = x[0] < m, kind = {open: '寄り', close: '引け', ev: '発表', big: '重要'}[x[2]];
+    const av = sc.sp.find(y => y[2] === 'avoid' && y[0] <= x[0] && x[0] < y[1]);
+    return `<tr class="${past ? 'past' : ''}${x[2] === 'big' ? ' big' : ''}"><td class="num">${hm(x[0])}</td><td><span class="stk ${x[2]}">${kind}</span></td><td>${x[1]}${av ? `<br><small class="neg">避ける：${hm(av[0])}〜${hm(av[1])}</small>` : ''}</td></tr>`; };
+  const avoidList = sc.sp.filter(x => x[2] === 'avoid' || x[2] === 'care').sort((a, b) => a[0] - b[0]);
+  const up = upcomingEvents(sc.s, 21).filter(x => x[0] > sc.s).slice(0, 8);
+  box.innerHTML = `<h2>今日の時間割（${+sc.s.slice(5, 7)}/${+sc.s.slice(8)}（${W}）朝8時〜翌朝6時・日本時間）</h2>
+    ${sc.notes.map(t => `<div class="trmsg warnbox">${t}</div>`).join('')}
+    ${msg}
+    <div class="stbar">${bar}<b class="stnow" style="left:${pc(m)}%"></b></div><div class="sttick">${ticks}</div>
+    <div class="stleg"><span><i class="stt"></i>取引時間（日経先物）</span><span><i class="stc"></i>注意</span><span><i class="sta"></i>避けたい</span><span><i class="sto"></i>休み</span><span><b class="stnow2"></b>今</span></div>
+    <div class="wrap"><table class="sttab"><tbody>${sc.pt.map(row).join('')}</tbody></table></div>
+    <h3>避けたい・注意の時間帯</h3>
+    <ul class="trli">${avoidList.map(x => `<li class="${x[1] <= m ? 'past' : ''}"><b class="${x[2] === 'avoid' ? 'neg' : ''}">${x[2] === 'avoid' ? '避ける' : '注意'} ${hm(x[0])}〜${hm(x[1])}</b> ${x[3]}<br><small>${x[4] || ''}</small></li>`).join('') || '<li>なし</li>'}</ul>
+    <h3>この先の重要な予定（3週間）</h3>
+    <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>なし</li>'}</ul>
+    <p class="note">日経先物：日中 8:45〜15:45、ナイト 17:00〜翌6:00。東証（現物）：9:00〜11:30・12:30〜15:30。米国の時刻は夏時間・冬時間を自動で切り替えます。日銀・FOMC・雇用統計・CPIの日程は公表済みの予定（2026年11月に確認）で、変わることがあります。日本・米国のほかの指標は、下の経済指標カレンダーで確かめてください。</p>`;
+}
+function mountEvTv() {
+  const box = document.getElementById('tr-evtv'); if (!box || box.dataset.on) return; box.dataset.on = '1';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const c = document.createElement('div'); c.className = 'tradingview-widget-container'; const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; c.appendChild(w);
+  const s = document.createElement('script'); s.async = true; s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js';
+  s.textContent = JSON.stringify({colorTheme: dark ? 'dark' : 'light', isTransparent: false, width: '100%', height: 500, locale: 'ja', importanceFilter: '0,1', countryFilter: 'jp,us,cn,eu'});
+  c.appendChild(s); box.appendChild(c);
+}
+setInterval(() => { if ($('#p-trade') && $('#p-trade').classList.contains('on')) renderSched(); }, 60000);
 /* ---- 1分足のテクニカル根拠（2026-11-25 オーナー指定） ----
    1分足のデータはこのアプリでは取れないため、TradingView の1分足（MACD・ボリンジャー・RSI付き）とテクニカル判定を表示し、
    見えたことをタップで選ぶと、上げ・下げの根拠と「買い寄り／売り寄り／方向感なし」をまとめる。選んだ内容は30分だけ有効（localStorage tr1m） */
@@ -2218,6 +2365,7 @@ function trRows() {
 }
 function trDayTotals(rows) { const m = {}; rows.forEach(r => { m[r.date] = r.cum; }); return m; }   // その日の最後の合計＝その日の損益
 function renderTrade() {
+  renderSched(); mountEvTv();
   renderTrCheck();
   const rows = trRows(), day = trDayTotals(rows), today = trToday();
   const dt = new Date(), mon = new Date(dt); mon.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
