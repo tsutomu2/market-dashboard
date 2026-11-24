@@ -146,6 +146,18 @@ header h1{padding-right:4px}
 .hvplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:44px;border-radius:12px;background:#e00000dd;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
 .hvt{display:flex;align-items:center;gap:8px;margin-top:8px}.hvd{font-size:calc(var(--fs)*12px);color:var(--muted);font-variant-numeric:tabular-nums}
 .hvn{font-weight:600;font-size:calc(var(--fs)*14px);margin:4px 0 2px}.hvw{font-size:calc(var(--fs)*13px)}.hvl{font-size:calc(var(--fs)*12px);color:var(--accent)}
+.trbig{font-size:calc(var(--fs)*16px);font-weight:700;padding:12px 18px;border-radius:12px;min-width:120px;text-align:center;text-decoration:none;display:inline-block}
+.trgo{background:var(--accent);color:#fff;border-color:var(--accent)}.trbig:disabled{opacity:.5}
+.tryn{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.trq{font-size:calc(var(--fs)*19px);font-weight:700;margin:10px 0 4px;line-height:1.5}
+.trn{font-size:calc(var(--fs)*12px);color:var(--muted);margin-top:4px}
+.trprog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}.trprog span{display:block;height:100%;background:var(--accent)}
+.trmsg{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:calc(var(--fs)*15px);line-height:1.6}.trmsg.neg{background:var(--negbg)}.trmsg.pos{background:var(--posbg)}
+.trapps{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
+.trform{display:flex;flex-direction:column;gap:10px;max-width:520px}
+.trform input[type=date],.trform input[type=number],.trform input[type=text]{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
+.trrow{display:flex;gap:8px;align-items:center}.trrow input{flex:1;min-width:0}#tr-sign{font-weight:700;color:var(--pos);white-space:nowrap}#tr-sign.neg{color:var(--neg)}
+#tr-diff{font-size:calc(var(--fs)*15px)}.trdel{padding:2px 8px}
 </style>
 </head>
 <body>
@@ -154,6 +166,7 @@ header h1{padding-right:4px}
   <div class="sub upd"><span>データ更新：<b id="updated">—</b></span><span>画面の更新：<b id="loaded">—</b></span></div>
   <nav class="tabs">
     <button class="tab on" data-page="sho">SHO手法で判断</button>
+    <button class="tab" data-page="trade">短期トレード</button>
     <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
     <button class="tab" data-page="margin">信用残</button>
@@ -171,6 +184,27 @@ header h1{padding-right:4px}
     <option value="13">直近13週</option><option value="26" selected>直近26週</option><option value="52">直近52週</option><option value="156">直近3年</option><option value="9999">全期間</option>
   </select></label>
 </div>
+
+<!-- ============ 短期トレード ============ -->
+<section class="page" id="p-trade">
+  <div class="box" id="tr-check"></div>
+  <div class="box"><h2>損益を記録</h2>
+    <p class="note">その日の<b>現時点の損益の合計</b>を入力します。2回目以降も「その時点の合計」を入れると、前回との差がその回の損益になります。</p>
+    <div class="trform">
+      <label>日付 <input type="date" id="tr-date"></label>
+      <div class="trrow"><button class="btn" id="tr-sign" data-sign="+" type="button">勝ち（＋）</button><input type="number" id="tr-amt" inputmode="numeric" min="0" step="1" placeholder="今日の合計（円）"><span>円</span></div>
+      <input type="text" id="tr-memo" placeholder="メモ（銘柄・根拠・反省など、なくても可）">
+      <div class="note" id="tr-prev"></div><div id="tr-diff"></div>
+      <button class="btn trbig trgo" id="tr-save" type="button">記録する</button>
+    </div></div>
+  <div class="cards" id="tr-sum"></div>
+  <div class="box"><h2>日ごとの損益（直近30日）</h2><div class="chart" style="height:220px"><canvas id="tr-chart"></canvas></div></div>
+  <div class="box"><h2>月ごとの損益（今年）</h2><div class="wrap" id="tr-month"></div></div>
+  <div class="box"><h2>記録の一覧</h2><div class="wrap" id="tr-hist"></div>
+    <p class="note" style="margin-top:8px">記録はこの端末（このブラウザ／ホーム画面のアプリ）の中だけに保存され、ほかの端末とは共有されません。機種変更などに備えて、ときどきCSVで保存してください。</p>
+    <p><button class="btn" id="tr-csv" type="button">CSVで保存</button> <label class="btn">CSVを読み込む<input type="file" id="tr-import" accept=".csv,text/csv" hidden></label></p></div>
+  <p class="note">このタブは、取引の前に自分の状態とルールを確かめるための道具で、売買を勧めるものではありません。</p>
+</section>
 
 <!-- ============ シグナル ============ -->
 <section class="page" id="p-signal">
@@ -1800,10 +1834,170 @@ function renderShoPage() {
     <p class="note" style="margin-top:8px">「下がる」という警告はよく当たり、「上がる」は外れることが多い傾向です。警告のサインは重く、強気の見方は控えめに受け取るのが無難です。</p>`;
 }
 
+/* ---------------- 短期トレード（トレード前チェック＋損益の記録） ----------------
+   チェック：10問。毎回ランダムに半分ほどを「逆の聞き方」にして、惰性で「はい」を押し続けられないようにする。
+   正しくない答え（危ない状態）を選ぶと、その場で止めてアドバイスを出す。気持ちに関わる項目は待ち時間を付ける。
+   記録：「その日の現時点の損益合計」を入力。前回の合計との差がその回の損益。データはこの端末（localStorage）に保存。 */
+const TR_Q = [
+  {k: 'calm', pos: '今、冷静な判断ができる状態ですか？', neg: '今、損失を取り返したい気持ちが強く、冷静ではない状態ですか？',
+    stop: '取り返そうとする取引（リベンジトレード）は、損失を大きくする一番の原因です。いったん画面から離れ、深呼吸して、落ち着くまで待ってください。', cool: 15},
+  {k: 'body', pos: '十分に眠れていて、体調は良いですか？', neg: '寝不足や疲れで、集中しにくい状態ですか？',
+    stop: '疲れているときは判断が遅れ、損切りもためらいがちになります。今日は見送るか、休んでから始めてください。', cool: 0},
+  {k: 'rule', pos: '自分のトレードルール（入る条件・出る条件）どおりに取引しますか？', neg: '今回はルールから外れて、感覚で入ろうとしていますか？',
+    stop: 'ルールの外の取引は、勝っても負けても次につながりません。ルールに合う場面が来るまで待ちましょう。', cool: 0},
+  {k: 'reason', pos: '上がる（または下がる）と考える根拠を、2つ以上言えますか？', neg: '根拠は1つだけ、または「なんとなく」ですか？',
+    sub: '例：25日線を上に抜けた＋連動指数が▲、PER14倍の水準まで下げた＋騰落レシオが売られすぎ',
+    stop: '根拠が1つ以下の取引は、ただの予想です。根拠を2つ以上そろえてから入りましょう。根拠を書き出してみるのがおすすめです。', cool: 0},
+  {k: 'stop', pos: '損切りの価格を、注文の前に決めていますか？', neg: '損切りの価格を決めないまま入ろうとしていますか？',
+    stop: '損切りを決めずに入ると、損が広がったときに逃げ遅れます。「ここまで来たら切る」価格を決めてから注文してください。', cool: 0},
+  {k: 'size', pos: '1回の損失が、資金の1〜2%以内に収まる量ですか？', neg: '損を取り返すために、いつもより大きな量で入ろうとしていますか？',
+    stop: '量を増やして取り返そうとすると、1回の負けで大きく崩れます。いつもの量、または損失が資金の1〜2%に収まる量に戻してください。', cool: 10},
+  {k: 'target', pos: '利益を確定する目標（価格か条件）を決めていますか？', neg: 'どこで利益を確定するか、決めていませんか？',
+    stop: '出口を決めていないと、利益が出てもずるずる持ち続けて、利益を逃しがちです。目標の価格か条件を決めてから入りましょう。', cool: 0},
+  {k: 'limit', pos: '今日の損失は、決めておいた1日の上限より少ないですか？', neg: '今日はもう、決めておいた1日の損失の上限を超えていますか？',
+    stop: '1日の上限を超えた日は、そこで終わりにするのがルールです。今日の取引は終了して、また明日にしましょう。', cool: 60},
+  {k: 'event', pos: '重要な発表（日銀・米国の雇用統計・CPIなど）の直前ではないことを確認しましたか？', neg: '大きな発表の直前など、値動きが荒れやすい時間帯ですか？',
+    stop: '発表の前後は値が飛びやすく、損切りが思った価格でできないことがあります。発表が終わって落ち着いてから入りましょう。', cool: 0},
+  {k: 'env', pos: '今日の地合い（このアプリの構え・前夜の米国）を確認しましたか？', neg: '地合いを確認しないまま始めようとしていますか？',
+    stop: '全体の流れに逆らう取引は、勝ちにくくなります。「SHO手法で判断」タブで今日の構えを確認してから始めましょう。', cool: 0},
+];
+const TR_APPS = [
+  ['iSPEED（株）を開く', 'https://apps.apple.com/jp/app/id389339704'],
+  ['iSPEED 先物OPを開く', 'https://apps.apple.com/jp/app/id584769039'],
+];
+const trGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const trSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 保存できない環境（プライベートブラウズなど） */ } };
+const trToday = () => isoD(new Date());
+const yen0 = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt0.format(Math.abs(Math.round(v))) + '円';
+let TRS = {status: 'start'};   // チェックの進み具合（画面を開き直すと最初から）
+
+function trStart() {
+  const nFlip = 3 + Math.floor(Math.random() * 4);   // 10問のうち3〜6問を逆の聞き方に
+  const idx = TR_Q.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, nFlip);
+  TRS = {status: 'q', i: 0, flip: TR_Q.map((_, i) => idx.includes(i))};
+  renderTrCheck();
+}
+function trAnswer(yes) {
+  const q = TR_Q[TRS.i], ok = TRS.flip[TRS.i] ? !yes : yes;
+  if (!ok) {
+    TRS = {status: 'stop', q};
+    if (q.cool) trSet('trCool', Date.now() + q.cool * 60000);
+    const log = trGet('trChecks', []); log.push({t: Date.now(), ok: false, k: q.k}); trSet('trChecks', log.slice(-200));
+  } else if (TRS.i === TR_Q.length - 1) {
+    TRS = {status: 'done'};
+    const log = trGet('trChecks', []); log.push({t: Date.now(), ok: true}); trSet('trChecks', log.slice(-200));
+  } else TRS.i++;
+  renderTrCheck();
+}
+function renderTrCheck() {
+  const box = $('#tr-check'); if (!box) return;
+  const cool = trGet('trCool', 0), left = Math.ceil((cool - Date.now()) / 60000);
+  const today = trGet('trChecks', []).filter(c => isoD(new Date(c.t)) === trToday());
+  const head = `<h2>トレード前チェック</h2><p class="note">10問に「はい」「いいえ」で答えます。毎回いくつかの質問は逆の聞き方になるので、よく読んで答えてください。今日のチェック：通過 ${today.filter(c => c.ok).length}回・中止 ${today.filter(c => !c.ok).length}回</p>`;
+  if (TRS.status === 'start') {
+    box.innerHTML = head + (left > 0
+      ? `<div class="trmsg neg">待ち時間中です。あと約${left}分たってから、もう一度チェックしてください。</div><button class="btn trbig" disabled>チェックを始める</button>`
+      : `<button class="btn trbig trgo" id="tr-start" type="button">チェックを始める</button>`);
+  } else if (TRS.status === 'q') {
+    const q = TR_Q[TRS.i], neg = TRS.flip[TRS.i];
+    let sub = q.sub || '';
+    if (q.k === 'env') { try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, okN = sg.rebound.filter(x => x.st === 'ok').length;
+      sub = `参考：今日の構えは「${lit >= JUDGE.defendCrash && okN === 0 ? '守り' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? '攻め' : '中立'}」（急落サイン ${lit}/8・反発条件 ${okN}/${sg.rebound.length}）`; } catch (e) { /* データ読み込み前 */ } }
+    box.innerHTML = head + `<div class="trprog"><span style="width:${TRS.i / TR_Q.length * 100}%"></span></div><div class="trn">${TRS.i + 1} / ${TR_Q.length}</div>
+      <div class="trq">${neg ? q.neg : q.pos}</div>${sub ? `<p class="note">${sub}</p>` : ''}
+      <div class="tryn"><button class="btn trbig" data-tra="1" type="button">はい</button><button class="btn trbig" data-tra="0" type="button">いいえ</button></div>`;
+  } else if (TRS.status === 'stop') {
+    const q = TRS.q;
+    box.innerHTML = head + `<div class="trmsg neg"><b>ストップ：今は取引しないでください</b><br>${q.stop}${q.cool ? `<br><small>${q.cool >= 60 ? '1時間' : q.cool + '分'}たつまで、チェックをやり直せません。</small>` : ''}</div>
+      <button class="btn trbig" id="tr-reset" type="button" ${left > 0 ? 'disabled' : ''}>${left > 0 ? `あと約${left}分` : '最初からやり直す'}</button>`;
+  } else if (TRS.status === 'done') {
+    box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b><br>10問すべて確認できました。決めた損切り・量・利益確定の目標を守って取引しましょう。</div>
+      <div class="trapps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
+      <p class="note">楽天証券のアプリ（App Store のページ）が開きます。インストール済みなら「開く」を押してください。取引が終わったら、下の「損益を記録」に入力します。</p>
+      <button class="btn" id="tr-reset" type="button">チェックをやり直す</button>`;
+  }
+}
+
+/* ---- 損益の記録 ---- */
+function trRows() {
+  // 日付・時刻順に並べ、同じ日の前回の合計との差を「この回の損益」にする
+  const L = trGet('trLog', []).slice().sort((a, b) => (a.date + a.t).localeCompare(b.date + b.t) || a.id - b.id);
+  const prev = {};
+  return L.map(r => { const p = prev[r.date] ?? 0; prev[r.date] = r.cum; return {...r, diff: r.cum - p}; });
+}
+function trDayTotals(rows) { const m = {}; rows.forEach(r => { m[r.date] = r.cum; }); return m; }   // その日の最後の合計＝その日の損益
+function renderTrade() {
+  renderTrCheck();
+  const rows = trRows(), day = trDayTotals(rows), today = trToday();
+  const dt = new Date(), mon = new Date(dt); mon.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+  const wk0 = isoD(mon), mo0 = today.slice(0, 8) + '01', yr0 = today.slice(0, 5) + '01-01';
+  const sum = from => Object.entries(day).filter(([d]) => d >= from && d <= today).reduce((s, [, v]) => s + v, 0);
+  const cnt = from => { const r = rows.filter(x => x.date >= from && x.date <= today); return {n: r.length, w: r.filter(x => x.diff > 0).length, l: r.filter(x => x.diff < 0).length}; };
+  const cardP = (lab, from) => { const v = sum(from), c = cnt(from);
+    return card(lab, yen0(v), c.n ? `${c.n}回（勝ち${c.w}・負け${c.l}、勝率${Math.round(c.w / Math.max(1, c.w + c.l) * 100)}%）` : '記録なし', v > 0 ? 'pos' : v < 0 ? 'neg' : ''); };
+  $('#tr-sum').innerHTML = cardP('今日', today) + cardP('今週（月曜から）', wk0) + cardP('今月', mo0) + cardP('今年', yr0);
+  // 入力フォーム（日付は今日。前回の合計を表示）
+  const dsel = ($('#tr-date') && $('#tr-date').value) || today;
+  const lastCum = day[dsel];
+  $('#tr-prev').textContent = lastCum == null ? `${ymd(dsel)} の記録はまだありません（1回目は、入力した合計がそのままこの回の損益）` : `${ymd(dsel)} の前回の合計：${yen0(lastCum)}`;
+  trPreview();
+  // 日ごとの損益（直近30日）
+  const days = Object.keys(day).sort().slice(-30);
+  mkChart('tr-chart', {type: 'bar', data: {labels: days.map(md), datasets: [{label: '日ごとの損益（円）', data: days.map(d => day[d]), backgroundColor: days.map(d => day[d] >= 0 ? css('--pos') : css('--neg'))}]},
+    options: {plugins: {legend: {display: false}}, scales: {y: {ticks: {callback: v => fmt0.format(v)}}}}});
+  // 月ごと（今年）
+  const ms = {};
+  Object.entries(day).filter(([d]) => d >= yr0).forEach(([d, v]) => { const k = d.slice(0, 7); ms[k] = ms[k] || {v: 0, n: 0, w: 0, l: 0}; ms[k].v += v; ms[k].n++; if (v > 0) ms[k].w++; else if (v < 0) ms[k].l++; });
+  $('#tr-month').innerHTML = Object.keys(ms).length ? `<table><thead><tr><th>月</th><th>損益</th><th>取引した日</th><th>勝ち日／負け日</th></tr></thead><tbody>${Object.keys(ms).sort().reverse().map(k =>
+    `<tr><td>${+k.slice(5)}月</td><td class="${ms[k].v >= 0 ? 'pos' : 'neg'}">${yen0(ms[k].v)}</td><td>${ms[k].n}日</td><td>${ms[k].w}／${ms[k].l}</td></tr>`).join('')}</tbody></table>` : '<p class="note">今年の記録はまだありません。</p>';
+  // 記録の一覧（新しい順・直近60件）
+  const rev = rows.slice().reverse().slice(0, 60);
+  $('#tr-hist').innerHTML = rev.length ? `<table><thead><tr><th>日付・時刻</th><th>その時点の合計</th><th>この回の損益</th><th style="text-align:left">メモ</th><th></th></tr></thead><tbody>${rev.map(r =>
+    `<tr><td>${md(r.date)} ${r.t}</td><td>${yen0(r.cum)}</td><td class="${r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : ''}">${yen0(r.diff)}</td><td style="text-align:left;white-space:normal">${(r.memo || '').replace(/[<>&]/g, c => ({'<': '&lt;', '>': '&gt;', '&': '&amp;'}[c]))}</td><td><button class="btn trdel" data-id="${r.id}" type="button" aria-label="削除">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="note">まだ記録がありません。</p>';
+}
+function trPreview() {
+  const box = $('#tr-diff'); if (!box) return;
+  const amt = +($('#tr-amt').value || NaN), sign = $('#tr-sign').dataset.sign === '-' ? -1 : 1;
+  const d = $('#tr-date').value || trToday(), prev = trDayTotals(trRows())[d] ?? 0;
+  box.innerHTML = isNaN(amt) ? '' : `この回の損益：<b class="${sign * amt - prev >= 0 ? 'pos' : 'neg'}">${yen0(sign * amt - prev)}</b>（${yen0(prev)} → ${yen0(sign * amt)}）`;
+}
+function trSave() {
+  const amt = +($('#tr-amt').value || NaN); if (isNaN(amt)) { $('#tr-amt').focus(); return; }
+  const sign = $('#tr-sign').dataset.sign === '-' ? -1 : 1, d = $('#tr-date').value || trToday();
+  const now = new Date(), t = d === trToday() ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : '23:59';
+  const L = trGet('trLog', []); L.push({id: Date.now(), date: d, t, cum: sign * amt, memo: $('#tr-memo').value.trim()}); trSet('trLog', L);
+  $('#tr-amt').value = ''; $('#tr-memo').value = '';
+  renderTrade();
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#tr-start')) trStart();
+  else if (e.target.closest('#tr-reset')) { TRS = {status: 'start'}; renderTrCheck(); }
+  else if (e.target.closest('[data-tra]')) trAnswer(e.target.closest('[data-tra]').dataset.tra === '1');
+  else if (e.target.closest('#tr-sign')) { const b = $('#tr-sign'); b.dataset.sign = b.dataset.sign === '-' ? '+' : '-'; b.textContent = b.dataset.sign === '-' ? '負け（−）' : '勝ち（＋）'; b.classList.toggle('neg', b.dataset.sign === '-'); trPreview(); }
+  else if (e.target.closest('#tr-save')) trSave();
+  else if (e.target.closest('.trdel')) { const id = +e.target.closest('.trdel').dataset.id; if (confirm('この記録を削除しますか？')) { trSet('trLog', trGet('trLog', []).filter(r => r.id !== id)); renderTrade(); } }
+  else if (e.target.closest('#tr-csv')) download('トレード記録', ['日付', '時刻', 'その時点の合計', 'この回の損益', 'メモ'], trRows().map(r => [r.date, r.t, r.cum, r.diff, r.memo || '']));
+});
+document.addEventListener('input', e => { if (e.target.closest('#tr-amt, #tr-date')) { if (e.target.id === 'tr-date') renderTrade(); else trPreview(); } });
+document.addEventListener('change', e => {
+  if (!e.target.closest('#tr-import')) return;
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(txt => {
+    const L = trGet('trLog', []), have = new Set(L.map(r => r.date + r.t + r.cum)); let n = 0;
+    txt.replace(/^﻿/, '').split(/\r?\n/).slice(1).forEach((line, i) => {
+      const c = line.split(',').map(s => s.replace(/^"|"$/g, '').replaceAll('""', '"'));
+      if (!/^\d{4}-\d\d-\d\d$/.test(c[0]) || isNaN(+c[2])) return;
+      if (have.has(c[0] + c[1] + +c[2])) return;
+      L.push({id: Date.now() + i, date: c[0], t: c[1] || '00:00', cum: +c[2], memo: c[4] || ''}); n++;
+    });
+    trSet('trLog', L); e.target.value = ''; alert(`${n}件を読み込みました`); renderTrade();
+  });
+});
+
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
-  $('#period-box').style.display = ['signal', 'sho', 'chart'].includes(on) ? 'none' : '';
-  ({signal: renderSignal, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade'].includes(on) ? 'none' : '';
+  ({signal: renderSignal, trade: renderTrade, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 
@@ -1876,6 +2070,7 @@ $('#ch-tv-fs').addEventListener('click', () => openFs($('#ch-tv-t').textContent,
 
 /* ---------------- UI ---------------- */
 $('#i-checks').innerHTML = ENT.map(([k, l], i) => `<label><input type="checkbox" id="chk-${k}" ${i < 3 ? 'checked' : ''}> ${l}</label>`).join('');
+$('#tr-date').value = trToday();
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.page));
