@@ -2168,6 +2168,7 @@ document.addEventListener('change', e => {
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
   $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade'].includes(on) ? 'none' : '';
+  $('#tape').style.display = on === 'trade' ? 'none' : '';   // 短期トレードのタブでは上部の相場（指数）を出さない
   ({signal: renderSignal, trade: renderTrade, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
