@@ -161,6 +161,7 @@ header h1{padding-right:4px}
 .sttab{width:100%}.sttab td{padding:5px 6px;vertical-align:top;text-align:left;white-space:normal}.sttab td:first-child,.sttab td:nth-child(2){white-space:nowrap;width:1%}.sttab tr.past{opacity:.45}.sttab tr.big td{font-weight:700}.trli li.past{opacity:.45}
 .stk{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;border-radius:999px;background:var(--line);white-space:nowrap}.stk.big{background:var(--neg);color:#fff}.stk.open{background:var(--posbg);color:var(--pos)}.stk.close{background:var(--negbg);color:var(--neg)}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
+.trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .trmsg{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:calc(var(--fs)*15px);line-height:1.6}.trmsg.neg{background:var(--negbg)}.trmsg.pos{background:var(--posbg)}
 .trapps{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
 .trform{display:flex;flex-direction:column;gap:10px;max-width:520px}
@@ -1979,7 +1980,7 @@ function renderTrCheck() {
     box.innerHTML = head + (left > 0
       ? `<div class="trmsg neg">待ち時間中です。あと約${left}分たってから、もう一度チェックしてください。</div><button class="btn trbig" disabled>チェックを始める</button>`
       : `<button class="btn trbig trgo" id="tr-start" type="button">チェックを始める</button>`)
-      + `<button class="btn trbig" id="tr1m-open" type="button">${TR1M_OPEN ? '▲ 1分足のテクニカル根拠を閉じる' : '📈 1分足のテクニカル根拠を見る'}</button>`
+      + `<button class="btn trbig" id="tr1m-open" type="button">${TR1M_OPEN ? '▲ 分足のテクニカル根拠を閉じる' : '📈 分足（1分・3分）のテクニカル根拠を見る'}</button>`
       + (TR1M_OPEN ? `<div class="trmat">${tr1mHtml()}</div>` : '') + trClaudeHtml();
     if (TR1M_OPEN) trMountTv();
   } else if (TRS.status === 'q') {
@@ -2080,40 +2081,65 @@ function trMaterials() {
     out.push([0, '近くの値段の節目', `上：${up ? `${up[0]} ${fmtY(up[1])}（${sgn((up[1] / c - 1) * 100, fmt2)}%）` : '—'}　下：${dn ? `${dn[0]} ${fmtY(dn[1])}（${sgn((dn[1] / c - 1) * 100, fmt2)}%）` : '—'}`]); }
   return out;
 }
-/* Claude に「今の根拠」を調べてもらう：判断材料・選んだ方向と根拠を質問文にして、claude.ai を質問入りで開く（?q=）。
+/* Claude に判断してもらう：3分足（テクニカル重視）と日足（需給・節目）の2種類の質問文を作り、claude.ai を質問入りで開く（?q=）。
    ページにAPIキーを置かない（公開ページのため）。開けない端末のために、質問文のコピーも用意する */
-function trClaudePrompt() {
-  const m = trMaterials(), t = techSeries(), last = t.dates[t.dates.length - 1];
+function trClaudePrompt(kind) {   // kind: 'm3'＝3分足（テクニカル重視）／'d'＝日足（需給・節目・地合い）
+  const m = trMaterials(), t = techSeries(), last = t.dates[t.dates.length - 1], i = t.c.length - 1;
   let stance = '';
   try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, okN = sg.rebound.filter(x => x.st === 'ok').length;
     stance = `${lit >= JUDGE.defendCrash && okN === 0 ? '守り' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? '攻め' : '中立'}（急落サイン${lit}/8・反発条件${okN}/${sg.rebound.length}）`; } catch (e) { /* 読み込み前 */ }
   const pend = trGet('trPending', {}) || {}, sho = (D.sho || []).slice(-1)[0];
-  const ln = x => `・${x[1]}（${x[2]}）`;
+  const ln = x => `・${x[1]}（${x[2]}）`, up = m.filter(x => x[0] > 0), dn = m.filter(x => x[0] < 0), nt = m.filter(x => x[0] === 0);
   const now = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}).format(new Date());
+  const dirLine = pend.dir ? `■私が考えている方向：${pend.dir === 'buy' ? '買い（上がる）' : '売り（下がる）'}　根拠：${(pend.reasons || []).join('、') || '未選択'}` : '■私が考えている方向：まだ決めていない';
+  const sched = schedText(), mins = tr1mText();
+  if (kind === 'm3') {
+    const lv = nt.find(x => x[1] === '近くの値段の節目');
+    return [
+      `日経225先物（または日経225 CFD）の3分足でデイトレードを考えています。今は${now}（日本時間）です。テクニカル分析を中心に判断材料を整理してください。`,
+      mins ? `■分足のチェック（TradingViewを見て自分で確認）：${mins}` : '■分足のチェック：まだしていない',
+      sched ? `■時間帯：${sched}` : '',
+      `■日足の背景（${md(last)}終値まで）：構え ${stance || '—'}／日足の材料 上げ${up.length}・下げ${dn.length}／25日線 ${fmt0.format(Math.round(t.ma25[i]))}円${lv ? `／${lv[2]}` : ''}`,
+      dirLine,
+      '',
+      'お願い（3分足・テクニカル重視）：',
+      '1. 3分足チャートの画像を添付した場合は、それを最優先で読み取ってください。添付が無ければ、ウェブで日経225先物の最新の値動きを調べ、分かる範囲で整理してください（分からない値は推測で埋めず「不明」と書く）。',
+      '2. 3分足の次の項目を確認してください：MACD(12,26,9)のクロスと0ラインの位置／RSI(14)の30・70／ボリンジャーバンド(20,±2σ)のどこにいるか・バンドウォークやスクイーズ／5本・25本移動平均の向きとクロス／直近の高値・安値の切り上げ・切り下げ／出来高の増減。',
+      '3. 上げのテクニカル根拠と下げのテクニカル根拠を分けて並べ、どちらが強いかを書いてください。日足の背景と逆向きなら、その点も指摘してください。',
+      '4. 入るなら「どの形になったら入るか（エントリーの条件）」「損切りの位置（直近の安値・高値や±2σなど、値幅も）」「利確の目安」を3分足の基準で示してください。',
+      '5. 私が考えている方向と根拠の弱い点・見落としを指摘してください。避けたい時間帯や重要発表が近いなら、待つべきかどうかも書いてください。',
+      '6. 最後に「今は入る条件がそろっているか／待つべきか」を1〜2行でまとめてください。',
+      '最終判断は自分でします。売買の推奨ではなく、判断材料の整理としてお願いします。',
+    ].filter(x => x !== '').join('\n');
+  }
+  const ev = upcomingEvents(jstNow().s, 7).map(x => `${+x[0].slice(5, 7)}/${+x[0].slice(8)} ${x[1]}${x[2] ? `（${x[2]}）` : ''}`);
   return [
-    `日経平均（日経225先物・CFD）の短期トレードを考えています。今は${now}（日本時間）です。`,
+    `日経平均（日経225先物・CFD）を日足の目線で判断したいです。今は${now}（日本時間）です。`,
     `私のダッシュボードの判断材料（日足・${md(last)}終値まで）：`,
     `■今日の構え：${stance || '—'}`,
-    '■上げの材料', ...m.filter(x => x[0] > 0).map(ln),
-    '■下げの材料', ...m.filter(x => x[0] < 0).map(ln),
-    '■確認', ...m.filter(x => x[0] === 0).map(ln),
-    schedText() ? `■今日の時間割（このアプリの計算）：${schedText()}` : '',
-    tr1mText() ? `■1分足（TradingViewを見て自分で確認）：${tr1mText()}` : '',
+    '■上げの材料', ...up.map(ln),
+    '■下げの材料', ...dn.map(ln),
+    '■確認', ...nt.map(ln),
     sho ? `■参考：YouTube「Sho's投資情報局」の最新の結論（${md(sho.date)}）：${sho.view}` : '',
-    pend.dir ? `■私が考えている方向：${pend.dir === 'buy' ? '買い（上がる）' : '売り（下がる）'}　根拠：${(pend.reasons || []).join('、') || '未選択'}` : '■私が考えている方向：まだ決めていない',
+    sched ? `■今日の時間割：${sched}` : '',
+    ev.length ? `■この先1週間の予定：${ev.join('、')}` : '',
+    dirLine,
     '',
-    'お願い：',
-    '1. 今の日経平均・日経先物・米国株先物・ドル円・VIXの最新の動きと、今日これから予定されている重要な発表（日銀・米国の経済指標・要人発言など）をウェブで調べてください。',
-    '2. それと上の材料を合わせて、「上がると考える根拠」と「下がると考える根拠」を整理してください。',
-    '3. 私が考えている方向と根拠について、弱い点・見落としている点・入るなら損切りを置くべき目安を指摘してください。',
-    '4. 最後に「今は入る条件がそろっているか／見送るべき理由があるか」を、理由とともに短くまとめてください。',
+    'お願い（日足・数日〜1週間の目線）：',
+    '1. 日経平均・日経先物・米国株先物・ドル円・VIXの最新の動きと、今日〜今週の重要な予定（日銀・米国の経済指標・要人発言・決算など）をウェブで調べてください。',
+    '2. それと上の材料（需給・割安割高・テクニカル・海外勢）を合わせて、日足で「上がると考える根拠」と「下がると考える根拠」を整理し、どちらが優勢かを書いてください。',
+    '3. 近い値段の節目（25日線・200日線・PER14〜16倍など）のうち、上値の壁・下値の支えになりそうなものを示してください。',
+    '4. 私が考えている方向と根拠について、弱い点・見落とし・日足で見た損切りの目安を指摘してください。',
+    '5. 最後に「今日〜数日の方針（攻め・中立・守り、待つべき条件）」を短くまとめてください。',
     '最終判断は自分でします。売買の推奨ではなく、判断材料の整理としてお願いします。',
-  ].filter(Boolean).join('\n');
+  ].filter(x => x !== '').join('\n');
 }
 function trClaudeHtml() {
-  return `<div class="trmat"><h3>Claudeに今の根拠を調べてもらう</h3>
-    <p class="note">上の判断材料と、選んだ方向・根拠を質問文にして Claude を開きます。最新の値動きや今日の発表をウェブで調べたうえで、上げ・下げの根拠と見落としを整理してもらえます（返事は Claude の画面に出ます）。</p>
-    <div class="trapps"><a class="btn trbig trgo" id="tr-claude" href="#" target="_blank" rel="noopener">Claudeに聞く</a><button class="btn" id="tr-claude-copy" type="button">質問文をコピー</button></div>
+  return `<div class="trmat"><h3>Claudeに判断してもらう</h3>
+    <p class="note">このアプリの判断材料・時間割・選んだ方向と根拠を質問文にして、Claude を開きます。Claude が最新の値動きや発表をウェブで調べ、上げ・下げの根拠と見落としを整理します（返事は Claude の画面に出ます）。</p>
+    <div class="trask"><a class="btn trbig trgo trclaude" data-kind="m3" href="#" target="_blank" rel="noopener">⏱ 3分足で判断<small>テクニカル重視</small></a><button class="btn trcopy" data-kind="m3" type="button">質問文をコピー</button></div>
+    <p class="note">3分足は、TradingView の3分足チャートの<b>スクリーンショットを Claude に添付</b>すると、チャートを読み取って判断してくれます（Claude は3分足のデータを直接は取れないことがあります）。先に「分足のテクニカル根拠」でチェックしておくと、その結果も質問文に入ります。</p>
+    <div class="trask"><a class="btn trbig trgo trclaude" data-kind="d" href="#" target="_blank" rel="noopener">📅 日足で判断<small>需給・節目・地合い</small></a><button class="btn trcopy" data-kind="d" type="button">質問文をコピー</button></div>
     <p class="note" id="tr-claude-msg">Claude アプリに質問が入らないときは「質問文をコピー」を押し、Claude に貼り付けてください。</p></div>`;
 }
 function trMaterialsHtml() {
@@ -2266,6 +2292,7 @@ setInterval(() => { if ($('#p-trade') && $('#p-trade').classList.contains('on'))
    1分足のデータはこのアプリでは取れないため、TradingView の1分足（MACD・ボリンジャー・RSI付き）とテクニカル判定を表示し、
    見えたことをタップで選ぶと、上げ・下げの根拠と「買い寄り／売り寄り／方向感なし」をまとめる。選んだ内容は30分だけ有効（localStorage tr1m） */
 let TR1M_OPEN = false;
+let TR_TF = String(trGet('trTf', '3')) === '1' ? '1' : '3';   // 分足チャートの足（1分・3分）
 const TR1M_TTL = 30 * 60000;
 const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見方, 根拠の分類]
   ['mgc', 1, 'MACDがゴールデンクロスした（しそう）', 'チャート下の欄：青い線がオレンジの線を下から上に抜ける。棒（ヒストグラム）がマイナスから縮んでいる', 'MACDのクロス（分足）'],
@@ -2294,7 +2321,7 @@ function tr1mJudge(on) {
 function tr1mText() {
   const v = tr1mGet(); if (!v.on.length) return '';
   const j = tr1mJudge(v.on), hm = new Date(v.t).toTimeString().slice(0, 5);
-  return `${hm}確認、上げ${j.up}・下げ${j.dn}（${j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし'}）：${j.it.map(x => x[2]).join('、')}`;
+  return `${v.tf || '1'}分足・${hm}確認、上げ${j.up}・下げ${j.dn}（${j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし'}）：${j.it.map(x => x[2]).join('、')}`;
 }
 function tr1mSumHtml() {
   const v = tr1mGet(), j = tr1mJudge(v.on);
@@ -2304,24 +2331,25 @@ function tr1mSumHtml() {
   const word = {buy: '買い寄り', sell: '売り寄り', flat: '方向感なし'};
   const warn = [];
   if (j.dir !== 'flat' && day !== 'flat' && j.dir !== day) warn.push(`日足の材料（上げ${mu}・下げ${mdn}＝${word[day]}）と逆向きです。短い時間の逆行は長続きしにくいので、量を減らすか見送りも考えましょう。`);
-  if (pend.dir && j.dir !== 'flat' && pend.dir !== j.dir) warn.push(`選んでいる方向（${pend.dir === 'buy' ? '買い' : '売り'}）と1分足（${word[j.dir]}）が逆です。`);
+  if (pend.dir && j.dir !== 'flat' && pend.dir !== j.dir) warn.push(`選んでいる方向（${pend.dir === 'buy' ? '買い' : '売り'}）と${v.tf || TR_TF}分足（${word[j.dir]}）が逆です。`);
   if (v.on.includes('bwk') && (v.on.includes('bbl') || v.on.includes('bbh'))) warn.push('バンドウォーク中の反発・反落ねらいは、そのまま走られやすい形です。');
   if (j.dir === 'flat') warn.push('上げと下げの根拠の差が小さく、方向感がありません。入るなら根拠がそろうまで待ちましょう。');
   const li = x => `<li>${x[2]}</li>`;
   return `<div class="trbal"><span class="pos">上げ ${j.up}</span><span class="trbar"><i style="width:${j.up / Math.max(1, j.up + j.dn) * 100}%"></i></span><span class="neg">下げ ${j.dn}</span></div>
-    <div class="trmsg ${j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : ''}"><b>1分足は「${word[j.dir]}」</b>（${new Date(v.t).toTimeString().slice(0, 5)}の確認）
+    <div class="trmsg ${j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : ''}"><b>${v.tf || TR_TF}分足は「${word[j.dir]}」</b>（${new Date(v.t).toTimeString().slice(0, 5)}の確認）
       ${j.it.filter(x => x[1] > 0).length ? `<br><span class="pos">▲ 上げ：</span>${j.it.filter(x => x[1] > 0).map(x => x[2]).join('／')}` : ''}
       ${j.it.filter(x => x[1] < 0).length ? `<br><span class="neg">▼ 下げ：</span>${j.it.filter(x => x[1] < 0).map(x => x[2]).join('／')}` : ''}
       ${j.it.filter(x => x[1] === 0).length ? `<br>● 注意：${j.it.filter(x => x[1] === 0).map(x => x[2]).join('／')}` : ''}</div>
     ${warn.map(w => `<p class="note neg">⚠ ${w}</p>`).join('')}
     <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「今回の根拠」に入れる</button><button class="btn" id="tr1m-clear" type="button">選び直す</button></div>
-    <p class="note" id="tr1m-msg">1分足はすぐ変わるため、選んだ内容は30分たつと消えます。「Claudeに聞く」の質問文にも入ります。</p>`;
+    <p class="note" id="tr1m-msg">分足はすぐ変わるため、選んだ内容は30分たつと消えます。「3分足で判断」「日足で判断」の質問文にも入ります。</p>`;
 }
 function tr1mHtml() {
   const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
     .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
-  return `<div id="tr1m"><h3>1分足のテクニカル根拠</h3>
-    <p class="note">1分足のデータはこのアプリでは取れないため、TradingView の画面で確かめます。上の判定は、オシレーター・移動平均の「買い・売り」の多数決です（タブで1分・5分・15分などに切替）。下のチャートは1分足で、MACD・ボリンジャーバンド・RSI付きです。</p>
+  return `<div id="tr1m"><h3>分足のテクニカル根拠</h3>
+    <p class="note">分足のデータはこのアプリでは取れないため、TradingView の画面で確かめます。上の判定は、オシレーター・移動平均の「買い・売り」の多数決です（タブで1分・5分・15分などに切替。3分は判定に無いため1分か5分で）。下のチャートは選んだ足で、MACD・ボリンジャーバンド・RSI付きです。</p>
+    <div class="seg"><button type="button" class="trtf${TR_TF === '1' ? ' on' : ''}" data-tf="1">1分足</button><button type="button" class="trtf${TR_TF === '3' ? ' on' : ''}" data-tf="3">3分足</button></div>
     <div class="trtv" id="tr-ta"></div><div class="trtv" id="tr-1m" style="height:520px"></div>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
@@ -2330,7 +2358,7 @@ function tr1mHtml() {
 }
 function tr1mSave(quiet) {
   const on = [...document.querySelectorAll('#tr1m .trchip.on')].map(b => b.dataset.v);
-  trSet('tr1m', {t: on.length ? Date.now() : 0, on});
+  trSet('tr1m', {t: on.length ? Date.now() : 0, on, tf: TR_TF});
   const s = $('#tr1m-sum'); if (s) s.innerHTML = tr1mSumHtml();
 }
 function tr1mAdd() {
@@ -2352,7 +2380,7 @@ function trMountTv() {
   put('tr-ta', 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js',
     {interval: '1m', width: '100%', isTransparent: false, height: 450, symbol: 'OANDA:JP225USD', showIntervalTabs: true, displayMode: 'multiple', locale: 'ja', colorTheme: dark ? 'dark' : 'light'});
   put('tr-1m', 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',
-    {symbol: 'OANDA:JP225USD', interval: '1', timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
+    {symbol: 'OANDA:JP225USD', interval: TR_TF, timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
       allow_symbol_change: false, hide_side_toolbar: true, studies: ['MACD@tv-basicstudies', 'BB@tv-basicstudies', 'RSI@tv-basicstudies']});
 }
 
@@ -2463,8 +2491,9 @@ document.addEventListener('click', e => {
   else if (e.target.closest('#tr1m-clear')) { trSet('tr1m', {t: 0, on: []}); $('#tr1m').querySelectorAll('.trchip.on').forEach(x => x.classList.remove('on')); tr1mSave(true); }
   else if (e.target.closest('#tr1m-add')) tr1mAdd();
   else if (e.target.closest('#tr-apps.trlock a')) { e.preventDefault(); $('#trp-msg').scrollIntoView({block: 'center'}); }
-  else if (e.target.closest('#tr-claude')) { e.target.closest('#tr-claude').href = 'https://claude.ai/new?q=' + encodeURIComponent(trClaudePrompt()); }
-  else if (e.target.closest('#tr-claude-copy')) { const txt = trClaudePrompt(), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
+  else if (e.target.closest('.trclaude')) { const a = e.target.closest('.trclaude'); a.href = 'https://claude.ai/new?q=' + encodeURIComponent(trClaudePrompt(a.dataset.kind)); }
+  else if (e.target.closest('.trtf')) { TR_TF = e.target.closest('.trtf').dataset.tf; trSet('trTf', TR_TF); document.querySelectorAll('.trtf').forEach(b => b.classList.toggle('on', b.dataset.tf === TR_TF)); trMountTv(); tr1mSave(); }
+  else if (e.target.closest('.trcopy')) { const txt = trClaudePrompt(e.target.closest('.trcopy').dataset.kind), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }); }
   else if (e.target.closest('#tr-csv')) download('トレード記録', ['日付', '時刻', 'その時点の合計', 'この回の損益', 'メモ', '方向', '根拠'], trRows().map(r => [r.date, r.t, r.cum, r.diff, r.memo || '', r.dir || '', (r.reasons || []).join('／')]));
 });
