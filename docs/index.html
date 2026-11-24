@@ -171,6 +171,8 @@ header h1{padding-right:4px}
 .trr1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.trrt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:calc(var(--fs)*13px)}
 .trrv{font-size:calc(var(--fs)*17px);font-variant-numeric:tabular-nums}.trrb{margin-left:auto;display:flex;gap:6px}.trrb .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}
 .trr2{font-size:calc(var(--fs)*13px);color:var(--muted);margin:2px 0}
+@keyframes swl{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}@keyframes swr{from{transform:translateX(-40px);opacity:.3}to{transform:none;opacity:1}}
+.page.swl{animation:swl .18s ease-out}.page.swr{animation:swr .18s ease-out}
 </style>
 </head>
 <body>
@@ -2243,6 +2245,28 @@ $('#ch-tv-fs').addEventListener('click', () => openFs($('#ch-tv-t').textContent,
 /* ---------------- UI ---------------- */
 $('#i-checks').innerHTML = ENT.map(([k, l], i) => `<label><input type="checkbox" id="chk-${k}" ${i < 3 ? 'checked' : ''}> ${l}</label>`).join('');
 $('#tr-date').value = trToday();
+/* スマホ：画面を左右にスワイプしてタブを切り替える。
+   横に60px以上・縦の動きの1.5倍以上で切り替え。グラフ・横スクロールする表・入力欄・全画面表示・地図などの上では切り替えない */
+(() => {
+  let sx = null, sy = null, st = 0, ok = false;
+  const blocked = el => el.closest('.chart, .wrap, input, select, textarea, .trtv, .tape, .hvp, #fs, .seg, .trchips, .tabs');
+  const scrollable = el => { for (let e = el; e && e !== document.body; e = e.parentElement) { if (e.scrollWidth > e.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowX)) return true; } return false; };
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { ok = false; return; }
+    const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
+    ok = !blocked(e.target) && !scrollable(e.target) && !$('#fs').classList.contains('on');
+  }, {passive: true});
+  document.addEventListener('touchend', e => {
+    if (!ok || sx == null) return; ok = false;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - st > 800) return;
+    const tabs = [...document.querySelectorAll('.tab')], k = tabs.findIndex(b => b.classList.contains('on'));
+    const next = tabs[k + (dx < 0 ? 1 : -1)]; if (!next) return;
+    next.click();
+    next.scrollIntoView({inline: 'center', block: 'nearest', behavior: 'smooth'});
+    const pg = document.querySelector('.page.on'); if (pg) { pg.classList.remove('swl', 'swr'); void pg.offsetWidth; pg.classList.add(dx < 0 ? 'swl' : 'swr'); }
+  }, {passive: true});
+})();
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.page));
