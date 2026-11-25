@@ -1940,7 +1940,7 @@ function renderShoPage() {
    記録：「その日の現時点の損益合計」を入力。前回の合計との差がその回の損益。データはこの端末（localStorage）に保存。 */
 const TR_Q = [
   {k: 'calm', pos: '今、冷静な判断ができる状態ですか？', neg: '今、損失を取り返したい気持ちが強く、冷静ではない状態ですか？',
-    stop: '取り返そうとする取引（リベンジトレード）は、損失を大きくする一番の原因です。いったん画面から離れ、深呼吸して、落ち着くまで待ってください。', cool: 15},
+    stop: '取り返そうとする取引（リベンジトレード）は、損失を大きくする一番の原因です。いったん画面から離れ、深呼吸して、落ち着くまで待ってください。', cool: 3},
   {k: 'body', pos: '十分に眠れていて、体調は良いですか？', neg: '寝不足や疲れで、集中しにくい状態ですか？',
     stop: '疲れているときは判断が遅れ、損切りもためらいがちになります。今日は見送るか、休んでから始めてください。', cool: 0},
   {k: 'rule', pos: '自分のトレードルール（入る条件・出る条件）どおりに取引しますか？', neg: '今回はルールから外れて、感覚で入ろうとしていますか？',
@@ -1953,7 +1953,7 @@ const TR_Q = [
   {k: 'stop', pos: '損切りの価格を、注文の前に決めていますか？', neg: '損切りの価格を決めないまま入ろうとしていますか？',
     stop: '損切りを決めずに入ると、損が広がったときに逃げ遅れます。「ここまで来たら切る」価格を決めてから注文してください。', cool: 0},
   {k: 'size', pos: '1回の損失が、資金の1〜2%以内に収まる量ですか？', neg: '損を取り返すために、いつもより大きな量で入ろうとしていますか？',
-    stop: '量を増やして取り返そうとすると、1回の負けで大きく崩れます。いつもの量、または損失が資金の1〜2%に収まる量に戻してください。', cool: 10},
+    stop: '量を増やして取り返そうとすると、1回の負けで大きく崩れます。いつもの量、または損失が資金の1〜2%に収まる量に戻してください。', cool: 3},
   {k: 'target', pos: '利益を確定する目標（価格か条件）を決めていますか？', neg: 'どこで利益を確定するか、決めていませんか？',
     stop: '出口を決めていないと、利益が出てもずるずる持ち続けて、利益を逃しがちです。目標の価格か条件を決めてから入りましょう。', cool: 0},
   {k: 'limit', pos: '今日の損失は、決めておいた1日の上限より少ないですか？', neg: '今日はもう、決めておいた1日の損失の上限を超えていますか？',
@@ -2041,6 +2041,8 @@ function trAnswer(yes) {
 }
 function renderTrCheck() {
   const box = $('#tr-check'); if (!box) return;
+  { const lastNg = trGet('trChecks', []).filter(c => !c.ok).slice(-1)[0], q0 = lastNg && TR_Q.find(x => x.k === lastNg.k);
+    if (q0 && trGet('trCool', 0) > lastNg.t + q0.cool * 60000) trSet('trCool', lastNg.t + q0.cool * 60000); }   // 待ち時間を短くしたとき、前の長い待ちを持ち越さない
   const cool = trGet('trCool', 0), left = Math.ceil((cool - Date.now()) / 60000);
   // 開いたら、まずチェック（2026-11-25 オーナー指定）。通過するまで時間割・判断材料・アプリのボタンは出さない
   if (TRS.status === 'start') {
@@ -2380,6 +2382,12 @@ function mountEvTv() {
   c.appendChild(s); box.appendChild(c);
 }
 setInterval(() => { if ($('#p-trade') && $('#p-trade').classList.contains('on')) renderSched(); }, 60000);
+setInterval(() => {   // 待ち時間が終わったら、自動で質問に戻す（ストップ画面・待ち画面のとき）
+  if (!$('#p-trade') || !$('#p-trade').classList.contains('on') || !['start', 'stop'].includes(TRS.status)) return;
+  const left = trGet('trCool', 0) - Date.now();
+  if (TRS.status === 'stop' && left <= 0) TRS = {status: 'start'};
+  renderTrCheck();
+}, 15000);
 /* ---- 1分足のテクニカル根拠（2026-11-25 オーナー指定） ----
    1分足のデータはこのアプリでは取れないため、TradingView の1分足（MACD・ボリンジャー・RSI付き）とテクニカル判定を表示し、
    見えたことをタップで選ぶと、上げ・下げの根拠と「買い寄り／売り寄り／方向感なし」をまとめる。選んだ内容は30分だけ有効（localStorage tr1m） */
