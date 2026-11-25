@@ -80,7 +80,7 @@ function doPost(e) {
       q.rows.forEach(r => {
         const row = [String(r.id), r.date, r.t, KIND[r.k] || KIND.trade, r.k === 'note' ? '' : Number(r.amt) || 0,
           r.dir === 'buy' ? '買い' : r.dir === 'sell' ? '売り' : '', (r.reasons || []).join('／'), r.memo || '', Number(r.u || r.id), r.del ? 1 : '', (r.imgs || []).join(',')];
-        const n = idx[String(r.id)];
+        let n = idx[String(r.id)];
         if (!n) { s.appendRow(['']); n = s.getLastRow(); idx[String(r.id)] = n; }
         s.getRange(n, 1, 1, 3).setNumberFormat('@');   // id・日付・時刻は文字のまま（日付や時刻に変換させない）
         s.getRange(n, 1, 1, row.length).setValues([row]);
