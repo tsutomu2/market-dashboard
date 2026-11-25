@@ -1951,7 +1951,7 @@ const TR_Q = [
     stop: '疲れているときは判断が遅れ、損切りもためらいがちになります。今日は見送るか、休んでから始めてください。', cool: 0},
   {k: 'rule', pos: '自分のトレードルール（入る条件・出る条件）どおりに取引しますか？', neg: '今回はルールから外れて、感覚で入ろうとしていますか？',
     stop: 'ルールの外の取引は、勝っても負けても次につながりません。ルールに合う場面が来るまで待ちましょう。', cool: 0},
-  {k: 'reason', pos: '上がる（または下がる）と考える根拠を、2つ以上言えますか？', neg: '根拠は1つだけ、または「なんとなく」ですか？',
+  {k: 'reason', pos: '上がる・下がると考える根拠を、2つ以上言えますか？', neg: '根拠は1つだけ、または「なんとなく」ですか？',
     sub: '例：25日線を上に抜けた＋連動指数が▲、PER14倍の水準まで下げた＋騰落レシオが売られすぎ',
     stop: '根拠が1つ以下の取引は、ただの予想です。根拠を2つ以上そろえてから入りましょう。根拠を書き出してみるのがおすすめです。', cool: 0},
   {k: 'trend', pos: '入る方向は、今の流れ（トレンド）と同じ向きですか？（上げの流れで買い・下げの流れで売り）', neg: '流れに逆らって、天井や底を当てにいく「逆張り」で入ろうとしていますか？',
@@ -2081,7 +2081,7 @@ function renderTrCheck() {
     if (q.k === 'env') { try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, okN = sg.rebound.filter(x => x.st === 'ok').length;
       sub = `参考：今日の構えは「${lit >= JUDGE.defendCrash && okN === 0 ? '守り' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? '攻め' : '中立'}」（急落サイン ${lit}/8・反発条件 ${okN}/${sg.rebound.length}）`; } catch (e) { /* データ読み込み前 */ } }
     box.innerHTML = head + `<div class="trprog"><span style="width:${TRS.i / TR_Q.length * 100}%"></span></div><div class="trn">${TRS.i + 1} / ${TR_Q.length}</div>
-      <div class="trq">${neg ? q.neg : q.pos}</div>${sub ? `<p class="note">${sub}</p>` : ''}
+      <div class="trq">${(neg ? q.neg : q.pos).replace(/上がる|上げ/g, w => `<span class="pos">${w}</span>`).replace(/下がる|下げ/g, w => `<span class="neg">${w}</span>`)}</div>${sub ? `<p class="note">${sub}</p>` : ''}
       <div class="tryn"><button class="btn trbig" data-tra="1" type="button">はい</button><button class="btn trbig" data-tra="0" type="button">いいえ</button></div>` + recOnly;
   } else if (TRS.status === 'stop') {
     const q = TRS.q;
