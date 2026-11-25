@@ -54,7 +54,7 @@ function txt_(v, fmt) {   // シートが日付・時刻に変えたセルも YY
   return Object.prototype.toString.call(v) === '[object Date]' ? Utilities.formatDate(v, Session.getScriptTimeZone(), fmt) : String(v);
 }
 
-function doGet() { return out_({ok: true, v: 2, app: 'trade-sheet', note: 'POST で使います'}); }
+function doGet() { return out_({ok: true, v: 2, app: 'trade-sheet', ver: '画像・振り返り対応', note: 'POST で使います'}); }   // URLを開いて ver が出れば新しい版が動いている
 
 function doPost(e) {
   let q;
