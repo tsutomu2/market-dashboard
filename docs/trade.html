@@ -2122,10 +2122,7 @@ function renderTrCheck() {
   } else if (TRS.status === 'done') {
     box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b>${TRS.resumed ? `（${new Date(TRS.resumed).toTimeString().slice(0, 5)}に通過。${TR_PASS_MIN}分以内なので続きから表示）` : ''}<br>${TR_Q.length}問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
       ${trMaterialsHtml()}
-      <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">アプリを開く前に、入る方向と根拠（2つ以上）を選びましょう（選ばずに開くときは確認が出ます）。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
-        <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
-        <div class="grp">根拠 <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="trp-rs">${trRsChips((trGet('trPending', {}) || {}).reasons || [])}</div>
-        <div class="note" id="trp-msg" style="display:none"></div></div>`;   // 根拠の注意・アプリのボタン・やり直しは削除（2026-11-25 オーナー指定。アプリのボタンは時間割の一番下）
+      <div class="note" id="trp-msg" style="display:none"></div>`;   // 「今回の根拠をチェック」は下の「損益を記録」と同じ内容なので削除（2026-11-25 オーナー指定「シンプルに」）。方向・根拠は記録フォームで選ぶ
     trMountTv();
     trPendingCheck();
   }
@@ -2516,7 +2513,7 @@ function tr1mSumHtml() {
       ${j.it.filter(x => x[1] < 0).length ? `<br><span class="neg">▼ 下げ：</span>${j.it.filter(x => x[1] < 0).map(x => x[2]).join('／')}` : ''}
       ${j.it.filter(x => x[1] === 0).length ? `<br>● 注意：${j.it.filter(x => x[1] === 0).map(x => x[2]).join('／')}` : ''}</div>
     ${warn.map(w => `<p class="note neg">⚠ ${w}</p>`).join('')}
-    <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「今回の根拠」に入れる</button><button class="btn" id="tr1m-clear" type="button">選び直す</button></div>
+    <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「損益を記録」に入れる</button><button class="btn" id="tr1m-clear" type="button">選び直す</button></div>
     <p class="note" id="tr1m-msg">分足はすぐ変わるため、選んだ内容は30分たつと消えます。</p>`;
 }
 function tr1mHtml() {
@@ -2548,7 +2545,7 @@ function tr1mAdd() {
   const d = $('#trp-dir'), r = $('#trp-rs');
   if (d && r) { d.innerHTML = trChips(TR_DIRS, dir, true); r.innerHTML = trRsChips(rs); trPendingCheck(); }
   else if (!TR_EDIT) trFormFill();
-  $('#tr1m-msg').innerHTML = `<span class="pos">「今回の根拠」に入れました：${add.join('、') || '（分類できる根拠なし）'}${!pend.dir && dir ? `／方向：${dir === 'buy' ? '買い' : '売り'}` : ''}</span>${d ? '' : '<br>チェックを通過すると、根拠の欄に入った状態で表示されます。'}`;
+  $('#tr1m-msg').innerHTML = `<span class="pos">下の「損益を記録」に入れました：${add.join('、') || '（分類できる根拠なし）'}${!pend.dir && dir ? `／方向：${dir === 'buy' ? '買い' : '売り'}` : ''}</span>`;
 }
 function trMountTv(target) {   // target を渡すとその枠に描く（全画面表示用）
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2870,6 +2867,7 @@ document.addEventListener('click', e => {
   else if (e.target.closest('.trchip')) { const c = e.target.closest('.trchip'), g = c.parentElement;
     if (g.id === 'tr-dir' || g.id === 'trp-dir') { const was = c.classList.contains('on'); g.querySelectorAll('.trchip').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); } else c.classList.toggle('on');
     if (g.id.startsWith('trp-')) trPendingCheck();
+    if ((g.id === 'tr-dir' || g.id === 'tr-rs') && !TR_EDIT) trSet('trPending', {date: trToday(), dir: chipVals($('#tr-dir'))[0] || null, reasons: chipVals($('#tr-rs'))});   // 記録するまで選んだ内容を覚えておく
     if (g.closest('#tr1m')) tr1mSave(); }
   else if (e.target.closest('.t1s')) { TR1M_SIDE = +e.target.closest('.t1s').dataset.side; trSet('tr1mSide', TR1M_SIDE);
     document.querySelectorAll('#tr1m .t1s').forEach(b => b.classList.toggle('on', +b.dataset.side === TR1M_SIDE));
