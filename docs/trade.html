@@ -2474,7 +2474,7 @@ let TR1M_OPEN = false;
 const TR_TFS = [['1', '1分足'], ['3', '3分足'], ['5', '5分足'], ['30', '30分足'], ['60', '1時間足'], ['D', '日足']];   // チャートの足（2026-11-25 オーナー指定）
 const tfName = tf => (TR_TFS.find(x => x[0] === String(tf)) || ['', `${tf}分足`])[1];
 let TR_IND = trGet('trInd', 'bb') === 'bb' ? 'bb' : 'ma3';   // チャートの線：bb＝ボリンジャー、ma3＝移動平均線3本（5・25・75）。2本（ma）は2026-11-25 オーナー指定で削除し、3本に寄せる
-const TR_MA_COL = {s: '#43A047', m: '#FF6D00', l: '#2196F3'};   // 移動平均線の色（TradingView のもとの色）：短期5＝緑・中期25＝オレンジ・長期75＝青
+const TR_MA_COL = {s: '#F6C309', m: '#2196F3', l: '#F23645'};   // 移動平均線の色（TradingView のもとの色）：短期5＝黄・中期25＝青・長期75＝赤
 let TR_TF = (TR_TFS.find(x => x[0] === String(trGet('trTf', '3'))) || TR_TFS[1])[0];
 const TR1M_TTL = 30 * 60000;
 let TR1M_SIDE = trGet('tr1mSide', 1) === -1 ? -1 : 1;   // 見えた形の一覧：1＝上げの形、-1＝下げの形を表示（2026-11-25 オーナー指定で切り替え式に）
@@ -2571,11 +2571,13 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
       // 線の種類（2026-11-25）：5つ全部を一度に指定すると、無料の埋め込みでは後ろの指標（ボリンジャー・MACD・RSI）が出なかった。
       // そのため「ボリンジャー＋MACD＋RSI」（実機で表示を確認済み）と「移動平均線5・25本＋MACD＋RSI」を切り替える
       // 2026-11-25 オーナー指定で「移動平均線3本（5・25・75）」を追加（日本でよく使われる組み合わせ）。実機での表示は未確認
-      // 色分け（2026-11-25 オーナー指定「短期・中期・長期で色を変える」）：同じ「移動平均線」を3本出すと色を個別に変えられないため、
-      // 短期5・中期25は2本の線を色違いで描く「MA Cross」（入力 in_0・in_1）、長期75は「移動平均線」にして、studies_overrides で色を付ける
+      // 色分け（2026-11-25 オーナー指定「短期・中期・長期で色を変える」）：埋め込みでは線の色を指定できない（studies_overrides は効かず、
+      // 色の指定を入れると指標がすべて消えた）。同じ「移動平均線」は何本出しても同じ青になるため、もとの色が違う指標を組み合わせる。
+      // 短期5＝TradingView 標準の「MA Ribbon」（Pine：STD;MA%Ribbon）の1本目（黄、in_3＝長さ）、長期75＝同じ Ribbon の4本目（赤、in_15＝長さ）、
+      // 2本目・3本目は非表示（in_4・in_8＝false）。中期25＝ふつうの移動平均線（青）。実際の TradingView で表示を確認（2026-11-25）。
+      // 注意：studies は全部 {id, inputs} の形にそろえる（文字列と混ぜると読み込みに失敗して指標が消える）
       studies: TR_IND === 'bb' ? ['BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']
-        : [{id: 'MACross@tv-basicstudies', inputs: {in_0: 5, in_1: 25}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 75}}, {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}],
-      // studies_overrides で色を指定したら、実機で指標がすべて出なくなった（2026-11-25）ため使わない。色は各指標のもとの色（MA Cross の短期＝緑・長期＝オレンジ、移動平均線＝青）
+        : [{id: 'STD;MA%Ribbon', inputs: {in_3: 5, in_4: false, in_8: false, in_15: 75}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 25}}, {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}],
     });
 }
 
