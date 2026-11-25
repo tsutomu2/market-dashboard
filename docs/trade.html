@@ -123,11 +123,14 @@ main .chart::after{content:'⤢';position:absolute;right:2px;bottom:0;font-size:
 #fs-body canvas{width:100%!important;height:100%!important}
 .upd{display:flex;flex-direction:column;align-items:flex-end;flex:none;font-size:calc(var(--fs)*10.5px);line-height:1.3;color:var(--muted)}.upd b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
 .hrow{display:flex;align-items:center;gap:8px}.back{flex:none;text-decoration:none;font-size:calc(var(--fs)*18px);line-height:1;padding:2px 6px 2px 0;color:var(--accent)}.hrow h1{flex:1;min-width:0}
-#reload{flex:none;font-size:calc(var(--fs)*12px);font-weight:600;padding:4px 8px;white-space:nowrap;color:var(--accent);border-color:var(--accent)}
+/* タブの帯の右のボタン（グラフ・記録・更新）は同じ形にそろえる（2026-11-25 オーナー指定） */
+.tbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;height:30px;box-sizing:border-box;padding:0 11px;margin:0 2px;border:1px solid var(--accent);border-radius:999px;background:var(--panel);color:var(--accent);font:inherit;font-size:calc(var(--fs)*12.5px);font-weight:600;white-space:nowrap;cursor:pointer;align-self:center}
+.tbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#reload.busy svg{animation:rlspin .8s linear infinite}@keyframes rlspin{to{transform:rotate(360deg)}}
 header h1{padding-right:4px}
 @media (max-width:600px){
   header h1{font-size:calc(var(--fs)*14px)}.t-long{display:none}
-  .rl-t{display:none}.tab{padding:7px 6px 5px;font-size:calc(var(--fs)*12.5px)}.tabj{padding:3px 6px;font-size:calc(var(--fs)*12px);margin:0 1px}.tabbar{gap:4px}.tabs{padding-left:4px;gap:0}#reload{padding:4px 7px}.tj-t{display:none}.tabj{font-size:calc(var(--fs)*15px);padding:1px 7px}
+  .tab{padding:7px 6px 5px;font-size:calc(var(--fs)*12.5px)}.tabbar{gap:2px}.tabs{padding-left:4px;gap:0}.tb-t{display:none}.tbtn{width:34px;padding:0;margin:0 1px}
   .seg{display:flex;width:100%}.seg button{flex:1;padding:7px 2px;white-space:nowrap}
 }
 .perrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.perrow>span{font-size:calc(var(--fs)*13px);color:var(--muted)}.perrow .seg{margin-bottom:0}
@@ -177,8 +180,8 @@ header h1{padding-right:4px}
 .cfdline.neg{background:var(--negbg)}.cfdline.neg span,.cfdline.neg b{color:var(--neg)}.cfdline.pos{background:var(--posbg)}.cfdline.pos span,.cfdline.pos b{color:var(--pos)}
 .cfdtab td,.cfdtab th{text-align:right;white-space:nowrap}.cfdtab tr.bad td{background:var(--negbg)}
 /* 短期トレードの「グラフ」「記録する」へ飛ぶボタン（2026-11-25 オーナー指定）。短期トレードのタブを開いているときだけ出す */
-.tabj{display:none;flex:none;align-self:center;border:1px solid var(--accent);background:var(--panel);color:var(--accent);border-radius:999px;padding:3px 8px;margin:0 2px;font:inherit;font-size:calc(var(--fs)*12.5px);font-weight:600;white-space:nowrap;cursor:pointer}
-body.on-trade .tabj{display:inline-block}
+.tabj{display:none}
+body.on-trade .tabj{display:inline-flex}
 .trtfseg,#tr-recbox,#tr-check{scroll-margin-top:52px}
 .trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
@@ -225,7 +228,7 @@ body.on-trade .tabj{display:inline-block}
     <button class="tab on" data-page="trade">短期トレード</button>
     <button class="tab" data-page="hist">損益履歴</button>
     <button class="tab" data-page="cfd">CFD計算</button>
-    <button class="tabj" data-jump="chart" type="button" title="グラフへ">📈<span class="tj-t"> グラフ</span></button><button class="tabj" data-jump="rec" type="button" title="記録へ">📝<span class="tj-t"> 記録</span></button>
+    <button class="tabj tbtn" data-jump="chart" type="button" title="グラフへ"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3,17 9,11 13,15 21,7"/><polyline points="15,7 21,7 21,13"/></svg><span class="tb-t">グラフ</span></button><button class="tabj tbtn" data-jump="rec" type="button" title="記録へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg><span class="tb-t">記録</span></button>
     <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
@@ -234,7 +237,7 @@ body.on-trade .tabj{display:inline-block}
     <button class="tab" data-page="corr">連動指数</button>
     <button class="tab" data-page="nikkei">日経理論値</button>
     <button class="tab" data-page="investor">投資主体別</button>
-</nav><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻<span class="rl-t"> 更新</span></button></div>
+</nav><button class="tbtn" id="reload" type="button" title="最新のデータと画面を読み込み直します"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><polyline points="20,4 20,9 15,9"/></svg><span class="tb-t">更新</span></button></div>
 <main>
 <div class="tape" id="tape"></div>
 <div class="err" id="err"></div>
@@ -3003,7 +3006,7 @@ mountTape();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { setPalette(); renderAll(); mountTape(); if ($('#ch-tvbox').dataset.mounted) mountTv(); if (fsChart || $('#fs').classList.contains('on')) closeFs(); });
 tapeNarrow.addEventListener('change', mountTape);
 /* 更新ボタン：画面（index.html）とデータを読み込み直す。URLに時刻を付けてキャッシュを使わせない（ホーム画面のアプリには再読み込みボタンが無いため） */
-$('#reload').addEventListener('click', () => { $('#reload').textContent = '↻ 更新中…'; $('#reload').disabled = true; location.replace(location.pathname + '?r=' + Date.now() + location.hash); });
+$('#reload').addEventListener('click', () => { $('#reload').classList.add('busy'); $('#reload').disabled = true; const rt = $('#reload .tb-t'); if (rt) rt.textContent = '更新中…'; location.replace(location.pathname + '?r=' + Date.now() + location.hash); });
 if (/[?&]r=\d/.test(location.search)) history.replaceState(history.state, '', location.pathname + location.hash);   // 付けた時刻はURLから消す
 load();
 </script>
