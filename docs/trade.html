@@ -184,7 +184,7 @@ header h1{padding-right:4px}
 .grp.pos{color:var(--pos)}.grp.neg{color:var(--neg)}.trtv{margin:8px 0;border-radius:10px;overflow:hidden}
 .trchips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.trchip{font:inherit;font-size:calc(var(--fs)*13px);padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
 .trchip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-.trlock a{opacity:.35;pointer-events:auto}.trtag{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;margin:1px 3px 1px 0;border-radius:999px;background:var(--line)}
+.trlock a{opacity:.6;pointer-events:auto}.trtag{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;margin:1px 3px 1px 0;border-radius:999px;background:var(--line)}
 .trform input[type=time]{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
 #tr-editing{background:var(--warn);color:var(--warnfg)}
 .trrec{padding:10px 2px;border-bottom:1px solid var(--line)}.trrec.hl{background:var(--hl)}
@@ -2080,7 +2080,7 @@ function renderTrCheck() {
   } else if (TRS.status === 'done') {
     box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b>${TRS.resumed ? `（${new Date(TRS.resumed).toTimeString().slice(0, 5)}に通過。${TR_PASS_MIN}分以内なので続きから表示）` : ''}<br>${TR_Q.length}問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
       ${trMaterialsHtml()}
-      <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">入る方向と根拠（2つ以上）を選ぶと、アプリを開くボタンが押せるようになります。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
+      <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">アプリを開く前に、入る方向と根拠（2つ以上）を選びましょう（選ばずに開くときは確認が出ます）。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
         <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
         <div class="grp">根拠 <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="trp-rs">${trRsChips((trGet('trPending', {}) || {}).reasons || [])}</div>
         <div class="note" id="trp-msg"></div></div>
@@ -2096,7 +2096,7 @@ function trSchedApps() {   // 時間割の一番下の楽天証券アプリの�
   const p = trGet('trPending', {}) || {}, ok = p.dir && (p.reasons || []).length >= 2;
   box.innerHTML = `<div class="grp" style="margin-top:12px">楽天証券アプリを開く</div>
     <div class="trapps${ok ? '' : ' trlock'}" id="tr-apps2">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
-    <p class="note">${ok ? `<span class="pos">今回の根拠：${p.dir === 'buy' ? '買い' : '売り'}・${p.reasons.length}つ</span>（変えるときは下の「今回の根拠をチェック」で）` : '<span class="neg">入る方向と根拠（2つ以上）を下の「今回の根拠をチェック」で選ぶと押せます。</span>'}</p>`;
+    <p class="note">${ok ? `<span class="pos">今回の根拠：${p.dir === 'buy' ? '買い' : '売り'}・${p.reasons.length}つ</span>（変えるときは下の「今回の根拠をチェック」で）` : '<span class="neg">入る方向と根拠（2つ以上）がまだです。下の「今回の根拠をチェック」で選んでおくと、損益履歴で根拠ごとの成績が見られます（選ばなくても開けます）。</span>'}</p>`;
 }
 /* 準備OK画面で選んだ根拠：2つ以上＋方向でアプリのボタンを有効に。選んだ内容は記録フォームの初期値にする */
 function trPendingCheck() {
@@ -2699,7 +2699,8 @@ document.addEventListener('click', e => {
   else if (e.target.closest('#tr1m-open')) { TR1M_OPEN = !TR1M_OPEN; renderTrCheck(); if (TR1M_OPEN) $('#tr1m').scrollIntoView({block: 'start'}); }
   else if (e.target.closest('#tr1m-clear')) { trSet('tr1m', {t: 0, on: []}); $('#tr1m').querySelectorAll('.trchip.on').forEach(x => x.classList.remove('on')); tr1mSave(true); }
   else if (e.target.closest('#tr1m-add')) tr1mAdd();
-  else if (e.target.closest('#tr-apps.trlock a, #tr-apps2.trlock a')) { e.preventDefault(); const m = $('#trp-msg'); if (m) m.closest('.trmat').scrollIntoView({block: 'start'}); }
+  else if (e.target.closest('#tr-apps.trlock a, #tr-apps2.trlock a')) {   // 根拠を選んでいなくても開ける（2026-11-25 オーナー指定）。一度だけ確認する
+    if (!confirm('入る方向と根拠（2つ以上）がまだ選ばれていません。\nこのまま楽天証券アプリを開きますか？')) { e.preventDefault(); const m = $('#trp-msg'); if (m) m.closest('.trmat').scrollIntoView({block: 'start'}); } }
   else if (e.target.closest('.trclaude')) { const a = e.target.closest('.trclaude'), chat = trChatUrl(), q = trClaudePrompt(a.dataset.kind);
     if (chat) { a.href = chat; trCopyText('（新しい質問です。前のやりとりは参考程度にして、今回の材料で判断してください）\n' + q); $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。開いた会話の入力欄を長押し →「ペースト」→ 送信してください。</span>'; }
     else a.href = 'https://claude.ai/new?q=' + encodeURIComponent(q); }
