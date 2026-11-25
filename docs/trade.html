@@ -1934,7 +1934,7 @@ function renderShoPage() {
 }
 
 /* ---------------- 短期トレード（トレード前チェック＋損益の記録） ----------------
-   チェック：10問。毎回ランダムに半分ほどを「逆の聞き方」にして、惰性で「はい」を押し続けられないようにする。
+   チェック：11問。毎回ランダムに半分ほどを「逆の聞き方」にして、惰性で「はい」を押し続けられないようにする。
    正しくない答え（危ない状態）を選ぶと、その場で止めてアドバイスを出す。気持ちに関わる項目は待ち時間を付ける。
    記録：「その日の現時点の損益合計」を入力。前回の合計との差がその回の損益。データはこの端末（localStorage）に保存。 */
 const TR_Q = [
@@ -1947,6 +1947,8 @@ const TR_Q = [
   {k: 'reason', pos: '上がる（または下がる）と考える根拠を、2つ以上言えますか？', neg: '根拠は1つだけ、または「なんとなく」ですか？',
     sub: '例：25日線を上に抜けた＋連動指数が▲、PER14倍の水準まで下げた＋騰落レシオが売られすぎ',
     stop: '根拠が1つ以下の取引は、ただの予想です。根拠を2つ以上そろえてから入りましょう。根拠を書き出してみるのがおすすめです。', cool: 0},
+  {k: 'trend', pos: '入る方向は、今の流れ（トレンド）と同じ向きですか？（上げの流れで買い・下げの流れで売り）', neg: '流れに逆らって、天井や底を当てにいく「逆張り」で入ろうとしていますか？',
+    stop: '逆張りは、流れが続くと損が一気に広がりやすく、損切りも遅れがちです。流れの向きに入るか、反転の形（安値の切り上げ・高値の切り下げ、MACDのクロスなど）が出てから入りましょう。', cool: 0},
   {k: 'stop', pos: '損切りの価格を、注文の前に決めていますか？', neg: '損切りの価格を決めないまま入ろうとしていますか？',
     stop: '損切りを決めずに入ると、損が広がったときに逃げ遅れます。「ここまで来たら切る」価格を決めてから注文してください。', cool: 0},
   {k: 'size', pos: '1回の損失が、資金の1〜2%以内に収まる量ですか？', neg: '損を取り返すために、いつもより大きな量で入ろうとしていますか？',
@@ -2019,7 +2021,7 @@ let TRS = {status: 'start'};   // チェックの進み具合（画面を開き�
 const TR_PASS_MIN = 30;   // 通過してからこの分数のうちに開き直したときは、チェックを飛ばして続きから（楽天のアプリから戻ったときなど）
 
 function trStart() {
-  const nFlip = 3 + Math.floor(Math.random() * 4);   // 10問のうち3〜6問を逆の聞き方に
+  const nFlip = 3 + Math.floor(Math.random() * 4);   // 全問のうち3〜6問を逆の聞き方に
   const idx = TR_Q.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, nFlip);
   TRS = {status: 'q', i: 0, flip: TR_Q.map((_, i) => idx.includes(i))};
   renderTrCheck();
@@ -2048,7 +2050,7 @@ function renderTrCheck() {
   const pg = $('#p-trade'), gate = TRS.status !== 'done';
   if (pg) { if (pg.classList.contains('trgate') && !gate) setTimeout(() => scrollTo(0, 0), 30); pg.classList.toggle('trgate', gate); if (!gate) pg.classList.remove('trrec'); }
   const today = trGet('trChecks', []).filter(c => isoD(new Date(c.t)) === trToday());
-  const head = `<h2>トレード前チェック</h2><p class="note">10問に「はい」「いいえ」で答えます。毎回いくつかの質問は逆の聞き方になるので、よく読んで答えてください。今日のチェック：通過 ${today.filter(c => c.ok).length}回・中止 ${today.filter(c => !c.ok).length}回</p>${TRS.status !== 'done' ? `<p class="note">チェックを通過すると、今日の時間割・判断材料・アプリを開くボタンが表示されます。</p>` : ''}`;
+  const head = `<h2>トレード前チェック</h2><p class="note">${TR_Q.length}問に「はい」「いいえ」で答えます。毎回いくつかの質問は逆の聞き方になるので、よく読んで答えてください。今日のチェック：通過 ${today.filter(c => c.ok).length}回・中止 ${today.filter(c => !c.ok).length}回</p>${TRS.status !== 'done' ? `<p class="note">チェックを通過すると、今日の時間割・判断材料・アプリを開くボタンが表示されます。</p>` : ''}`;
   const recOnly = TRS.status !== 'done' ? `<p class="trrecbtn"><button class="btn" id="tr-reconly" type="button">📝 損益の記録だけする（取引はしない）</button></p>` : '';
   if (TRS.status === 'start') {
     box.innerHTML = head + (left > 0
@@ -2057,6 +2059,9 @@ function renderTrCheck() {
   } else if (TRS.status === 'q') {
     const q = TR_Q[TRS.i], neg = TRS.flip[TRS.i];
     let sub = q.sub || '';
+    if (q.k === 'trend') { try { const t = techSeries(), i = t.c.length - 1, up25 = t.ma25[i] > t.ma25[i - 5], above = t.c[i] > t.ma25[i], gc = t.ma5[i] > t.ma25[i];
+      const tr = above && up25 && gc ? '上げの流れ' : !above && !up25 && !gc ? '下げの流れ' : 'はっきりしない（もみ合い・転換点）';
+      sub = `参考（日足・${md(t.dates[i])}）：${tr}。終値は25日線の${above ? '上' : '下'}、25日線は${up25 ? '上向き' : '下向き'}、5日線は25日線の${gc ? '上' : '下'}。分足では、移動平均の向きと価格の位置・高値安値の切り上げ／切り下げで流れを確かめます。`; } catch (e) { /* 読み込み前 */ } }
     if (q.k === 'event') sub = schedText() || '今日は大きな発表の予定はありません（上の「今日の時間割」）。';
     if (q.k === 'env') { try { const sg = buildSignals(), lit = sg.crash.filter(x => x.st === 'on').length, okN = sg.rebound.filter(x => x.st === 'ok').length;
       sub = `参考：今日の構えは「${lit >= JUDGE.defendCrash && okN === 0 ? '守り' : lit <= JUDGE.attackCrash && okN >= JUDGE.attackRebound ? '攻め' : '中立'}」（急落サイン ${lit}/8・反発条件 ${okN}/${sg.rebound.length}）`; } catch (e) { /* データ読み込み前 */ } }
@@ -2068,7 +2073,7 @@ function renderTrCheck() {
     box.innerHTML = head + `<div class="trmsg neg"><b>ストップ：今は取引しないでください</b><br>${q.stop}${q.cool ? `<br><small>${q.cool >= 60 ? '1時間' : q.cool + '分'}たつまで、チェックをやり直せません。</small>` : ''}</div>
       <button class="btn trbig" id="tr-reset" type="button" ${left > 0 ? 'disabled' : ''}>${left > 0 ? `あと約${left}分` : '最初からやり直す'}</button>` + recOnly;
   } else if (TRS.status === 'done') {
-    box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b>${TRS.resumed ? `（${new Date(TRS.resumed).toTimeString().slice(0, 5)}に通過。${TR_PASS_MIN}分以内なので続きから表示）` : ''}<br>10問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
+    box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b>${TRS.resumed ? `（${new Date(TRS.resumed).toTimeString().slice(0, 5)}に通過。${TR_PASS_MIN}分以内なので続きから表示）` : ''}<br>${TR_Q.length}問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
       ${trMaterialsHtml()}
       <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">入る方向と根拠（2つ以上）を選ぶと、アプリを開くボタンが押せるようになります。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
         <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
