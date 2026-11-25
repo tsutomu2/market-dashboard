@@ -381,8 +381,8 @@
 "per_i": 18.11,
 "eps_i": 3238.25,
 "pbr_i": 2.42,
-"close": 58644.56,
-"close_src": "calc"
+"close": 58644.63,
+"close_src": "fred"
 },
 {
 "date": "2026-11-25",
@@ -392,7 +392,7 @@
 "per_i": 17.6,
 "eps_i": 3239.3,
 "pbr_i": 2.35,
-"close": 57011.67,
-"close_src": "calc"
+"close": 57011.62,
+"close_src": "fred"
 }
 ]
