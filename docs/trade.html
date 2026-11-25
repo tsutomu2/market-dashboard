@@ -164,6 +164,7 @@ header h1{padding-right:4px}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .muted{color:var(--muted)}
+.trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check){display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
@@ -2409,6 +2410,7 @@ setInterval(() => {   // 待ち時間が終わったら、自動で質問に戻�
 let TR1M_OPEN = false;
 const TR_TFS = [['1', '1分足'], ['3', '3分足'], ['5', '5分足'], ['30', '30分足'], ['60', '1時間足'], ['D', '日足']];   // チャートの足（2026-11-25 オーナー指定）
 const tfName = tf => (TR_TFS.find(x => x[0] === String(tf)) || ['', `${tf}分足`])[1];
+let TR_IND = trGet('trInd', 'bb') === 'ma' ? 'ma' : 'bb';   // チャートの線：bb＝ボリンジャー、ma＝単純移動平均線
 let TR_TF = (TR_TFS.find(x => x[0] === String(trGet('trTf', '3'))) || TR_TFS[1])[0];
 const TR1M_TTL = 30 * 60000;
 const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見方, 根拠の分類]
@@ -2463,8 +2465,9 @@ function tr1mHtml() {
   const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
     .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
   return `<div id="tr1m"><h3>分足のテクニカル根拠</h3>
-    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、単純移動平均線（5本・25本）・ボリンジャーバンド・MACD・RSI付きです。</p>
+    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、MACD・RSI付きです。上の段の線は「ボリンジャー」と「移動平均線（5本・25本）」を切り替えられます。</p>
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
+    <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー＋MACD＋RSI</button><button type="button" class="trind${TR_IND === 'ma' ? ' on' : ''}" data-ind="ma">移動平均線（5・25）＋MACD＋RSI</button></div>
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div><div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
@@ -2495,8 +2498,11 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
   put('tr-1m', 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',
     {symbol: 'OANDA:JP225USD', interval: TR_TF, timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
       allow_symbol_change: false, hide_side_toolbar: true,
-      // 一番上の段（ローソク足）に単純移動平均線 5本・25本（2026-11-25 オーナー指定）を重ね、下に MACD・RSI
-      studies: [{id: 'MASimple@tv-basicstudies', inputs: {length: 5}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 25}}, 'BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']});
+      // 線の種類（2026-11-25）：5つ全部を一度に指定すると、無料の埋め込みでは後ろの指標（ボリンジャー・MACD・RSI）が出なかった。
+      // そのため「ボリンジャー＋MACD＋RSI」（実機で表示を確認済み）と「移動平均線5・25本＋MACD＋RSI」を切り替える
+      studies: TR_IND === 'ma'
+        ? [{id: 'MASimple@tv-basicstudies', inputs: {length: 5}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 25}}, {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}]
+        : ['BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']});
 }
 
 /* ---- 損益の記録 ---- */
@@ -2713,6 +2719,7 @@ document.addEventListener('click', e => {
     if (!/^https:\/\/claude\.ai\/(chat|project)\/[\w-]+/.test(v)) { $('#tr-claude-msg').innerHTML = '<span class="neg">https://claude.ai/chat/… の形の URL を貼り付けてください。</span>'; return; }
     trSet('trClaudeChat', v.split('?')[0]); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); $('#tr-claude-msg').innerHTML = '<span class="pos">登録しました。これからは、この会話で聞きます。</span>'; }
   else if (e.target.closest('#tr-chat-clear')) { trSet('trClaudeChat', ''); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); }
+  else if (e.target.closest('.trind')) { TR_IND = e.target.closest('.trind').dataset.ind; trSet('trInd', TR_IND); document.querySelectorAll('.trind').forEach(b => b.classList.toggle('on', b.dataset.ind === TR_IND)); trMountTv(); }
   else if (e.target.closest('.trtf')) { TR_TF = e.target.closest('.trtf').dataset.tf; trSet('trTf', TR_TF); document.querySelectorAll('.trtf').forEach(b => b.classList.toggle('on', b.dataset.tf === TR_TF)); const hd = $('.trtvhd span'); if (hd) hd.textContent = `${tfName(TR_TF)}チャート`; trMountTv(); tr1mSave(); }
   else if (e.target.closest('.trcopy')) { const txt = trClaudePrompt(e.target.closest('.trcopy').dataset.kind), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }); }
