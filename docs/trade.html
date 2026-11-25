@@ -164,6 +164,7 @@ header h1{padding-right:4px}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .muted{color:var(--muted)}
+.trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check){display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
 .rsed{border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0 10px;background:var(--bg)}
@@ -2441,7 +2442,7 @@ function tr1mHtml() {
   return `<div id="tr1m"><h3>分足のテクニカル根拠</h3>
     <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、MACD・ボリンジャーバンド・RSI付きです。</p>
     <div class="seg"><button type="button" class="trtf${TR_TF === '1' ? ' on' : ''}" data-tf="1">1分足</button><button type="button" class="trtf${TR_TF === '3' ? ' on' : ''}" data-tf="3">3分足</button></div>
-    <div class="trtv" id="tr-1m" style="height:520px"></div>
+    <div class="trtvhd"><span>${TR_TF}分足チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div><div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <p><a class="btn" href="https://jp.tradingview.com/symbols/OANDA-JP225USD/technicals/" target="_blank" rel="noopener">TradingView のテクニカル判定（買い・売りの多数決）を開く ↗</a></p>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
@@ -2463,9 +2464,9 @@ function tr1mAdd() {
   else if (!TR_EDIT) trFormFill();
   $('#tr1m-msg').innerHTML = `<span class="pos">「今回の根拠」に入れました：${add.join('、') || '（分類できる根拠なし）'}${!pend.dir && dir ? `／方向：${dir === 'buy' ? '買い' : '売り'}` : ''}</span>${d ? '' : '<br>チェックを通過すると、根拠の欄に入った状態で表示されます。'}`;
 }
-function trMountTv() {
+function trMountTv(target) {   // target を渡すとその枠に描く（全画面表示用）
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  const put = (id, src, cfg) => { const box = document.getElementById(id); if (!box) return; box.innerHTML = '';
+  const put = (id, src, cfg) => { const box = target || document.getElementById(id); if (!box) return; box.innerHTML = '';
     const c = document.createElement('div'); c.className = 'tradingview-widget-container'; c.style.height = '100%';
     const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; w.style.height = '100%'; c.appendChild(w);
     const s = document.createElement('script'); s.async = true; s.src = src; s.textContent = JSON.stringify(cfg); c.appendChild(s); box.appendChild(c); };
@@ -2658,6 +2659,7 @@ document.addEventListener('click', e => {
   else if (e.target.closest('.trdel')) { const id = +e.target.closest('.trdel').dataset.id; if (confirm('この記録を削除しますか？')) { trSet('trLog', trGet('trLog', []).filter(r => r.id !== id)); const dl = trGet('trDel', {}) || {}; dl[id] = Date.now(); trSet('trDel', dl); trSync(); if (TR_EDIT === id) trEndEdit(); else renderTrade(); } }
   else if (e.target.closest('.tredit')) trStartEdit(+e.target.closest('.tredit').dataset.id);
   else if (e.target.closest('#tr-cancel')) trEndEdit();
+  else if (e.target.closest('#tr-1m-fs')) openFs(`日経225（${TR_TF}分足・MACD・ボリンジャー・RSI）`, 'tv-tr');
   else if (e.target.closest('#tr-reconly')) { const pg = $('#p-trade'); pg.classList.toggle('trrec'); if (pg.classList.contains('trrec')) $('#tr-recbox').scrollIntoView({block: 'start'}); }
   else if (e.target.closest('.rsedbtn')) { if (TR_RSED) { TR_RSED = null; trRsEdDraw(); } else { const bx = e.target.closest('.grp').nextElementSibling; trRsEdOpen(bx); setTimeout(() => bx.scrollIntoView({block: 'nearest'}), 30); } }
   else if (e.target.closest('.rsmv')) { trRsEdRead(); const b = e.target.closest('.rsmv'), i = +b.dataset.i, j = i + +b.dataset.d; [TR_RSED[i], TR_RSED[j]] = [TR_RSED[j], TR_RSED[i]]; trRsEdDraw(); }
@@ -2686,7 +2688,7 @@ document.addEventListener('click', e => {
     if (!/^https:\/\/claude\.ai\/(chat|project)\/[\w-]+/.test(v)) { $('#tr-claude-msg').innerHTML = '<span class="neg">https://claude.ai/chat/… の形の URL を貼り付けてください。</span>'; return; }
     trSet('trClaudeChat', v.split('?')[0]); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); $('#tr-claude-msg').innerHTML = '<span class="pos">登録しました。これからは、この会話で聞きます。</span>'; }
   else if (e.target.closest('#tr-chat-clear')) { trSet('trClaudeChat', ''); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); }
-  else if (e.target.closest('.trtf')) { TR_TF = e.target.closest('.trtf').dataset.tf; trSet('trTf', TR_TF); document.querySelectorAll('.trtf').forEach(b => b.classList.toggle('on', b.dataset.tf === TR_TF)); trMountTv(); tr1mSave(); }
+  else if (e.target.closest('.trtf')) { TR_TF = e.target.closest('.trtf').dataset.tf; trSet('trTf', TR_TF); document.querySelectorAll('.trtf').forEach(b => b.classList.toggle('on', b.dataset.tf === TR_TF)); const hd = $('.trtvhd span'); if (hd) hd.textContent = `${TR_TF}分足チャート`; trMountTv(); tr1mSave(); }
   else if (e.target.closest('.trcopy')) { const txt = trClaudePrompt(e.target.closest('.trcopy').dataset.kind), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }); }
   else if (e.target.closest('#tr-csv')) download('トレード記録', ['日付', '時刻', 'その時点の合計', 'この回の損益', 'メモ', '方向', '根拠'], trRows().map(r => [r.date, r.t, r.cum, r.diff, r.memo || '', r.dir || '', (r.reasons || []).join('／')]));
@@ -2751,9 +2753,9 @@ function openFs(title, id) {
   const fs = $('#fs'), body = $('#fs-body');
   $('#fs-title').textContent = title || '';
   body.innerHTML = '';
-  if (id === 'tv') {
+  if (id === 'tv' || id === 'tv-tr') {
     const box = document.createElement('div'); box.style.height = '100%'; body.appendChild(box);
-    mountTv(box, (TF[curTF] && TF[curTF].tv) || '60');
+    if (id === 'tv') mountTv(box, (TF[curTF] && TF[curTF].tv) || '60'); else trMountTv(box);
   } else {
     const cfg = chartCfg[id]; if (!cfg) return;
     const cv = document.createElement('canvas'); body.appendChild(cv);
