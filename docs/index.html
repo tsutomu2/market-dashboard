@@ -2535,8 +2535,7 @@ function tr1mSumHtml() {
 function tr1mHtml() {
   const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
     .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
-  return `<div id="tr1m"><h3>分足のテクニカル根拠</h3>
-    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、MACD・RSI付きです。上の段の線は「ボリンジャー」と「移動平均線3本（短期5・中期25・長期75）」から選べます。</p>
+  return `<div id="tr1m">   <!-- 見出し「分足のテクニカル根拠」と説明文は2026-11-25 オーナー指定で削除 -->
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
