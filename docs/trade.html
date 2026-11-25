@@ -57,6 +57,9 @@ tfoot td{font-weight:600;border-top:2px solid var(--line)}
 .badge{display:inline-block;font-size:calc(var(--fs)*10px);padding:1px 5px;border-radius:6px;margin-left:4px;vertical-align:middle}
 .b-act{background:var(--posbg);color:var(--pos)}.b-est{background:var(--warn);color:var(--warnfg)}
 .btn{font-size:calc(var(--fs)*13px);padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);cursor:pointer;font-family:inherit}
+/* 時間割の「展開」ボタン：色を付けて目立たせる（2026-11-25 オーナー指定） */
+#tr-sched-all{width:100%;padding:10px 12px;border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--panel));color:var(--accent);font-weight:700;font-size:calc(var(--fs)*14px)}
+#tr-sched-all.open{background:var(--panel);font-weight:600}
 details{font-size:calc(var(--fs)*13px);color:var(--muted)}details summary{cursor:pointer}
 .sig{display:grid;grid-template-columns:minmax(120px,1.1fr) minmax(110px,1fr) auto;gap:4px 12px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)}
 .sig:last-child{border-bottom:0}
@@ -2412,7 +2415,7 @@ function renderSched() {
       return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div><p class="note" style="margin:0">行をタップすると、その時間の注意点が出ます。</p>`
         + (list.length ? `<div class="wrap"><table class="sttab"><tbody>${list.map(row).join('')}</tbody></table></div>`
           : `<p class="note">この2時間に予定はありません。${nx ? `次は ${hm(nx[0])} ${nx[1]}（あと${inMin(nx[0] - m)}）` : '今日の予定はもうありません'}。</p>`)
-        + `<p><button class="btn" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : `▼ 展開して今日の予定をすべて表示（${sc.pt.length}件）`}</button></p>`; })()}
+        + `<p><button class="btn${TR_SCHED_ALL ? ' open' : ''}" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : `▼ 展開して今日の予定をすべて表示（${sc.pt.length}件）`}</button></p>`; })()}
     <h3>この先の重要な予定（3日以内）</h3>
     <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>3日以内に重要な予定はありません</li>'}</ul>`;
 }
