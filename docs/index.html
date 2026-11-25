@@ -2206,13 +2206,26 @@ function trClaudePrompt(kind) {   // kind: 'm3'＝3分足（テクニカル重�
     '【回答の形】スマホで読むので端的に。まず冒頭に「結論」を3行以内：①方針（攻め／中立／守り）②一番の理由 ③上値の壁・下値の支えの値段。そのあとに上げの根拠・下げの根拠を各3つまで、1項目1行。前置き・一般論・くり返しは書かず、全体で500字程度までにしてください。',
   ].filter(x => x !== '').join('\n');
 }
+const trChatUrl = () => { const v = trGet('trClaudeChat', ''); return typeof v === 'string' ? v : ''; };
+function trCopyText(txt) {
+  return (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).catch(() => {
+    const ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); });
+}
 function trClaudeHtml() {
   return `<div class="trmat"><h3>Claudeに判断してもらう</h3>
     <p class="note">このアプリの判断材料・時間割・選んだ方向と根拠を質問文にして、Claude を開きます。Claude が最新の値動きや発表をウェブで調べ、上げ・下げの根拠と見落としを整理します（返事は Claude の画面に出ます）。</p>
     <div class="trask"><a class="btn trbig trgo trclaude" data-kind="m3" href="#" target="_blank" rel="noopener">⏱ 3分足で判断<small>テクニカル重視</small></a><button class="btn trcopy" data-kind="m3" type="button">質問文をコピー</button></div>
     <p class="note">3分足は、TradingView の3分足チャートの<b>スクリーンショットを Claude に添付</b>すると、チャートを読み取って判断してくれます（Claude は3分足のデータを直接は取れないことがあります）。先に「分足のテクニカル根拠」でチェックしておくと、その結果も質問文に入ります。</p>
     <div class="trask"><a class="btn trbig trgo trclaude" data-kind="d" href="#" target="_blank" rel="noopener">📅 日足で判断<small>需給・節目・地合い</small></a><button class="btn trcopy" data-kind="d" type="button">質問文をコピー</button></div>
-    <p class="note" id="tr-claude-msg">Claude アプリに質問が入らないときは「質問文をコピー」を押し、Claude に貼り付けてください。</p></div>`;
+    <p class="note" id="tr-claude-msg">${trChatUrl() ? `<b>いつもの会話</b>に聞きます：ボタンを押すと質問文をコピーして、登録した会話を開きます。入力欄を長押しして「ペースト」→送信してください。` : 'Claude アプリに質問が入らないときは「質問文をコピー」を押し、Claude に貼り付けてください。'}</p>
+    <details class="note"${trChatUrl() ? '' : ''}><summary>${trChatUrl() ? '✓ いつも同じ会話で聞く：登録済み（変える・やめる）' : 'いつも同じ会話で聞く（毎回新しい会話を作らない）'}</summary>
+      <p>Claude の「決まった会話」に質問文を入れて開く方法は公開されていないため、ボタンを押すと<b>質問文をコピーして、その会話を開く</b>形になります（開いたら貼り付けて送るだけ）。</p>
+      <ol class="trli"><li>Safari で claude.ai を開き（ログイン済みの状態）、使いたい会話を開く。まだ無ければ一度「3分足で判断」で会話を作り、その会話を Safari で開く</li>
+        <li>アドレス欄の URL（https://claude.ai/chat/… の形）をコピーして、下に貼り付けて「登録」</li></ol>
+      <div class="trform"><input type="url" id="tr-chat-url" placeholder="https://claude.ai/chat/…" value="${trChatUrl().replace(/"/g, '')}">
+        <div class="trrow"><button class="btn trgo" id="tr-chat-save" type="button">登録</button>${trChatUrl() ? '<button class="btn" id="tr-chat-clear" type="button">やめる（毎回新しい会話に戻す）</button>' : ''}</div></div>
+      <p>同じ会話で続けると、前の質問の流れも踏まえて答えてくれます。会話がとても長くなると返事が遅くなることがあるので、そのときは新しい会話を登録し直してください。登録はこの端末の中だけに保存します。</p></details></div>`;
 }
 function trMaterialsHtml() {
   const m = trMaterials(), up = m.filter(x => x[0] > 0), dn = m.filter(x => x[0] < 0), nt = m.filter(x => x[0] === 0);
@@ -2661,7 +2674,13 @@ document.addEventListener('click', e => {
   else if (e.target.closest('#tr1m-clear')) { trSet('tr1m', {t: 0, on: []}); $('#tr1m').querySelectorAll('.trchip.on').forEach(x => x.classList.remove('on')); tr1mSave(true); }
   else if (e.target.closest('#tr1m-add')) tr1mAdd();
   else if (e.target.closest('#tr-apps.trlock a')) { e.preventDefault(); $('#trp-msg').scrollIntoView({block: 'center'}); }
-  else if (e.target.closest('.trclaude')) { const a = e.target.closest('.trclaude'); a.href = 'https://claude.ai/new?q=' + encodeURIComponent(trClaudePrompt(a.dataset.kind)); }
+  else if (e.target.closest('.trclaude')) { const a = e.target.closest('.trclaude'), chat = trChatUrl(), q = trClaudePrompt(a.dataset.kind);
+    if (chat) { a.href = chat; trCopyText('（新しい質問です。前のやりとりは参考程度にして、今回の材料で判断してください）\n' + q); $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。開いた会話の入力欄を長押し →「ペースト」→ 送信してください。</span>'; }
+    else a.href = 'https://claude.ai/new?q=' + encodeURIComponent(q); }
+  else if (e.target.closest('#tr-chat-save')) { const v = ($('#tr-chat-url').value || '').trim();
+    if (!/^https:\/\/claude\.ai\/(chat|project)\/[\w-]+/.test(v)) { $('#tr-claude-msg').innerHTML = '<span class="neg">https://claude.ai/chat/… の形の URL を貼り付けてください。</span>'; return; }
+    trSet('trClaudeChat', v.split('?')[0]); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); $('#tr-claude-msg').innerHTML = '<span class="pos">登録しました。これからは、この会話で聞きます。</span>'; }
+  else if (e.target.closest('#tr-chat-clear')) { trSet('trClaudeChat', ''); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); }
   else if (e.target.closest('.trtf')) { TR_TF = e.target.closest('.trtf').dataset.tf; trSet('trTf', TR_TF); document.querySelectorAll('.trtf').forEach(b => b.classList.toggle('on', b.dataset.tf === TR_TF)); trMountTv(); tr1mSave(); }
   else if (e.target.closest('.trcopy')) { const txt = trClaudePrompt(e.target.closest('.trcopy').dataset.kind), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }); }
