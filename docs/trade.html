@@ -2465,7 +2465,7 @@ function tr1mHtml() {
   const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
     .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
   return `<div id="tr1m"><h3>分足のテクニカル根拠</h3>
-    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、MACD・ボリンジャーバンド・RSI付きです。</p>
+    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、単純移動平均線（5本・25本）・ボリンジャーバンド・MACD・RSI付きです。</p>
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div><div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <p><a class="btn" href="https://jp.tradingview.com/symbols/OANDA-JP225USD/technicals/" target="_blank" rel="noopener">TradingView のテクニカル判定（買い・売りの多数決）を開く ↗</a></p>
@@ -2497,7 +2497,9 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
     const s = document.createElement('script'); s.async = true; s.src = src; s.textContent = JSON.stringify(cfg); c.appendChild(s); box.appendChild(c); };
   put('tr-1m', 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',
     {symbol: 'OANDA:JP225USD', interval: TR_TF, timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
-      allow_symbol_change: false, hide_side_toolbar: true, studies: ['MACD@tv-basicstudies', 'BB@tv-basicstudies', 'RSI@tv-basicstudies']});
+      allow_symbol_change: false, hide_side_toolbar: true,
+      // 一番上の段（ローソク足）に単純移動平均線 5本・25本（2026-11-25 オーナー指定）を重ね、下に MACD・RSI
+      studies: [{id: 'MASimple@tv-basicstudies', inputs: {length: 5}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 25}}, 'BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']});
 }
 
 /* ---- 損益の記録 ---- */
