@@ -176,7 +176,7 @@ header h1{padding-right:4px}
 .flnow{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0 4px}.flnow .flh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}.flbar .stnow{background:var(--fg);width:3px}
 .flnow .flk{flex:0 0 auto;color:#fff;font-weight:700;border-radius:8px;padding:3px 10px;font-size:calc(var(--fs)*14px)}
 .flnow.trend{border-color:#3b82f6}.flnow.range{border-color:#8b93a7}.flnow.wild{border-color:#ec4899}
-.fllist{width:100%;border-collapse:collapse;font-size:calc(var(--fs)*13px)}.fllist td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}.fllist tr.now td{background:var(--hl)}.fllist tr.past{opacity:.55}
+.fllist{width:100%;border-collapse:collapse;font-size:calc(var(--fs)*13px)}.fllist td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left;white-space:normal;position:static}.fllist tr.now td{background:var(--hl)}.fllist tr.past{opacity:.55}
 .stleg i.stt{background:var(--posbg);border:1px solid var(--pos)}.stleg i.stc{background:#e6b54a}.stleg i.sta{background:var(--neg)}.stleg i.sto{background:var(--line)}.stnow2{display:inline-block;width:3px;height:12px;background:var(--accent);margin-right:4px;vertical-align:-1px}
 .sttab{width:100%}.sttab td{padding:5px 6px;vertical-align:top;text-align:left;white-space:normal}.sttab td:first-child,.sttab td:nth-child(2){white-space:nowrap;width:1%}.sttab tr.past{opacity:.45}.sttab tr.big td{font-weight:700}.trli li.past{opacity:.45}
 .stk{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;border-radius:999px;background:var(--line);white-space:nowrap}.stk.big{background:var(--neg);color:#fff}.stk.open{background:var(--posbg);color:var(--pos)}.stk.close{background:var(--negbg);color:var(--neg)}
@@ -3230,7 +3230,8 @@ trFixDates(); $('#tr-date').value = trToday(); trApplyMode();
 (() => {
   let sx = null, sy = null, st = 0, ok = false;
   const blocked = el => el.closest('.chart, .wrap, input, select, textarea, .trtv, .tape, .hvp, #fs, .seg, .trchips, .tabs');
-  const scrollable = el => { for (let e = el; e && e !== document.body; e = e.parentElement) { if (e.scrollWidth > e.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowX)) return true; } return false; };
+  const scrollable = el => { if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 4) return true;   // 画面ごと横にはみ出しているときは横スクロールを優先
+    for (let e = el; e && e !== document.body; e = e.parentElement) { if (e.scrollWidth > e.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowX)) return true; } return false; };
   document.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) { ok = false; return; }
     const t = e.touches[0]; sx = t.clientX; sy = t.clientY; st = Date.now();
