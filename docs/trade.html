@@ -191,11 +191,12 @@ header h1{padding-right:4px}
 .tabj{display:none}
 body.on-trade .tabj{display:inline-flex}
 .trtfseg,#tr-recbox,#tr-check{scroll-margin-top:52px}
+.trmaleg{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 8px;font-size:calc(var(--fs)*13px);color:var(--muted)}.trmaleg i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
 /* 分足の見えた形：上げ／下げを切り替え（2026-11-25 オーナー指定） */
 .tr1mside{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box;margin:6px 0 2px}.tr1mside button{padding:9px 4px;font-size:calc(var(--fs)*14px);font-weight:700}
 .tr1mside .t1s.pos.on{background:var(--pos);color:#fff}.tr1mside .t1s.neg.on{background:var(--neg);color:#fff}.tr1mside .t1s.pos:not(.on){color:var(--pos)}.tr1mside .t1s.neg:not(.on){color:var(--neg)}
 .t1grp.hide{display:none}.t1grp>.grp{display:none}
-.trindseg{display:grid;grid-template-columns:1fr 1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
+.trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check){display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
@@ -2464,7 +2465,8 @@ setInterval(() => {   // 待ち時間が終わったら、自動で質問に戻�
 let TR1M_OPEN = false;
 const TR_TFS = [['1', '1分足'], ['3', '3分足'], ['5', '5分足'], ['30', '30分足'], ['60', '1時間足'], ['D', '日足']];   // チャートの足（2026-11-25 オーナー指定）
 const tfName = tf => (TR_TFS.find(x => x[0] === String(tf)) || ['', `${tf}分足`])[1];
-let TR_IND = ['bb', 'ma', 'ma3'].includes(trGet('trInd', 'bb')) ? trGet('trInd', 'bb') : 'bb';   // チャートの線：bb＝ボリンジャー、ma＝移動平均線5・25、ma3＝移動平均線5・25・75
+let TR_IND = trGet('trInd', 'bb') === 'bb' ? 'bb' : 'ma3';   // チャートの線：bb＝ボリンジャー、ma3＝移動平均線3本（5・25・75）。2本（ma）は2026-11-25 オーナー指定で削除し、3本に寄せる
+const TR_MA_COL = {s: '#FF9800', m: '#AB47BC', l: '#2196F3'};   // 移動平均線の色：短期5＝オレンジ・中期25＝紫・長期75＝青（2026-11-25 オーナー指定）
 let TR_TF = (TR_TFS.find(x => x[0] === String(trGet('trTf', '3'))) || TR_TFS[1])[0];
 const TR1M_TTL = 30 * 60000;
 let TR1M_SIDE = trGet('tr1mSide', 1) === -1 ? -1 : 1;   // 見えた形の一覧：1＝上げの形、-1＝下げの形を表示（2026-11-25 オーナー指定で切り替え式に）
@@ -2520,9 +2522,10 @@ function tr1mHtml() {
   const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
     .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
   return `<div id="tr1m"><h3>分足のテクニカル根拠</h3>
-    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、MACD・RSI付きです。上の段の線は「ボリンジャー」「移動平均線2本（5・25）」「移動平均線3本（5・25・75）」から選べます。</p>
+    <p class="note">分足のデータはこのアプリでは取れないため、TradingView のチャートで確かめます。下のチャートは選んだ足で、MACD・RSI付きです。上の段の線は「ボリンジャー」と「移動平均線3本（短期5・中期25・長期75）」から選べます。</p>
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
-    <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma' ? ' on' : ''}" data-ind="ma">移動平均線2本<br><small>5・25</small></button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
+    <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
+    ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div><div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
@@ -2560,8 +2563,12 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
       // 線の種類（2026-11-25）：5つ全部を一度に指定すると、無料の埋め込みでは後ろの指標（ボリンジャー・MACD・RSI）が出なかった。
       // そのため「ボリンジャー＋MACD＋RSI」（実機で表示を確認済み）と「移動平均線5・25本＋MACD＋RSI」を切り替える
       // 2026-11-25 オーナー指定で「移動平均線3本（5・25・75）」を追加（日本でよく使われる組み合わせ）。実機での表示は未確認
+      // 色分け（2026-11-25 オーナー指定「短期・中期・長期で色を変える」）：同じ「移動平均線」を3本出すと色を個別に変えられないため、
+      // 短期5・中期25は2本の線を色違いで描く「MA Cross」（入力 in_0・in_1）、長期75は「移動平均線」にして、studies_overrides で色を付ける
       studies: TR_IND === 'bb' ? ['BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']
-        : [...(TR_IND === 'ma3' ? [5, 25, 75] : [5, 25]).map(n => ({id: 'MASimple@tv-basicstudies', inputs: {length: n}})), {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}]});
+        : [{id: 'MACross@tv-basicstudies', inputs: {in_0: 5, in_1: 25}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 75}}, {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}],
+      studies_overrides: {'ma cross.short:plot.color': TR_MA_COL.s, 'ma cross.long:plot.color': TR_MA_COL.m, 'moving average.plot.color': TR_MA_COL.l,
+        'ma cross.short:plot.linewidth': 2, 'ma cross.long:plot.linewidth': 2, 'moving average.plot.linewidth': 2}});
 }
 
 /* ---- CFD計算（2026-11-25 オーナー指定）：証拠金とロット数から、損切り・利確の目安を出す ----
@@ -2884,7 +2891,7 @@ document.addEventListener('click', e => {
     if (!/^https:\/\/claude\.ai\/(chat|project)\/[\w-]+/.test(v)) { $('#tr-claude-msg').innerHTML = '<span class="neg">https://claude.ai/chat/… の形の URL を貼り付けてください。</span>'; return; }
     trSet('trClaudeChat', v.split('?')[0]); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); $('#tr-claude-msg').innerHTML = '<span class="pos">登録しました。これからは、この会話で聞きます。</span>'; }
   else if (e.target.closest('#tr-chat-clear')) { trSet('trClaudeChat', ''); const m = e.target.closest('.trmat'); if (m) m.outerHTML = trClaudeHtml(); }
-  else if (e.target.closest('.trind')) { TR_IND = e.target.closest('.trind').dataset.ind; trSet('trInd', TR_IND); document.querySelectorAll('.trind').forEach(b => b.classList.toggle('on', b.dataset.ind === TR_IND)); trMountTv(); }
+  else if (e.target.closest('.trind')) { TR_IND = e.target.closest('.trind').dataset.ind; trSet('trInd', TR_IND); document.querySelectorAll('.trind').forEach(b => b.classList.toggle('on', b.dataset.ind === TR_IND)); document.querySelectorAll('.trmaleg').forEach(x => x.hidden = TR_IND !== 'ma3'); trMountTv(); }
   else if (e.target.closest('.trtf')) { TR_TF = e.target.closest('.trtf').dataset.tf; trSet('trTf', TR_TF); document.querySelectorAll('.trtf').forEach(b => b.classList.toggle('on', b.dataset.tf === TR_TF)); const hd = $('.trtvhd span'); if (hd) hd.textContent = `${tfName(TR_TF)}チャート`; trMountTv(); tr1mSave(); }
   else if (e.target.closest('.trcopy')) { const txt = trClaudePrompt(e.target.closest('.trcopy').dataset.kind), done = () => { $('#tr-claude-msg').innerHTML = '<span class="pos">質問文をコピーしました。Claude を開いて貼り付けてください。</span>'; };
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(done).catch(() => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }); }
