@@ -2772,7 +2772,9 @@ function trCloudHtml() {
 }
 async function trCloudSave() {
   const url = $('#tr-cloud-url').value.trim(), key = $('#tr-cloud-key').value.trim();
-  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) { trSyncMsg('<span class="neg">URL は https://script.google.com/macros/s/…/exec の形で入れてください。</span>'); return; }
+  if (!/^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/(u\/\d+\/)?s\/[^/]+\/exec$/.test(url)) {
+    const why = /googleusercontent/.test(url) ? '入れたのは開いたあとに切り替わる先のURLです。' : /\/edit|\/home\/projects/.test(url) ? '入れたのは Apps Script の編集画面のURLです。' : /\/dev$/.test(url) ? '入れたのはテスト用（/dev）のURLです。' : '';
+    trSyncMsg(`<span class="neg">${why}Apps Script の「デプロイ → デプロイを管理」に出る「ウェブアプリのURL」（https://script.google.com/macros/s/…/exec、最後が /exec）を入れてください。</span>`); return; }
   if (!key) { trSyncMsg('<span class="neg">合言葉を入れてください。</span>'); return; }
   const old = trCloud(); trSet('trCloud', {url, key});
   trSyncMsg('<span class="muted">つないでいます…</span>');
