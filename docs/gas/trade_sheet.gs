@@ -16,10 +16,14 @@
  * 以前の版のシート「損益記録」は使わなくなる（消さずに残る。アプリの記録はつないだときに新しいシートへ送り直す）。
  * 2026-11-25 追加：Google ドライブの trade_summary.json（Claude が毎朝作る振り返り）を読んで、一覧と一緒に返す。
  *   初めてデプロイし直すとき、ドライブを読む許可を求められるので許可する。
+ * 2026-11-25 追加：チャートの画像。op img_put／img_get でドライブのフォルダ「短期トレードの画像」に保存・読み出し。シートの11列目「画像」に名前。
  */
 const KEY = '';            // ← ここに合言葉を入れる
 const SHEET = '記録';
-const COLS = ['id', '日付', '時刻', '種類', '損益（円）', '方向', '根拠', 'メモ', '更新', '削除'];
+const COLS = ['id', '日付', '時刻', '種類', '損益（円）', '方向', '根拠', 'メモ', '更新', '削除', '画像'];
+const IMG_FOLDER = '短期トレードの画像';
+function folder_() { const it = DriveApp.getFoldersByName(IMG_FOLDER); return it.hasNext() ? it.next() : DriveApp.createFolder(IMG_FOLDER); }
+function imgFile_(name) { const it = folder_().getFilesByName(name); while (it.hasNext()) { const f = it.next(); if (!f.isTrashed()) return f; } return null; }
 const KIND = {trade: '取引', day: '今日の合計', note: '気づき', old: '合計（旧形式）'};
 const KIND_R = Object.fromEntries(Object.entries(KIND).map(([k, v]) => [v, k]));
 const SUMMARY_FILE = 'trade_summary.json';   // 振り返り（Claude が毎朝ドライブに書く）
@@ -42,6 +46,7 @@ function sheet_() {
     s.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight('bold');
     s.setFrozenRows(1);
   }
+  if (s.getRange(1, COLS.length).getValue() !== COLS[COLS.length - 1]) s.getRange(1, COLS.length).setValue(COLS[COLS.length - 1]).setFontWeight('bold');   // 前の版のシートに「画像」の見出しを足す
   return s;
 }
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -56,6 +61,15 @@ function doPost(e) {
   try { q = JSON.parse(e.postData.contents); } catch (err) { return out_({ok: false, error: '送られた内容を読めません'}); }
   if (!KEY) return out_({ok: false, error: 'プログラムの KEY（合言葉）が空です'});
   if (q.key !== KEY) return out_({ok: false, error: '合言葉が違います'});
+  if (q.op === 'img_put') {   // 画像を保存（同じ名前があれば置き換え）
+    const old = imgFile_(q.name); if (old) old.setTrashed(true);
+    folder_().createFile(Utilities.newBlob(Utilities.base64Decode(q.data), q.mime || 'image/jpeg', q.name));
+    return out_({ok: true, v: 2, saved: true});
+  }
+  if (q.op === 'img_get') {
+    const f = imgFile_(q.name);
+    return out_(f ? {ok: true, v: 2, mime: f.getMimeType(), data: Utilities.base64Encode(f.getBlob().getBytes())} : {ok: true, v: 2, data: null});
+  }
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -65,7 +79,7 @@ function doPost(e) {
       for (let i = 1; i < vals.length; i++) idx[String(vals[i][0])] = i + 1;
       q.rows.forEach(r => {
         const row = [String(r.id), r.date, r.t, KIND[r.k] || KIND.trade, r.k === 'note' ? '' : Number(r.amt) || 0,
-          r.dir === 'buy' ? '買い' : r.dir === 'sell' ? '売り' : '', (r.reasons || []).join('／'), r.memo || '', Number(r.u || r.id), r.del ? 1 : ''];
+          r.dir === 'buy' ? '買い' : r.dir === 'sell' ? '売り' : '', (r.reasons || []).join('／'), r.memo || '', Number(r.u || r.id), r.del ? 1 : '', (r.imgs || []).join(',')];
         const n = idx[String(r.id)];
         if (!n) { s.appendRow(['']); n = s.getLastRow(); idx[String(r.id)] = n; }
         s.getRange(n, 1, 1, 3).setNumberFormat('@');   // id・日付・時刻は文字のまま（日付や時刻に変換させない）
@@ -77,7 +91,7 @@ function doPost(e) {
     const rows = s.getDataRange().getValues().slice(1).filter(v => v[0] !== '').map(v => ({
       id: Number(v[0]), date: txt_(v[1], 'yyyy-MM-dd'), t: txt_(v[2], 'HH:mm'), k: KIND_R[v[3]] || 'trade', amt: Number(v[4]) || 0,
       dir: v[5] === '買い' ? 'buy' : v[5] === '売り' ? 'sell' : null, reasons: v[6] ? String(v[6]).split('／') : [],
-      memo: String(v[7] || ''), u: Number(v[8]) || Number(v[0]), del: !!v[9]}));
+      memo: String(v[7] || ''), u: Number(v[8]) || Number(v[0]), del: !!v[9], imgs: v[10] ? String(v[10]).split(',') : []}));
     const res = {ok: true, v: 2, rows: rows};
     if (q.op === 'list') res.summary = summary_();   // 振り返りは一覧のときだけ返す
     return out_(res);

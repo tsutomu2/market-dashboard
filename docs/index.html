@@ -218,6 +218,10 @@ body.on-trade .tabj{display:inline-flex}
 #tr-recbox.editing .trmode{display:none}
 #tr-recbox[data-mode="day"] .only-t,#tr-recbox[data-mode="day"] .only-tn,#tr-recbox[data-mode="note"] .only-t,#tr-recbox[data-mode="note"] .only-td{display:none}
 .trkind{font-size:calc(var(--fs)*11px);padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}.trkind.k-day{border-color:var(--accent);color:var(--accent)}.trkind.k-note{border-color:var(--warn);color:var(--warn)}
+.trimgbtn{align-self:flex-start;display:inline-block}.trthumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.trthumbs:empty{display:none}
+.trth{position:relative;width:92px;height:92px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}.trth img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.trth .trthx{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:24px;padding:0;cursor:pointer}
+.trimgfull{width:100%;height:auto;display:block;border-radius:6px}
 .trnote{white-space:pre-wrap;margin:4px 0;font-size:calc(var(--fs)*14px)}
 .trform input[type=date],.trform input[type=number],.trform input[type=text]{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
 .trrow{display:flex;gap:8px;align-items:center}.trrow input{flex:1;min-width:0}.trrow label{display:flex;align-items:center;gap:6px;flex:1;min-width:0;white-space:nowrap}.trrow label input{width:100%;box-sizing:border-box}.trrow label:first-child{flex:1.35}#tr-sign{font-weight:700;color:var(--pos);white-space:nowrap}#tr-sign.neg{color:var(--neg)}
@@ -287,6 +291,7 @@ body.on-trade .tabj{display:inline-flex}
       <div class="only-t"><div class="grp">入った根拠（あてはまるものを全部） <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="tr-rs"></div></div>
       <div class="trrow only-td"><button class="btn" id="tr-sign" data-sign="+" type="button">勝ち（＋）</button><input type="number" id="tr-amt" inputmode="numeric" min="0" step="1" placeholder="この取引の損益（円）"><span>円</span></div>
       <textarea id="tr-memo" class="only-tn" rows="2" placeholder="メモ（なくても可）"></textarea>
+      <div class="only-tn trimgbox"><label class="btn trimgbtn">📷 チャートの画像を添付<input type="file" id="tr-img" accept="image/*" multiple hidden></label><div class="trthumbs" id="tr-imgs"></div></div>
       <div class="note" id="tr-prev"></div><div id="tr-diff"></div>
       <div class="trrow"><button class="btn trbig trgo" id="tr-save" type="button">記録する</button><button class="btn" id="tr-cancel" type="button" style="display:none">訂正をやめる</button></div>
     </div></div>
@@ -2741,7 +2746,8 @@ function renderTrLog() {   // 損益の集計・グラフ・一覧（損益履�
     `${r.k === 'note' ? '' : `<b class="trrv ${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${yen0(v)}</b>`}` +
     `<span class="trrb"><button class="btn tredit" data-id="${r.id}" type="button">✎ 訂正</button><button class="btn trdel" data-id="${r.id}" type="button">✕ 削除</button></span></div>` +
     `${r.k === 'old' ? `<div class="trr2">その時点の合計 ${yen0(r.cum)}${r.dir ? `・<b>${r.dir === 'buy' ? '買い' : '売り'}</b>` : ''}</div>` : r.dir ? `<div class="trr2"><b>${r.dir === 'buy' ? '買い' : '売り'}</b></div>` : ''}` +
-    `${(r.reasons || []).length ? `<div>${r.reasons.map(x => `<span class="trtag">${x.replace(/（.*/, '')}</span>`).join('')}</div>` : ''}${r.memo ? `<div class="${r.k === 'note' ? 'trnote' : 'trr2'}">${esc(r.memo)}</div>` : ''}</div>`; }).join('') : '<p class="note">まだ記録がありません。</p>';
+    `${(r.reasons || []).length ? `<div>${r.reasons.map(x => `<span class="trtag">${x.replace(/（.*/, '')}</span>`).join('')}</div>` : ''}${r.memo ? `<div class="${r.k === 'note' ? 'trnote' : 'trr2'}">${esc(r.memo)}</div>` : ''}${(r.imgs || []).length ? `<div class="trthumbs">${trThumbs(r.imgs)}</div>` : ''}</div>`; }).join('') : '<p class="note">まだ記録がありません。</p>';
+  trFillImgs($('#tr-hist'));
   // 根拠ごとの成績
   const st = {}; rows.filter(trIsTrade).forEach(r => (r.reasons || []).forEach(k => { st[k] = st[k] || {n: 0, w: 0, l: 0, v: 0}; st[k].n++; st[k].v += r.diff; if (r.diff > 0) st[k].w++; else if (r.diff < 0) st[k].l++; }));
   const ds = {}; rows.filter(trIsTrade).forEach(r => { if (!r.dir) return; const k = r.dir === 'buy' ? '買いで入った' : '売りで入った'; ds[k] = ds[k] || {n: 0, w: 0, l: 0, v: 0}; ds[k].n++; ds[k].v += r.diff; if (r.diff > 0) ds[k].w++; else if (r.diff < 0) ds[k].l++; });
@@ -2789,17 +2795,20 @@ async function trCloudCall(body) {
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || '失敗しました');
   if (body.op === 'list') { if ('summary' in j) { trSet('trSummary', j.summary || null); trSet('trSummaryOk', 1); } else trSet('trSummaryOk', 0); }   // まとめ（Apps Script が Drive の trade_summary.json を返す）
+  if (String(body.op).startsWith('img')) return j;
   if (j.v !== 2) throw new Error('スプレッドシートのプログラムが古い形式です。「プログラムをコピー」で新しいものを貼り直し、「デプロイ → デプロイを管理 → 編集（鉛筆）→ バージョン：新バージョン → デプロイ」で反映してください');
   return j.rows || [];
 }
 function trSyncMsg(html) { const m = $('#tr-sync-msg'); if (m) m.innerHTML = html; const b = $('#tr-sync-badge'); if (b) b.innerHTML = html; }
 // シートとの受け渡しの形：{id, k（trade/day/note/old）, date, t, amt, dir, reasons, memo, u, del}。以前の形式（k なし）は k:'old'、amt＝その時点の合計
-const trToSheet = r => ({id: r.id, k: r.k || 'old', date: r.date, t: r.t, amt: Number(r.k ? r.amt : r.cum) || 0, dir: r.dir || null, reasons: r.reasons || [], memo: r.memo || '', u: r.u || r.id});
-const trFromSheet = r => { const b = {id: r.id, date: trNormD(r.date, r.id), t: trNormT(r.t), memo: r.memo || '', dir: r.dir || null, reasons: r.reasons || [], u: r.u};
+const trToSheet = r => ({id: r.id, k: r.k || 'old', date: r.date, t: r.t, amt: Number(r.k ? r.amt : r.cum) || 0, dir: r.dir || null, reasons: r.reasons || [], memo: r.memo || '', imgs: r.imgs || [], u: r.u || r.id});
+const trFromSheet = r => { const b = {id: r.id, date: trNormD(r.date, r.id), t: trNormT(r.t), memo: r.memo || '', dir: r.dir || null, reasons: r.reasons || [], imgs: r.imgs || [], u: r.u};
   return r.k === 'old' || !r.k ? {...b, cum: Number(r.amt) || 0} : {...b, k: r.k, amt: Number(r.amt) || 0}; };
 function trFixDates() {   // 2026-11-25：シートから日付・時刻が長い英語の形で戻り「0/0 30:18」と出た記録を直す（直した記録は更新時刻を付けてシートにも送り直す）
   const L = trGet('trLog', []); let n = 0;
-  L.forEach(r => { const d = trNormD(r.date, r.id), t = trNormT(r.t); if (d !== r.date || t !== r.t) { r.date = d; r.t = t; r.u = Date.now(); n++; } });
+  L.forEach(r => { const d = trNormD(r.date, r.id), t = trNormT(r.t); if (d !== r.date || t !== r.t) { r.date = d; r.t = t; r.u = Date.now(); n++; }
+    // 2026-11-25：古い画面のままの端末が同期して、気づきの記録の種類が消え「合計（旧形式）0円」になった。種類が無く合計が0（または無し）でメモがある記録は気づきに戻す
+    if (!r.k && !(Number(r.cum) || 0) && String(r.memo || '').trim()) { r.k = 'note'; delete r.cum; r.amt = 0; r.u = Date.now(); n++; } });
   if (n) trSet('trLog', L);
   return n;
 }
@@ -2824,11 +2833,13 @@ async function trSync(manual) {
     const rows = push.length ? await trCloudCall({op: 'put', rows: push}) : remote;
     const changed = JSON.stringify(out.map(r => r.id + ':' + (r.u || r.id)).sort()) !== JSON.stringify(L.map(r => r.id + ':' + (r.u || r.id)).sort());
     trSet('trLog', out);
+    if (trFixDates()) TR_SYNC_AGAIN = true;   // シートから来た記録も直し、直したらもう一度送る
     const keep = {}; Object.entries(del).forEach(([k, v]) => { if (!rows.some(r => String(r.id) === k && r.del)) keep[k] = v; }); trSet('trDel', keep);
     c.last = Date.now(); trSet('trCloud', c);
     trSyncMsg(`<span class="pos">✓ スプレッドシートと同期済み（${new Date().toTimeString().slice(0, 5)}、${out.length}件${push.length ? `・${push.length}件を送信` : ''}）</span>`);
     if (changed || manual) { renderTrLog(); }
     renderTrReview();
+    trImgUpload();
   } catch (e) {
     trSyncMsg(`<span class="neg">スプレッドシートと同期できませんでした：${String(e.message || e).replace(/[<>&]/g, '')}。記録はこの端末には保存されています（あとで自動でもう一度送ります）。</span>`);
   } finally {
@@ -2860,6 +2871,51 @@ function renderTrReview() {
     ${(sm.advice || []).length ? `<div class="grp">記録のしかた</div>${ul(sm.advice)}` : ''}
     <p class="note">作成：${esc(sm.generated || '')}。記録とメモを整理したもので、売買を勧めるものではありません。</p>`;
 }
+/* ---- チャートの画像（2026-11-25 オーナー指定「コメントのところにチャートのスクリーンショットを添付」） ----
+   画像は縮小（長い辺1600px・JPEG）して端末の IndexedDB に保存し、記録には名前（記録id_番号.jpg）だけを持つ（localStorage は容量が小さいため）。
+   スプレッドシートにつないでいれば、Apps Script（op img_put／img_get）がドライブのフォルダ「短期トレードの画像」に保存・読み出しし、ほかの端末でも見られる。
+   送り待ちは localStorage trImgQ（失敗しても次の同期で送り直す）。 */
+let TR_IMGS = [];   // 記録欄に今付けている画像（名前）
+const trIdb = () => new Promise((ok, ng) => { const q = indexedDB.open('trImgs', 1); q.onupgradeneeded = () => q.result.createObjectStore('img'); q.onsuccess = () => ok(q.result); q.onerror = () => ng(q.error); });
+const trImgGet = async k => { try { const db = await trIdb(); return await new Promise(ok => { const r = db.transaction('img').objectStore('img').get(k); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); } catch (e) { return null; } };
+const trImgPut = async (k, v) => { const db = await trIdb(); await new Promise((ok, ng) => { const t = db.transaction('img', 'readwrite'); t.objectStore('img').put(v, k); t.oncomplete = ok; t.onerror = () => ng(t.error); }); };
+function trShrink(file) {   // 長い辺1600pxまでに縮めて JPEG（チャートの文字が読める大きさ）
+  return new Promise((ok, ng) => { const u = URL.createObjectURL(file), im = new Image();
+    im.onload = () => { const r = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * r); c.height = Math.round(im.height * r);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', 0.8)); };
+    im.onerror = () => { URL.revokeObjectURL(u); ng(new Error('画像を読めません')); }; im.src = u; });
+}
+async function trImgSrc(name) {   // 端末に無ければシートのドライブから取ってくる
+  let d = await trImgGet(name); if (d) return d;
+  const c = trCloud(); if (!c.url || !c.key) return null;
+  try { const j = await trCloudCall({op: 'img_get', name}); if (j.data) { d = `data:${j.mime || 'image/jpeg'};base64,${j.data}`; await trImgPut(name, d); } } catch (e) { /* 取れなければ出さない */ }
+  return d || null;
+}
+function trThumbs(names, edit) { return (names || []).map(n => `<div class="trth"><img data-img="${n}" alt="チャートの画像">${edit ? `<button type="button" class="trthx" data-imgx="${n}" aria-label="外す">✕</button>` : ''}</div>`).join(''); }
+function trFillImgs(root) { (root || document).querySelectorAll('img[data-img]:not([src])').forEach(async im => { const d = await trImgSrc(im.dataset.img); if (d) im.src = d; else im.closest('.trth').title = 'この端末に画像がありません'; }); }
+function trImgForm() { const b = $('#tr-imgs'); if (b) { b.innerHTML = trThumbs(TR_IMGS, true); trFillImgs(b); } }
+async function trImgUpload() {   // 送り待ちの画像をドライブへ
+  const c = trCloud(); if (!c.url || !c.key) return;
+  const q = trGet('trImgQ', []) || []; if (!q.length) return;
+  const left = [];
+  for (const name of q) { const d = await trImgGet(name); if (!d) continue;
+    try { const j = await trCloudCall({op: 'img_put', name, mime: 'image/jpeg', data: d.split(',')[1]}); if (!j.saved) throw new Error('old'); }
+    catch (e) { left.push(name); if (String(e.message) === 'old') trSyncMsg('<span class="neg">画像をスプレッドシート側に保存するには、プログラムを新しくしてください（「プログラムをコピー」で貼り直し、新バージョンでデプロイ）。画像はこの端末には保存されています。</span>'); } }
+  trSet('trImgQ', left);
+}
+document.addEventListener('change', async e => {
+  if (!e.target.closest('#tr-img')) return;
+  const files = [...e.target.files]; e.target.value = '';
+  for (const f of files.slice(0, 4)) {
+    try { const d = await trShrink(f), name = `${TR_EDIT || 'new'}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`; await trImgPut(name, d); TR_IMGS.push(name); }
+    catch (err) { alert('画像を読み込めませんでした：' + err.message); }
+  }
+  trImgForm();
+});
+document.addEventListener('click', e => {
+  const x = e.target.closest('[data-imgx]'); if (x) { TR_IMGS = TR_IMGS.filter(n => n !== x.dataset.imgx); trImgForm(); return; }
+  const im = e.target.closest('img[data-img]'); if (im && im.src) openModal('チャートの画像', `<img class="trimgfull" src="${im.src}" alt="チャートの画像">`);
+});
 function trCloudHtml() {
   const c = trCloud(), on = c.url && c.key;
   return `<h2>スプレッドシートに保存（Google スプレッドシート）</h2>
@@ -2896,11 +2952,11 @@ function trSave() {
   const d = $('#tr-date').value || trToday(), memo = $('#tr-memo').value.trim(), L = trGet('trLog', []);
   const ed = TR_EDIT ? L.find(r => r.id === TR_EDIT) : null, t = $('#tr-time').value || (ed && ed.t) || (d === trToday() ? nowHM() : '23:59');
   let rec;
-  if (TR_MODE === 'note') { if (!memo) { $('#tr-memo').focus(); return; } rec = {k: 'note', date: d, t, memo}; }
+  if (TR_MODE === 'note') { if (!memo && !TR_IMGS.length) { $('#tr-memo').focus(); return; } rec = {k: 'note', date: d, t, memo, imgs: TR_IMGS.slice()}; }
   else {
     const amt = +($('#tr-amt').value || NaN); if (isNaN(amt)) { $('#tr-amt').focus(); return; }
     const v = ($('#tr-sign').dataset.sign === '-' ? -1 : 1) * amt;
-    if (TR_MODE === 'trade') rec = {k: 'trade', date: d, t, amt: v, memo, dir: chipVals($('#tr-dir'))[0] || null, reasons: chipVals($('#tr-rs'))};
+    if (TR_MODE === 'trade') rec = {k: 'trade', date: d, t, amt: v, memo, dir: chipVals($('#tr-dir'))[0] || null, reasons: chipVals($('#tr-rs')), imgs: TR_IMGS.slice()};
     else if (ed && !ed.k) rec = {date: d, t, cum: v};   // 以前の形式（その時点の合計）の記録を直すときは、形式をそのまま
     else rec = {k: 'day', date: d, t, amt: v};
   }
@@ -2908,6 +2964,7 @@ function trSave() {
   let k = TR_EDIT ? L.findIndex(r => r.id === TR_EDIT) : -1;
   if (k < 0 && TR_MODE === 'day') k = L.findIndex(r => r.k === 'day' && trNormD(r.date, r.id) === d);   // 今日の合計は1日1件（入れ直すと置き換え）
   if (k >= 0) L[k] = {...L[k], ...rec, u: now}; else L.push({id: now, ...rec, u: now});
+  if (TR_IMGS.length) { const q = trGet('trImgQ', []) || []; TR_IMGS.forEach(n => { if (!q.includes(n)) q.push(n); }); trSet('trImgQ', q); }   // 画像はドライブへ（同期のあとに送る）
   trSet('trLog', L); trSync();
   if (!TR_EDIT && TR_MODE === 'trade') trSet('trPending', {});   // 根拠を使い終わったので、次の取引のために空にする
   const msg = {trade: '取引を記録しました', day: '今日の合計を記録しました', note: '気づきを記録しました'}[TR_MODE];
@@ -2922,7 +2979,7 @@ function trStartEdit(id) {
   $('#tr-date').value = trNormD(r.date, r.id); $('#tr-time').value = trNormT(r.t);
   const v = Number(r.k ? r.amt : r.cum) || 0, b = $('#tr-sign');
   b.dataset.sign = v < 0 ? '-' : '+'; b.textContent = v < 0 ? '負け（−）' : '勝ち（＋）'; b.classList.toggle('neg', v < 0);
-  $('#tr-amt').value = r.k === 'note' ? '' : Math.abs(v); $('#tr-memo').value = r.memo || '';
+  $('#tr-amt').value = r.k === 'note' ? '' : Math.abs(v); $('#tr-memo').value = r.memo || ''; TR_IMGS = (r.imgs || []).slice(); trImgForm();
   trFormFill(r);
   $('#tr-editing').style.display = ''; $('#tr-editing').innerHTML = `<b>訂正中：</b>${md(trNormD(r.date, r.id))} の「${TR_KIND[r.k || 'old']}」の記録。直して「訂正する」を押してください。`;
   $('#tr-save').textContent = '訂正する'; $('#tr-cancel').style.display = '';
@@ -2932,7 +2989,7 @@ function trStartEdit(id) {
 }
 function trEndEdit() {
   TR_EDIT = null; TR_MODE = ['trade', 'day', 'note'].includes(trGet('trMode', 'trade')) ? trGet('trMode', 'trade') : 'trade';
-  $('#tr-amt').value = ''; $('#tr-memo').value = ''; $('#tr-time').value = ''; $('#tr-date').value = trToday();
+  $('#tr-amt').value = ''; $('#tr-memo').value = ''; $('#tr-time').value = ''; $('#tr-date').value = trToday(); TR_IMGS = []; trImgForm();
   const sg = $('#tr-sign'); sg.dataset.sign = '+'; sg.textContent = '勝ち（＋）'; sg.classList.remove('neg');   // 1件ごとに勝ち（＋）に戻す
   $('#tr-editing').style.display = 'none'; $('#tr-save').textContent = '記録する'; $('#tr-cancel').style.display = 'none';
   $('#tr-recbox').classList.remove('editing');
