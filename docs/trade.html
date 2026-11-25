@@ -21,11 +21,11 @@
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#1f1f1d;--fg:#ecebe6;--muted:#a3a29b;--line:#34332f;--pos:#5cc48a;--neg:#ff7a6b;--posbg:#1c3326;--negbg:#3a1f1c;--warn:#3a2e16;--warnfg:#f0b65a;--accent:#7aa7e6;--hl:#2c2717}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;font-size:calc(var(--fs)*15px);line-height:1.5}
-header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px 0}
-h1{font-size:calc(var(--fs)*18px);margin:0}
+header{background:var(--bg);padding:6px 12px 2px}   /* 2026-11-25 オーナー指定：ヘッダーを細く。題名の行はスクロールで消え、タブの帯だけ上に固定 */
+h1{font-size:calc(var(--fs)*15px);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:calc(var(--fs)*12px);color:var(--muted)}
-.tabs{display:flex;gap:4px;margin-top:8px;overflow-x:auto}
-.tab{border:0;background:none;color:var(--muted);padding:8px 12px;font-size:calc(var(--fs)*14px);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit}
+.tabs{display:flex;gap:2px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:0 8px}
+.tab{border:0;background:none;color:var(--muted);padding:7px 10px 5px;font-size:calc(var(--fs)*13.5px);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit}
 .tab.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
 main{max-width:1200px;margin:0 auto;padding:14px}
 section.page{display:none}
@@ -120,12 +120,12 @@ main .chart::after{content:'⤢';position:absolute;right:2px;bottom:0;font-size:
 @media (orientation:portrait) and (max-width:600px){.fs-hint{display:block}}
 #fs-body{flex:1;min-height:0;position:relative;padding:8px 10px 10px}
 #fs-body canvas{width:100%!important;height:100%!important}
-.upd{display:flex;flex-wrap:wrap;align-items:center;gap:2px 12px}.upd b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
-.hrow{display:flex;align-items:center;gap:8px}.hrow h1{flex:1;min-width:0}
-#reload{flex:none;font-size:calc(var(--fs)*13px);font-weight:600;padding:5px 12px;color:var(--accent);border-color:var(--accent)}
+.upd{display:flex;flex-direction:column;align-items:flex-end;flex:none;font-size:calc(var(--fs)*10.5px);line-height:1.3;color:var(--muted)}.upd b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+.hrow{display:flex;align-items:center;gap:8px}.back{flex:none;text-decoration:none;font-size:calc(var(--fs)*18px);line-height:1;padding:2px 6px 2px 0;color:var(--accent)}.hrow h1{flex:1;min-width:0}
+#reload{flex:none;font-size:calc(var(--fs)*12px);font-weight:600;padding:4px 8px;white-space:nowrap;color:var(--accent);border-color:var(--accent)}
 header h1{padding-right:4px}
 @media (max-width:600px){
-  header h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header h1{font-size:calc(var(--fs)*14px)}.t-long{display:none}
   .seg{display:flex;width:100%}.seg button{flex:1;padding:7px 2px;white-space:nowrap}
 }
 .perrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.perrow>span{font-size:calc(var(--fs)*13px);color:var(--muted)}.perrow .seg{margin-bottom:0}
@@ -205,9 +205,10 @@ header h1{padding-right:4px}
 <body>
 <script>/* 単独ページ（trade.html）では短期トレード・損益履歴だけを出す */ if (/trade\.html$/.test(location.pathname)) document.body.classList.add('app-trade');</script>
 <header>
-  <div class="hrow"><h1><span class="only-main">マーケット需給ダッシュボード</span><span class="only-trade">短期トレード</span></h1><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻ 更新</button></div>
-  <div class="sub upd"><a class="only-trade" href="./">← ダッシュボード</a><span>データ更新：<b id="updated">—</b></span><span>画面の更新：<b id="loaded">—</b></span></div>
-  <nav class="tabs">
+  <div class="hrow"><a class="only-trade back" href="./" title="ダッシュボードへ戻る">←</a><h1><span class="only-main"><span class="t-long">マーケット</span>需給ダッシュボード</span><span class="only-trade">短期トレード</span></h1>
+    <div class="upd"><span>データ <b id="updated">—</b></span><span>画面 <b id="loaded">—</b></span></div><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻ 更新</button></div>
+</header>
+<nav class="tabs">
     <button class="tab on" data-page="trade">短期トレード</button>
     <button class="tab" data-page="hist">損益履歴</button>
     <button class="tab" data-page="sho">SHO手法で判断</button>
@@ -218,8 +219,7 @@ header h1{padding-right:4px}
     <button class="tab" data-page="corr">連動指数</button>
     <button class="tab" data-page="nikkei">日経理論値</button>
     <button class="tab" data-page="investor">投資主体別</button>
-  </nav>
-</header>
+</nav>
 <main>
 <div class="tape" id="tape"></div>
 <div class="err" id="err"></div>
@@ -522,7 +522,7 @@ async function load() {
     [D.margin, D.nikkei, D.investor, D.short, D.lev, D.breadth, D.sho, D.ai, D.daily, D.meta] = await Promise.all(['margin.json', 'nikkei.json', 'investor.json', 'short.json', 'lev1570.json', 'breadth.json', 'sho_views.json', 'ai_comment.json', 'daily.json', 'meta.json'].map(f => get(f).catch(() => ['meta.json', 'daily.json', 'ai_comment.json'].includes(f) ? {} : [])));
   } catch (e) { showErr('データの読み込みに失敗しました: ' + e.message); }
   $('#updated').textContent = D.meta.updated ? D.meta.updated.replace(/^\d{4}-(\d\d)-(\d\d)/, (m, mo, d) => `${+mo}/${+d}`) : '—';
-  $('#loaded').textContent = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}).format(new Date());   // データ更新と同じ日本時間で表示
+  $('#loaded').textContent = new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit'}).format(new Date());   // データ更新と同じ日本時間で表示
   renderAll();
 }
 function showErr(t) { const e = $('#err'); e.textContent = t; e.style.display = 'block'; }
