@@ -2021,7 +2021,7 @@ function trRsEdSave() {
 let TR_EDIT = null;   // 訂正中の記録のid
 const TR_APPS = [
   ['iSPEED（株）を開く', 'https://apps.apple.com/jp/app/id389339704'],
-  ['iSPEED 先物OPを開く', 'https://apps.apple.com/jp/app/id584769039'],
+  // iSPEED 先物OP（id584769039）は使っていないため外した（2026-11-25 オーナー指定）
 ];
 const trGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
 const trSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 保存できない環境（プライベートブラウズなど） */ } };
