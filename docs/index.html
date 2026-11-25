@@ -190,7 +190,7 @@ header h1{padding-right:4px}
 .tabj{display:none}
 body.on-trade .tabj{display:inline-flex}
 .trtfseg,#tr-recbox,#tr-check{scroll-margin-top:52px}
-.trmaleg{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 8px;font-size:calc(var(--fs)*13px);color:var(--muted)}.trmaleg i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.trmaleg[hidden]{display:none}.trmaleg{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 8px;font-size:calc(var(--fs)*13px);color:var(--muted)}.trmaleg i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
 /* 分足の見えた形：上げ／下げを切り替え（2026-11-25 オーナー指定） */
 .tr1mside{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box;margin:6px 0 2px}.tr1mside button{padding:9px 4px;font-size:calc(var(--fs)*14px);font-weight:700}
 .tr1mside .t1s.pos.on{background:var(--pos);color:#fff}.tr1mside .t1s.neg.on{background:var(--neg);color:#fff}.tr1mside .t1s.pos:not(.on){color:var(--pos)}.tr1mside .t1s.neg:not(.on){color:var(--neg)}
@@ -2473,7 +2473,7 @@ let TR1M_OPEN = false;
 const TR_TFS = [['1', '1分足'], ['3', '3分足'], ['5', '5分足'], ['30', '30分足'], ['60', '1時間足'], ['D', '日足']];   // チャートの足（2026-11-25 オーナー指定）
 const tfName = tf => (TR_TFS.find(x => x[0] === String(tf)) || ['', `${tf}分足`])[1];
 let TR_IND = trGet('trInd', 'bb') === 'bb' ? 'bb' : 'ma3';   // チャートの線：bb＝ボリンジャー、ma3＝移動平均線3本（5・25・75）。2本（ma）は2026-11-25 オーナー指定で削除し、3本に寄せる
-const TR_MA_COL = {s: '#FF9800', m: '#AB47BC', l: '#2196F3'};   // 移動平均線の色：短期5＝オレンジ・中期25＝紫・長期75＝青（2026-11-25 オーナー指定）
+const TR_MA_COL = {s: '#43A047', m: '#FF6D00', l: '#2196F3'};   // 移動平均線の色（TradingView のもとの色）：短期5＝緑・中期25＝オレンジ・長期75＝青
 let TR_TF = (TR_TFS.find(x => x[0] === String(trGet('trTf', '3'))) || TR_TFS[1])[0];
 const TR1M_TTL = 30 * 60000;
 let TR1M_SIDE = trGet('tr1mSide', 1) === -1 ? -1 : 1;   // 見えた形の一覧：1＝上げの形、-1＝下げの形を表示（2026-11-25 オーナー指定で切り替え式に）
@@ -2574,8 +2574,8 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
       // 短期5・中期25は2本の線を色違いで描く「MA Cross」（入力 in_0・in_1）、長期75は「移動平均線」にして、studies_overrides で色を付ける
       studies: TR_IND === 'bb' ? ['BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']
         : [{id: 'MACross@tv-basicstudies', inputs: {in_0: 5, in_1: 25}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 75}}, {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}],
-      studies_overrides: {'ma cross.short:plot.color': TR_MA_COL.s, 'ma cross.long:plot.color': TR_MA_COL.m, 'moving average.plot.color': TR_MA_COL.l,
-        'ma cross.short:plot.linewidth': 2, 'ma cross.long:plot.linewidth': 2, 'moving average.plot.linewidth': 2}});
+      // studies_overrides で色を指定したら、実機で指標がすべて出なくなった（2026-11-25）ため使わない。色は各指標のもとの色（MA Cross の短期＝緑・長期＝オレンジ、移動平均線＝青）
+    });
 }
 
 /* ---- CFD計算（2026-11-25 オーナー指定）：証拠金とロット数から、損切り・利確の目安を出す ----
