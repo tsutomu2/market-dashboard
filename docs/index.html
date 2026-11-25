@@ -181,17 +181,21 @@ header h1{padding-right:4px}
 .trr1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.trrt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:calc(var(--fs)*13px)}
 .trrv{font-size:calc(var(--fs)*17px);font-variant-numeric:tabular-nums}.trrb{margin-left:auto;display:flex;gap:6px}.trrb .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}
 .trr2{font-size:calc(var(--fs)*13px);color:var(--muted);margin:2px 0}
+.app-trade .tab:not([data-page="trade"]):not([data-page="hist"]),.app-trade #tape,.app-trade #period-box{display:none!important}
+.app-trade .only-main,.app-trade .only-main-box{display:none}.only-trade{display:none}.app-trade .only-trade{display:inline}
 @keyframes swl{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}@keyframes swr{from{transform:translateX(-40px);opacity:.3}to{transform:none;opacity:1}}
 .page.swl{animation:swl .18s ease-out}.page.swr{animation:swr .18s ease-out}
 .hvauto{cursor:default}.hvauto iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 </style>
 </head>
 <body>
+<script>/* 単独ページ（trade.html）では短期トレード・損益履歴だけを出す */ if (/trade\.html$/.test(location.pathname)) document.body.classList.add('app-trade');</script>
 <header>
-  <div class="hrow"><h1>マーケット需給ダッシュボード</h1><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻ 更新</button></div>
-  <div class="sub upd"><span>データ更新：<b id="updated">—</b></span><span>画面の更新：<b id="loaded">—</b></span></div>
+  <div class="hrow"><h1><span class="only-main">マーケット需給ダッシュボード</span><span class="only-trade">短期トレード</span></h1><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻ 更新</button></div>
+  <div class="sub upd"><a class="only-trade" href="./">← ダッシュボード</a><span>データ更新：<b id="updated">—</b></span><span>画面の更新：<b id="loaded">—</b></span></div>
   <nav class="tabs">
     <button class="tab on" data-page="trade">短期トレード</button>
+    <button class="tab" data-page="hist">損益履歴</button>
     <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
@@ -228,14 +232,25 @@ header h1{padding-right:4px}
       <div class="note" id="tr-prev"></div><div id="tr-diff"></div>
       <div class="trrow"><button class="btn trbig trgo" id="tr-save" type="button">記録する</button><button class="btn" id="tr-cancel" type="button" style="display:none">訂正をやめる</button></div>
     </div></div>
-  <div class="box"><h2>根拠ごとの成績</h2><p class="note">どの根拠で入ったときに勝てているか。1回の取引に根拠が複数あれば、それぞれに数えます。</p><div class="wrap" id="tr-rstat"></div></div>
+  <div class="box"><h2>今日の損益</h2><div class="cards" id="tr-todaybox"></div>
+    <p><button class="btn" id="tr-gohist" type="button">📊 損益履歴を見る（今週・今月・今年・根拠ごとの成績）</button></p></div>
+  <div class="box only-main-box"><h2>短期トレードだけのページ</h2>
+    <p class="note">このタブと「損益履歴」だけを集めた単独のページもあります。Safari で開いて「共有 → ホーム画面に追加」すると、別のアプリ「短期トレード」として置けます。記録（損益・チェック）は同じ端末ならこのページと共通です。</p>
+    <p><a class="btn trbig" href="trade.html">短期トレードのページを開く</a></p></div>
+  <p class="note">このタブは、取引の前に自分の状態とルールを確かめるための道具で、売買を勧めるものではありません。</p>
+</section>
+
+<!-- ============ 損益履歴（2026-11-25 オーナー指定で短期トレードから分けた） ============ -->
+<section class="page" id="p-hist">
   <div class="cards" id="tr-sum"></div>
+  <div class="box"><h2>根拠ごとの成績</h2><p class="note">どの根拠で入ったときに勝てているか。1回の取引に根拠が複数あれば、それぞれに数えます。</p><div class="wrap" id="tr-rstat"></div></div>
+  
   <div class="box"><h2>日ごとの損益（直近30日）</h2><div class="chart" style="height:220px"><canvas id="tr-chart"></canvas></div></div>
   <div class="box"><h2>月ごとの損益（今年）</h2><div class="wrap" id="tr-month"></div></div>
   <div class="box"><h2>記録の一覧</h2><div class="wrap" id="tr-hist"></div>
     <p class="note" style="margin-top:8px">記録はこの端末（このブラウザ／ホーム画面のアプリ）の中だけに保存され、ほかの端末とは共有されません。機種変更などに備えて、ときどきCSVで保存してください。</p>
     <p><button class="btn" id="tr-csv" type="button">CSVで保存</button> <label class="btn">CSVを読み込む<input type="file" id="tr-import" accept=".csv,text/csv" hidden></label></p></div>
-  <p class="note">このタブは、取引の前に自分の状態とルールを確かめるための道具で、売買を勧めるものではありません。</p>
+  <p class="note">記録の入力・訂正は「短期トレード」タブの「損益を記録」で行います（一覧の「✎ 訂正」を押すと、そこへ移ります）。</p>
 </section>
 
 <!-- ============ シグナル ============ -->
@@ -2395,6 +2410,9 @@ function trDayTotals(rows) { const m = {}; rows.forEach(r => { m[r.date] = r.cum
 function renderTrade() {
   renderSched(); mountEvTv();
   renderTrCheck();
+  renderTrLog();
+}
+function renderTrLog() {   // 損益の集計・グラフ・一覧（損益履歴タブ）と、記録フォームの前回の合計
   const rows = trRows(), day = trDayTotals(rows), today = trToday();
   const dt = new Date(), mon = new Date(dt); mon.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
   const wk0 = isoD(mon), mo0 = today.slice(0, 8) + '01', yr0 = today.slice(0, 5) + '01-01';
@@ -2403,6 +2421,7 @@ function renderTrade() {
   const cardP = (lab, from) => { const v = sum(from), c = cnt(from);
     return card(lab, yen0(v), c.n ? `${c.n}回（勝ち${c.w}・負け${c.l}、勝率${Math.round(c.w / Math.max(1, c.w + c.l) * 100)}%）` : '記録なし', v > 0 ? 'pos' : v < 0 ? 'neg' : ''); };
   $('#tr-sum').innerHTML = cardP('今日', today) + cardP('今週（月曜から）', wk0) + cardP('今月', mo0) + cardP('今年', yr0);
+  $('#tr-todaybox').innerHTML = cardP('今日', today) + cardP('今週（月曜から）', wk0);
   // 入力フォーム（日付は今日。前回の合計を表示）
   const dsel = ($('#tr-date') && $('#tr-date').value) || today;
   const lastCum = TR_EDIT ? trPrevCum(dsel, $('#tr-time').value) : day[dsel];
@@ -2459,6 +2478,8 @@ function trSave() {
 function trStartEdit(id) {
   const r = trGet('trLog', []).find(x => x.id === id); if (!r) return;
   TR_EDIT = id;
+  if (!$('#p-trade').classList.contains('on')) $('.tab[data-page="trade"]').click();
+  setTimeout(() => $('#tr-editing').scrollIntoView({block: 'start'}), 50);
   $('#tr-date').value = r.date; $('#tr-time').value = r.t;
   const b = $('#tr-sign'); b.dataset.sign = r.cum < 0 ? '-' : '+'; b.textContent = r.cum < 0 ? '負け（−）' : '勝ち（＋）'; b.classList.toggle('neg', r.cum < 0);
   $('#tr-amt').value = Math.abs(r.cum); $('#tr-memo').value = r.memo || '';
@@ -2483,6 +2504,7 @@ document.addEventListener('click', e => {
   else if (e.target.closest('.trdel')) { const id = +e.target.closest('.trdel').dataset.id; if (confirm('この記録を削除しますか？')) { trSet('trLog', trGet('trLog', []).filter(r => r.id !== id)); if (TR_EDIT === id) trEndEdit(); else renderTrade(); } }
   else if (e.target.closest('.tredit')) trStartEdit(+e.target.closest('.tredit').dataset.id);
   else if (e.target.closest('#tr-cancel')) trEndEdit();
+  else if (e.target.closest('#tr-gohist')) { $('.tab[data-page="hist"]').click(); scrollTo(0, 0); }
   else if (e.target.closest('.trchip')) { const c = e.target.closest('.trchip'), g = c.parentElement;
     if (g.id === 'tr-dir' || g.id === 'trp-dir') { const was = c.classList.contains('on'); g.querySelectorAll('.trchip').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); } else c.classList.toggle('on');
     if (g.id.startsWith('trp-')) trPendingCheck();
@@ -2515,9 +2537,9 @@ document.addEventListener('change', e => {
 
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
-  $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade'].includes(on) ? 'none' : '';
-  $('#tape').style.display = on === 'trade' ? 'none' : '';   // 短期トレードのタブでは上部の相場（指数）を出さない
-  ({signal: renderSignal, trade: renderTrade, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade', 'hist'].includes(on) ? 'none' : '';
+  $('#tape').style.display = on === 'trade' || on === 'hist' ? 'none' : '';   // 短期トレードのタブでは上部の相場（指数）を出さない
+  ({signal: renderSignal, trade: renderTrade, hist: renderTrLog, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 
@@ -2606,7 +2628,7 @@ $('#tr-date').value = trToday();
     if (!ok || sx == null) return; ok = false;
     const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - st > 800) return;
-    const tabs = [...document.querySelectorAll('.tab')], k = tabs.findIndex(b => b.classList.contains('on'));
+    const tabs = [...document.querySelectorAll('.tab')].filter(b => getComputedStyle(b).display !== 'none'), k = tabs.findIndex(b => b.classList.contains('on'));
     const next = tabs[k + (dx < 0 ? 1 : -1)]; if (!next) return;
     next.click();
     next.scrollIntoView({inline: 'center', block: 'nearest', behavior: 'smooth'});
@@ -2630,7 +2652,7 @@ document.querySelectorAll('[data-csv]').forEach(b => b.addEventListener('click',
   if (k === 'nikkei') download('日経理論値', ['日付', '日経平均', 'PER', 'PBR', 'EPS', 'PER指数', 'EPS指数', 'PBR指数'], D.nikkei.map(r => [r.date, r.close, r.per_w, r.pbr_w, r.eps_w, r.per_i, r.eps_i, r.pbr_i]));
   if (k === 'investor') download('投資主体別', ['週末', ...ENT.map(e => e[1] + '(百万円)')], D.investor.map(r => [r.week_end, ...ENT.map(([k2]) => r[k2])]));
 }));
-if (location.hash) { const b = document.querySelector(`.tab[data-page="${location.hash.slice(1)}"]`); if (b) b.click(); }
+if (location.hash) { const b = document.querySelector(`.tab[data-page="${location.hash.slice(1)}"]`); if (b && getComputedStyle(b).display !== 'none') b.click(); }
 /* ---------------- 上部の相場（TradingView） ---------------- */
 const TAPE = [
   {proName: 'OANDA:JP225USD', title: '日経225'},
