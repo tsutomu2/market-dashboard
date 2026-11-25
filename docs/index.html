@@ -126,7 +126,7 @@ main .chart::after{content:'⤢';position:absolute;right:2px;bottom:0;font-size:
 header h1{padding-right:4px}
 @media (max-width:600px){
   header h1{font-size:calc(var(--fs)*14px)}.t-long{display:none}
-  .rl-t{display:none}.tab{padding:7px 6px 5px;font-size:calc(var(--fs)*12.5px)}.tabj{padding:3px 6px;font-size:calc(var(--fs)*12px);margin:0 1px}.tabbar{gap:4px}.tabs{padding-left:4px;gap:0}#reload{padding:4px 7px}
+  .rl-t{display:none}.tab{padding:7px 6px 5px;font-size:calc(var(--fs)*12.5px)}.tabj{padding:3px 6px;font-size:calc(var(--fs)*12px);margin:0 1px}.tabbar{gap:4px}.tabs{padding-left:4px;gap:0}#reload{padding:4px 7px}.tj-t{display:none}.tabj{font-size:calc(var(--fs)*15px);padding:1px 7px}
   .seg{display:flex;width:100%}.seg button{flex:1;padding:7px 2px;white-space:nowrap}
 }
 .perrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.perrow>span{font-size:calc(var(--fs)*13px);color:var(--muted)}.perrow .seg{margin-bottom:0}
@@ -168,6 +168,13 @@ header h1{padding-right:4px}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .muted{color:var(--muted)}
+.cfdform label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0;font-weight:600}.cfdform label span{display:flex;align-items:center;gap:6px;font-weight:400}
+.cfdform input{font:inherit;font-size:calc(var(--fs)*17px);width:9em;max-width:52vw;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);text-align:right}
+.cfdform details label{font-weight:400}.cfdform details input{width:5em}.cfdseg{margin-bottom:6px}
+.cfdres{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:10px 0}.cfdline{display:grid;grid-template-columns:auto 1fr;gap:0 12px;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line)}.cfdline:last-child{border-bottom:0}
+.cfdline span{font-weight:700}.cfdline b{font-size:calc(var(--fs)*22px);text-align:right;font-variant-numeric:tabular-nums}.cfdline small{grid-column:1/3;color:var(--muted);font-size:calc(var(--fs)*12.5px)}
+.cfdline.neg{background:var(--negbg)}.cfdline.neg span,.cfdline.neg b{color:var(--neg)}.cfdline.pos{background:var(--posbg)}.cfdline.pos span,.cfdline.pos b{color:var(--pos)}
+.cfdtab td,.cfdtab th{text-align:right;white-space:nowrap}.cfdtab tr.bad td{background:var(--negbg)}
 /* 短期トレードの「グラフ」「記録する」へ飛ぶボタン（2026-11-25 オーナー指定）。短期トレードのタブを開いているときだけ出す */
 .tabj{display:none;flex:none;align-self:center;border:1px solid var(--accent);background:var(--panel);color:var(--accent);border-radius:999px;padding:3px 8px;margin:0 2px;font:inherit;font-size:calc(var(--fs)*12.5px);font-weight:600;white-space:nowrap;cursor:pointer}
 body.on-trade .tabj{display:inline-block}
@@ -200,7 +207,7 @@ body.on-trade .tabj{display:inline-block}
 .trr1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.trrt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:calc(var(--fs)*13px)}
 .trrv{font-size:calc(var(--fs)*17px);font-variant-numeric:tabular-nums}.trrb{margin-left:auto;display:flex;gap:6px}.trrb .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}
 .trr2{font-size:calc(var(--fs)*13px);color:var(--muted);margin:2px 0}
-.app-trade .tab:not([data-page="trade"]):not([data-page="hist"]),.app-trade #tape,.app-trade #period-box{display:none!important}
+.app-trade .tab:not([data-page="trade"]):not([data-page="hist"]):not([data-page="cfd"]),.app-trade #tape,.app-trade #period-box{display:none!important}
 .app-trade .only-main,.app-trade .only-main-box{display:none}.only-trade{display:none}.app-trade .only-trade{display:inline}
 @keyframes swl{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}@keyframes swr{from{transform:translateX(-40px);opacity:.3}to{transform:none;opacity:1}}
 .page.swl{animation:swl .18s ease-out}.page.swr{animation:swr .18s ease-out}
@@ -216,7 +223,8 @@ body.on-trade .tabj{display:inline-block}
 <div class="tabbar"><nav class="tabs">
     <button class="tab on" data-page="trade">短期トレード</button>
     <button class="tab" data-page="hist">損益履歴</button>
-    <button class="tabj" data-jump="chart" type="button">📈 グラフ</button><button class="tabj" data-jump="rec" type="button">📝 記録</button>
+    <button class="tab" data-page="cfd">CFD計算</button>
+    <button class="tabj" data-jump="chart" type="button" title="グラフへ">📈<span class="tj-t"> グラフ</span></button><button class="tabj" data-jump="rec" type="button" title="記録へ">📝<span class="tj-t"> 記録</span></button>
     <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
@@ -261,6 +269,9 @@ body.on-trade .tabj{display:inline-block}
 </section>
 
 <!-- ============ 損益履歴（2026-11-25 オーナー指定で短期トレードから分けた） ============ -->
+<!-- ============ CFD計算（2026-11-25 オーナー指定） ============ -->
+<section class="page" id="p-cfd"><div class="box" id="cfd-box"></div></section>
+
 <section class="page" id="p-hist">
   <div class="box" id="tr-cloud"></div>
   <div class="cards" id="tr-sum"></div>
@@ -2515,6 +2526,89 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
         : ['BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']});
 }
 
+/* ---- CFD計算（2026-11-25 オーナー指定）：証拠金とロット数から、損切り・利確の目安を出す ----
+   楽天証券の日本225 CFD：1ロット＝指数×1円、必要証拠金＝想定元本の10%（レバレッジ10倍）。設定で変えられる。
+   損切り幅＝（資金 × 1回に許す損失の割合）÷（ロット数 × 1ロットの倍率）、利確幅＝損切り幅 × リスクリワード比。 */
+const CFD_DEF = {cap: 1000000, lots: 150, price: '', risk: 2, rr: 2, dir: 'buy', entry: '', mult: 1, mrate: 10, stopw: ''};
+const cfdGet = () => ({...CFD_DEF, ...(trGet('cfdCalc', {}) || {})});
+const yenS = v => fmt0.format(Math.round(v)) + '円';
+function cfdNikkei() { const t = techSeries(); return t.c.length ? {c: t.c[t.c.length - 1], d: t.dates[t.dates.length - 1], t} : null; }
+function renderCfd() {
+  const box = $('#cfd-box'); if (!box) return;
+  const v = cfdGet(), nk = cfdNikkei();
+  if (!box.dataset.built) { box.dataset.built = '1';
+    const seg = (k, list) => `<div class="seg cfdseg" data-k="${k}">${list.map(([x, l]) => `<button type="button" data-v="${x}" class="${String(v[k]) === String(x) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    box.innerHTML = `<h2>CFD計算（日経225 CFD）</h2>
+      <p class="note">証拠金（口座の資金）とロット数を入れると、1回の損失を資金の何%までにするかから、損切り・利確の値幅と値段を出します。</p>
+      <div class="cfdform">
+        <label>証拠金（口座の資金）<span><input type="number" inputmode="numeric" id="cfd-cap" value="${v.cap}">円</span></label>
+        <label>ロット数<span><input type="number" inputmode="decimal" id="cfd-lots" value="${v.lots}">ロット</span></label>
+        <label>今の値段（入る値段）<span><input type="number" inputmode="numeric" id="cfd-price" value="${v.price}" placeholder="${nk ? Math.round(nk.c) : ''}">円</span></label>
+        <div class="note" id="cfd-pnote"></div>
+        <div class="grp">入る方向</div>${seg('dir', [['buy', '買い（上がる）'], ['sell', '売り（下がる）']])}
+        <div class="grp">1回に許す損失（資金に対して）</div>${seg('risk', [[0.5, '0.5%'], [1, '1%'], [2, '2%'], [3, '3%']])}
+        <div class="grp">利確：損切りの何倍取るか</div>${seg('rr', [[1, '1倍'], [1.5, '1.5倍'], [2, '2倍'], [3, '3倍']])}
+        <details class="note"><summary>取引条件（楽天証券 日本225 CFD）</summary>
+          <label>1ロットの倍率<span><input type="number" inputmode="decimal" id="cfd-mult" value="${v.mult}">円（指数×この額）</span></label>
+          <label>証拠金率<span><input type="number" inputmode="decimal" id="cfd-mrate" value="${v.mrate}">%（10%＝レバレッジ10倍）</span></label>
+          <p>楽天証券の日本225は 1ロット＝指数×1円、証拠金率10%（2026年11月に確認）。日本225ミニは1ロット＝指数×0.1円です。条件が変わったら直してください。</p></details>
+      </div>
+      <div id="cfd-out"></div>
+      <h3>損切りの値幅を先に決めて、ロット数を出す</h3>
+      <div class="cfdform"><label>損切りの値幅<span><input type="number" inputmode="numeric" id="cfd-stopw" value="${v.stopw}" placeholder="例：200">円</span></label></div>
+      <div id="cfd-lotout"></div>
+      <p class="note">計算の目安で、売買を勧めるものではありません。実際の必要証拠金・ロスカットの条件は、楽天証券の画面で確かめてください。</p>`;
+  }
+  const num = id => +(($('#' + id) || {}).value || NaN);
+  const cap = num('cfd-cap'), lots = num('cfd-lots'), mult = num('cfd-mult') || 1, mrate = (num('cfd-mrate') || 10) / 100;
+  const price = num('cfd-price') || (nk ? nk.c : NaN), stopw = num('cfd-stopw');
+  const g = k => { const s = box.querySelector(`.cfdseg[data-k="${k}"] .on`); return s ? s.dataset.v : String(v[k]); };
+  const dir = g('dir'), risk = +g('risk'), rr = +g('rr');
+  trSet('cfdCalc', {cap: $('#cfd-cap').value, lots: $('#cfd-lots').value, price: $('#cfd-price').value, risk, rr, dir, mult: $('#cfd-mult').value, mrate: $('#cfd-mrate').value, stopw: $('#cfd-stopw').value});
+  $('#cfd-pnote').innerHTML = $('#cfd-price').value ? '' : (nk ? `空欄のときは日経平均の終値（${md(nk.d)}）${yenS(nk.c)}で計算します。今の CFD の値段を入れると正確になります。` : '');
+  const out = $('#cfd-out'), lo = $('#cfd-lotout');
+  if (!(cap > 0) || !(lots > 0) || !(price > 0)) { out.innerHTML = '<p class="note neg">証拠金・ロット数・値段を入れてください。</p>'; lo.innerHTML = ''; return; }
+  const perPt = lots * mult;                         // 1円動いたときの損益
+  const need = price * perPt * mrate;                // 必要証拠金
+  const room = cap - need;                           // 余裕（これを失うと証拠金不足）
+  const lossOk = cap * risk / 100, stop = lossOk / perPt, take = stop * rr;
+  const sgnDir = dir === 'buy' ? 1 : -1;
+  const stopP = price - sgnDir * stop, takeP = price + sgnDir * take;
+  const breakW = room / perPt;                       // 証拠金不足になる値幅
+  // 日経のふだんの動き（直近20日の終値の変化の平均）
+  let daily = NaN; if (nk) { const c = nk.t.c, n = c.length; let s = 0; for (let i = n - 20; i < n; i++) s += Math.abs(c[i] - c[i - 1]); daily = s / 20; }
+  const usage = need / cap * 100;
+  const warn = [];
+  if (need > cap) warn.push(`必要証拠金 ${yenS(need)} が資金を超えています。このロット数では入れません（最大 ${fmt0.format(Math.floor(cap / (price * mult * mrate)))} ロット）。`);
+  else if (usage > 50) warn.push(`資金の ${usage.toFixed(0)}% を証拠金に使っています。逆に <b>${fmt0.format(Math.round(breakW))}円</b> 動くだけで証拠金が足りなくなり、ロスカットされるおそれがあります。`);
+  if (stop < 30) warn.push(`損切り幅 ${fmt0.format(Math.round(stop))}円 は、ふだんの細かい値動き（数十円）で引っかかりやすい狭さです。ロット数を減らすと幅を広げられます。`);
+  if (stop > breakW && need <= cap) warn.push('損切りの前に証拠金が足りなくなります。ロット数を減らしてください。');
+  const rows = [100, 200, 300, 500, 1000, 2000].map(w => { const pl = w * perPt, pc = pl / cap * 100, after = cap - pl;
+    return `<tr class="${w <= stop + 0.5 ? '' : pl > room ? 'bad' : ''}"><td>${fmt0.format(w)}円</td><td class="neg">−${yenS(pl)}</td><td>${pc.toFixed(1)}%</td><td class="pos">+${yenS(pl)}</td><td>${pl > room ? '<b class="neg">証拠金不足</b>' : yenS(after)}</td></tr>`; }).join('');
+  out.innerHTML = `<div class="cards">
+      ${card('1円動くと', yenS(perPt), `${fmt0.format(lots)}ロット × ${mult}円`)}
+      ${card('必要証拠金', yenS(need), `資金の${usage.toFixed(0)}%（値段 ${yenS(price)} × ${fmt0.format(lots)}ロット × ${mult}円 × ${(mrate * 100).toFixed(0)}%）`)}
+    </div>
+    <div class="cfdres">
+      <div class="cfdline neg"><span>損切り</span><b>${yenS(stopP)}</b><small>入値から ${dir === 'buy' ? '−' : '+'}${fmt0.format(Math.round(stop))}円 ／ 損失 −${yenS(lossOk)}（資金の${risk}%）</small></div>
+      <div class="cfdline pos"><span>利確</span><b>${yenS(takeP)}</b><small>入値から ${dir === 'buy' ? '+' : '−'}${fmt0.format(Math.round(take))}円 ／ 利益 +${yenS(take * perPt)}（損切りの${rr}倍）</small></div>
+      <div class="cfdline"><span>入値</span><b>${yenS(price)}</b><small>${dir === 'buy' ? '買い' : '売り'}・${fmt0.format(lots)}ロット</small></div>
+    </div>
+    ${warn.map(w => `<div class="trmsg neg">⚠ ${w}</div>`).join('')}
+    ${isFinite(daily) ? `<p class="note">参考：日経平均の1日の動きは、直近20日の平均で約 ${fmt0.format(Math.round(daily))}円（終値どうしの差）。損切り幅 ${fmt0.format(Math.round(stop))}円 はその約${Math.round(stop / daily * 100)}%です。</p>` : ''}
+    <h3>値幅ごとの損益（${fmt0.format(lots)}ロット）</h3>
+    <div class="wrap"><table class="cfdtab"><thead><tr><th>動いた幅</th><th>逆に動いた損失</th><th>資金に対して</th><th>思いどおりの利益</th><th>損失後の資金</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">「損失後の資金」が「証拠金不足」の幅まで逆に動くと、ロスカット（強制決済）になるおそれがあります。</p>`;
+  if (stopw > 0) {
+    const ideal = lossOk / (stopw * mult), maxByMargin = cap / (price * mult * mrate);
+    const n = Math.max(0, Math.floor(Math.min(ideal, maxByMargin)));
+    lo.innerHTML = `<div class="cfdres"><div class="cfdline"><span>ロット数の目安</span><b>${fmt0.format(n)}ロット</b><small>損切り ${fmt0.format(stopw)}円 で損失を資金の${risk}%（${yenS(lossOk)}）に収める量${ideal > maxByMargin ? '（証拠金の上限で頭打ち）' : ''}。利確は ${fmt0.format(Math.round(stopw * rr))}円 先</small></div></div>`;
+  } else lo.innerHTML = '<p class="note">値幅を入れると、資金の何%までの損失に収まるロット数を出します。</p>';
+}
+document.addEventListener('input', e => { if (e.target.closest('#cfd-box input')) renderCfd(); });
+document.addEventListener('click', e => { const b = e.target.closest('.cfdseg button'); if (!b) return;
+  b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderCfd(); });
+
 /* ---- 損益の記録 ---- */
 function trRows() {
   // 日付・時刻順に並べ、同じ日の前回の合計との差を「この回の損益」にする
@@ -2760,9 +2854,9 @@ document.addEventListener('change', e => {
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
   document.body.classList.toggle('on-trade', on === 'trade');
-  $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade', 'hist'].includes(on) ? 'none' : '';
-  $('#tape').style.display = on === 'trade' || on === 'hist' ? 'none' : '';   // 短期トレードのタブでは上部の相場（指数）を出さない
-  ({signal: renderSignal, trade: renderTrade, hist: renderTrLog, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
+  $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade', 'hist', 'cfd'].includes(on) ? 'none' : '';
+  $('#tape').style.display = on === 'trade' || on === 'hist' || on === 'cfd' ? 'none' : '';   // 短期トレードのタブでは上部の相場（指数）を出さない
+  ({signal: renderSignal, trade: renderTrade, hist: renderTrLog, cfd: renderCfd, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
 }
 
 
