@@ -2084,7 +2084,6 @@ function renderTrCheck() {
         <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
         <div class="grp">根拠 <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="trp-rs">${trRsChips((trGet('trPending', {}) || {}).reasons || [])}</div>
         <div class="note" id="trp-msg"></div></div>
-      ${trClaudeHtml()}
       <div class="trapps" id="tr-apps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
       <p class="note">楽天証券のアプリ（App Store のページ）が開きます。インストール済みなら「開く」を押してください。取引が終わったら、下の「損益を記録」に入力します。</p>
       <button class="btn" id="tr-reset" type="button">チェックをやり直す</button>`;
@@ -2454,7 +2453,7 @@ function tr1mSumHtml() {
       ${j.it.filter(x => x[1] === 0).length ? `<br>● 注意：${j.it.filter(x => x[1] === 0).map(x => x[2]).join('／')}` : ''}</div>
     ${warn.map(w => `<p class="note neg">⚠ ${w}</p>`).join('')}
     <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「今回の根拠」に入れる</button><button class="btn" id="tr1m-clear" type="button">選び直す</button></div>
-    <p class="note" id="tr1m-msg">分足はすぐ変わるため、選んだ内容は30分たつと消えます。「3分足で判断」「日足で判断」の質問文にも入ります。</p>`;
+    <p class="note" id="tr1m-msg">分足はすぐ変わるため、選んだ内容は30分たつと消えます。</p>`;
 }
 function tr1mHtml() {
   const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
