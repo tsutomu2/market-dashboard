@@ -24,7 +24,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,Bli
 header{background:var(--bg);padding:6px 12px 2px}   /* 2026-11-25 オーナー指定：ヘッダーを細く。題名の行はスクロールで消え、タブの帯だけ上に固定 */
 h1{font-size:calc(var(--fs)*15px);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:calc(var(--fs)*12px);color:var(--muted)}
-.tabs{display:flex;gap:2px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:0 8px}
+.tabbar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 8px 0 0}
+.tabs{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;padding:0 0 0 8px}
 .tab{border:0;background:none;color:var(--muted);padding:7px 10px 5px;font-size:calc(var(--fs)*13.5px);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit}
 .tab.on{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
 main{max-width:1200px;margin:0 auto;padding:14px}
@@ -126,6 +127,7 @@ main .chart::after{content:'⤢';position:absolute;right:2px;bottom:0;font-size:
 header h1{padding-right:4px}
 @media (max-width:600px){
   header h1{font-size:calc(var(--fs)*14px)}.t-long{display:none}
+  .rl-t{display:none}.tab{padding:7px 6px 5px;font-size:calc(var(--fs)*12.5px)}.tabj{padding:3px 6px;font-size:calc(var(--fs)*12px);margin:0 1px}.tabbar{gap:4px}.tabs{padding-left:4px;gap:0}#reload{padding:4px 7px}
   .seg{display:flex;width:100%}.seg button{flex:1;padding:7px 2px;white-space:nowrap}
 }
 .perrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}.perrow>span{font-size:calc(var(--fs)*13px);color:var(--muted)}.perrow .seg{margin-bottom:0}
@@ -184,7 +186,7 @@ body.on-trade .tabj{display:inline-block}
 .trapps{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
 .trform{display:flex;flex-direction:column;gap:10px;max-width:520px}
 .trform input[type=date],.trform input[type=number],.trform input[type=text]{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
-.trrow{display:flex;gap:8px;align-items:center}.trrow input{flex:1;min-width:0}#tr-sign{font-weight:700;color:var(--pos);white-space:nowrap}#tr-sign.neg{color:var(--neg)}
+.trrow{display:flex;gap:8px;align-items:center}.trrow input{flex:1;min-width:0}.trrow label{display:flex;align-items:center;gap:6px;flex:1;min-width:0;white-space:nowrap}.trrow label input{width:100%;box-sizing:border-box}.trrow label:first-child{flex:1.35}#tr-sign{font-weight:700;color:var(--pos);white-space:nowrap}#tr-sign.neg{color:var(--neg)}
 #tr-diff{font-size:calc(var(--fs)*15px)}.trdel{padding:2px 8px}
 .trmat h3{font-size:calc(var(--fs)*15px);margin:14px 0 6px}
 .trbal{display:flex;align-items:center;gap:8px;font-weight:700;font-size:calc(var(--fs)*14px)}.trbar{flex:1;height:10px;border-radius:5px;background:var(--neg);overflow:hidden}.trbar i{display:block;height:100%;background:var(--pos)}
@@ -210,9 +212,9 @@ body.on-trade .tabj{display:inline-block}
 <script>/* 単独ページ（trade.html）では短期トレード・損益履歴だけを出す */ if (/trade\.html$/.test(location.pathname)) document.body.classList.add('app-trade');</script>
 <header>
   <div class="hrow"><a class="only-trade back" href="./" title="ダッシュボードへ戻る">←</a><h1><span class="only-main"><span class="t-long">マーケット</span>需給ダッシュボード</span><span class="only-trade">短期トレード</span></h1>
-    <div class="upd"><span>データ <b id="updated">—</b></span><span>画面 <b id="loaded">—</b></span></div><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻ 更新</button></div>
+    <div class="upd"><span>データ <b id="updated">—</b></span><span>画面 <b id="loaded">—</b></span></div></div>
 </header>
-<nav class="tabs">
+<div class="tabbar"><nav class="tabs">
     <button class="tab on" data-page="trade">短期トレード</button>
     <button class="tab" data-page="hist">損益履歴</button>
     <button class="tabj" data-jump="chart" type="button">📈 グラフ</button><button class="tabj" data-jump="rec" type="button">📝 記録</button>
@@ -224,7 +226,7 @@ body.on-trade .tabj{display:inline-block}
     <button class="tab" data-page="corr">連動指数</button>
     <button class="tab" data-page="nikkei">日経理論値</button>
     <button class="tab" data-page="investor">投資主体別</button>
-</nav>
+</nav><button class="btn" id="reload" type="button" title="最新のデータと画面を読み込み直します">↻<span class="rl-t"> 更新</span></button></div>
 <main>
 <div class="tape" id="tape"></div>
 <div class="err" id="err"></div>
