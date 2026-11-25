@@ -14,12 +14,23 @@
  *
  * 2026-11-25 版（v2）：記録を「取引（根拠と損益）」「今日の合計」「気づき」の3種類に分けた。シート「記録」に1件1行で入る。
  * 以前の版のシート「損益記録」は使わなくなる（消さずに残る。アプリの記録はつないだときに新しいシートへ送り直す）。
+ * 2026-11-25 追加：Google ドライブの trade_summary.json（Claude が毎朝作る振り返り）を読んで、一覧と一緒に返す。
+ *   初めてデプロイし直すとき、ドライブを読む許可を求められるので許可する。
  */
 const KEY = '';            // ← ここに合言葉を入れる
 const SHEET = '記録';
 const COLS = ['id', '日付', '時刻', '種類', '損益（円）', '方向', '根拠', 'メモ', '更新', '削除'];
 const KIND = {trade: '取引', day: '今日の合計', note: '気づき', old: '合計（旧形式）'};
 const KIND_R = Object.fromEntries(Object.entries(KIND).map(([k, v]) => [v, k]));
+const SUMMARY_FILE = 'trade_summary.json';   // 振り返り（Claude が毎朝ドライブに書く）
+
+function summary_() {
+  try {
+    const it = DriveApp.getFilesByName(SUMMARY_FILE); let f = null;
+    while (it.hasNext()) { const x = it.next(); if (!x.isTrashed() && (!f || x.getLastUpdated() > f.getLastUpdated())) f = x; }
+    return f ? JSON.parse(f.getBlob().getDataAsString('UTF-8')) : null;
+  } catch (err) { return null; }
+}
 
 function sheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -64,7 +75,9 @@ function doPost(e) {
       id: Number(v[0]), date: txt_(v[1], 'yyyy-MM-dd'), t: txt_(v[2], 'HH:mm'), k: KIND_R[v[3]] || 'trade', amt: Number(v[4]) || 0,
       dir: v[5] === '買い' ? 'buy' : v[5] === '売り' ? 'sell' : null, reasons: v[6] ? String(v[6]).split('／') : [],
       memo: String(v[7] || ''), u: Number(v[8]) || Number(v[0]), del: !!v[9]}));
-    return out_({ok: true, v: 2, rows: rows});
+    const res = {ok: true, v: 2, rows: rows};
+    if (q.op === 'list') res.summary = summary_();   // 振り返りは一覧のときだけ返す
+    return out_(res);
   } finally {
     lock.releaseLock();
   }

@@ -112,6 +112,9 @@ YouTube「Sho's投資情報局」（@SHO1112）の手法にもとづく。YouTub
 - 訂正・削除：記録の一覧（1件ずつの縦並び）の「✎ 訂正」でフォームに読み込み、「訂正する」で上書き（`TR_EDIT`、時刻も直せる。前回の合計は訂正中の記録を除き、その時刻より前の記録から計算）。「✕ 削除」は確認のうえ削除。CSVは方向・根拠の列も含む
 - 保存先は端末の localStorage（trLog、trChecks）。端末間で共有されないので、CSVで保存・読み込み（同じ日付・時刻・合計は重複させない）
 
+- 振り返り（Claudeのまとめ、2026-11-25 オーナー指定「1日1回まとめてアプリに表示」「同じ失敗を上位に」、`renderTrReview()`）：毎朝の定期タスク（Claude、6:23 JST、新しいセッションで実行、Google ドライブのコネクタ）がスプレッドシート「短期トレード損益」の「記録」を読み、気づき・負けた取引を失敗の種類に分けて数え、Google ドライブに `trade_summary.json`（{v, generated, day, headline, today{pnl,trades,wins,losses,notes}, mistakes[{name,count,last,rule,examples[]}], good[], rules[], advice[]}）を新しく作る（古い同名ファイルはごみ箱へ。Drive のコネクタは中身の書き換えができないため）。Apps Script（v2 のまま、op list のときだけ `summary` を付ける。DriveApp で同名の一番新しいファイルを読む）が返し、アプリは localStorage trSummary に保存。短期トレードタブの先頭（チェックの上、`#tr-mist`）に「⚠ 同じ失敗に注意」上位3つ、損益履歴タブ（`#tr-review`）に全部。トレードのメモは個人的な内容なので、公開ページ・リポジトリには置かない（合言葉でつないだ端末だけに出る）
+  - スプレッドシートは ID 1C-VAYJXRkPBZE4J1Epwj5jX-scWaonOSbWbNWl8cMIY（オーナーのドライブ）。最初のまとめは 2026-11-25 に手で作成。読みやすい版としてGoogleドキュメント「トレード振り返り（Claudeのまとめ）」も1回だけ作成（自動更新はしない）
+
 ## SHO動画の自動取り込み（2026-11-21 追加）
 - 流れ：①オーナーのPC（Claude デスクトップアプリの定期タスク、毎日18:00と1:00、2026-11-21 オーナー指定）が内蔵ブラウザで @SHO1112 の新しい動画を NotebookLM に追加し、Googleドキュメント「SHO最新動画_YYYY-MM-DD」に保存 → ②このセッションの定時タスクがドライブから読んで取り込む（平日18:40＝AIコメントと一緒：trig_01Fe999kpsUfWeGtgSgSXsYh、毎日1:40＝取り込みだけ：trig_01Y1pggFQoc8coTxj18pDNLf）
 - PC側の定期タスクは、PCのClaudeアプリで直接作る必要がある（クラウドのセッションから作ろうとしたが、PCのフォルダが「クラウドからは使えない」状態で失敗した。2026-11-21）

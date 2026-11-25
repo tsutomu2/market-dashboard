@@ -199,7 +199,7 @@ body.on-trade .tabj{display:inline-flex}
 .trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
-#p-trade.trgate>*:not(#tr-check){display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
+#p-trade.trgate>*:not(#tr-check):not(#tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
 .rsed{border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0 10px;background:var(--bg)}
 .rsrow{display:flex;gap:6px;align-items:center;margin:5px 0}.rsrow input[type=text]{flex:1;min-width:0;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
@@ -208,6 +208,11 @@ body.on-trade .tabj{display:inline-flex}
 .trmsg{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:calc(var(--fs)*15px);line-height:1.6}.trmsg.neg{background:var(--negbg)}.trmsg.pos{background:var(--posbg)}
 .trapps{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
 .trform{display:flex;flex-direction:column;gap:10px;max-width:520px}
+/* 振り返り（Claudeのまとめ、1日1回）・同じ失敗（2026-11-25 オーナー指定） */
+.mistl{list-style:none;padding:0;margin:6px 0}.mistl li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.mistn{flex:0 0 auto;min-width:46px;text-align:center;font-weight:700;color:#fff;background:var(--neg);border-radius:8px;padding:3px 6px;font-size:calc(var(--fs)*13px)}
+.mistl .mrule{color:var(--accent);font-size:calc(var(--fs)*13px)}.mistl .mex{color:var(--muted);font-size:calc(var(--fs)*12px)}
+#tr-mist{border-color:var(--neg)}#tr-mist h2{color:var(--neg)}
 .trform textarea{font:inherit;font-size:calc(var(--fs)*16px);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);resize:vertical}
 /* 記録の種類（2026-11-25 オーナー指定）：取引＝根拠と損益／今日の合計／気づき を別々に記録 */
 .trmode{display:grid;grid-template-columns:1fr 1fr 1fr;width:100%;box-sizing:border-box;margin-bottom:6px}.trmode button{padding:8px 4px;line-height:1.3;font-weight:700}.trmode small{font-weight:400;font-size:calc(var(--fs)*11px)}
@@ -271,6 +276,7 @@ body.on-trade .tabj{display:inline-flex}
 <section class="page on" id="p-trade">
   <div class="box" id="tr-sched"><div id="tr-sched-main"></div>
   </div>
+  <div class="box" id="tr-mist"></div>
   <div class="box" id="tr-check"></div>
   <div class="box" id="tr-recbox" data-mode="trade"><h2>記録する</h2>
     <div class="seg trmode"><button type="button" data-mode="trade">取引<br><small>根拠と損益</small></button><button type="button" data-mode="day">今日の合計<br><small>損益トータル</small></button><button type="button" data-mode="note">気づき<br><small>コメント</small></button></div>
@@ -299,6 +305,7 @@ body.on-trade .tabj{display:inline-flex}
 
 <section class="page" id="p-hist">
   <div class="box" id="tr-cloud"></div>
+  <div class="box" id="tr-review"></div>
   <div class="cards" id="tr-sum"></div><p class="note neg" id="tr-sum-note"></p>
   <div class="box"><h2>根拠ごとの成績</h2><p class="note">どの根拠で入ったときに勝てているか。1回の取引に根拠が複数あれば、それぞれに数えます。</p><div class="wrap" id="tr-rstat"></div></div>
   
@@ -2696,6 +2703,7 @@ function renderTrade() {
   renderTrLog();
 }
 function renderTrLog() {   // 損益の集計・グラフ・一覧（損益履歴タブ）と、記録フォームの前回の合計
+  renderTrReview();
   if ($('#tr-cloud') && !$('#tr-cloud').innerHTML) $('#tr-cloud').innerHTML = trCloudHtml();
   if ($('#p-hist').classList.contains('on') && Date.now() - TR_SYNC_T > 60000) { TR_SYNC_T = Date.now(); trSync(); }
   const rows = trRows(), day = trDayTotals(rows), today = trToday();
@@ -2776,6 +2784,7 @@ async function trCloudCall(body) {
   const r = await fetch(c.url, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify({key: c.key, ...body})});
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || '失敗しました');
+  if (body.op === 'list') { if ('summary' in j) { trSet('trSummary', j.summary || null); trSet('trSummaryOk', 1); } else trSet('trSummaryOk', 0); }   // まとめ（Apps Script が Drive の trade_summary.json を返す）
   if (j.v !== 2) throw new Error('スプレッドシートのプログラムが古い形式です。「プログラムをコピー」で新しいものを貼り直し、「デプロイ → デプロイを管理 → 編集（鉛筆）→ バージョン：新バージョン → デプロイ」で反映してください');
   return j.rows || [];
 }
@@ -2808,12 +2817,37 @@ async function trSync(manual) {
     c.last = Date.now(); trSet('trCloud', c);
     trSyncMsg(`<span class="pos">✓ スプレッドシートと同期済み（${new Date().toTimeString().slice(0, 5)}、${out.length}件${push.length ? `・${push.length}件を送信` : ''}）</span>`);
     if (changed || manual) { renderTrLog(); }
+    renderTrReview();
   } catch (e) {
     trSyncMsg(`<span class="neg">スプレッドシートと同期できませんでした：${String(e.message || e).replace(/[<>&]/g, '')}。記録はこの端末には保存されています（あとで自動でもう一度送ります）。</span>`);
   } finally {
     TR_SYNCING = false;
     if (TR_SYNC_AGAIN) { TR_SYNC_AGAIN = false; trSync(); }
   }
+}
+/* ---- 振り返り（Claudeのまとめ、1日1回）（2026-11-25 オーナー指定「1日1回まとめてアプリに表示」「同じ失敗を上位に」） ----
+   毎朝の定期タスク（Claude）がスプレッドシートの記録・気づきを読み、Google ドライブの trade_summary.json に書く。
+   Apps Script（op list）がそのファイルを読んで返し、アプリは localStorage trSummary に保存して表示する。
+   トレードのメモは個人的な内容なので、公開ページ・リポジトリには置かない（合言葉でつないだ端末だけに出る）。 */
+function renderTrReview() {
+  const sm = trGet('trSummary', null), on = trCloud().url && trCloud().key, okv = trGet('trSummaryOk', 0);
+  const esc = v => String(v ?? '').replace(/[<>&]/g, c => ({'<': '&lt;', '>': '&gt;', '&': '&amp;'}[c]));
+  const ms = (sm && Array.isArray(sm.mistakes) ? sm.mistakes : []).slice().sort((a, b) => (b.count || 0) - (a.count || 0) || String(b.last || '').localeCompare(String(a.last || '')));
+  const li = (m, ex) => `<li><span class="mistn">${m.count || 0}回</span><div><b>${esc(m.name)}</b>${m.last ? ` <small class="muted">最後 ${md(m.last)}</small>` : ''}${m.rule ? `<div class="mrule">→ ${esc(m.rule)}</div>` : ''}${ex && (m.examples || []).length ? `<div class="mex">${m.examples.slice(0, 2).map(esc).join('<br>')}</div>` : ''}</div></li>`;
+  const mi = $('#tr-mist');
+  if (mi) mi.innerHTML = ms.length ? `<h2>⚠ 同じ失敗に注意（多い順）</h2><ul class="mistl">${ms.slice(0, 3).map(m => li(m, false)).join('')}</ul><p class="note">${esc(sm.day ? md(sm.day) + 'までの記録から、Claude が毎朝まとめています。' : '')}くわしくは「損益履歴」の振り返り。</p>` : '';
+  const rv = $('#tr-review'); if (!rv) return;
+  if (!sm) { rv.innerHTML = `<h2>振り返り（Claudeのまとめ）</h2><p class="note">${!on ? 'スプレッドシートにつなぐと、毎朝 Claude がまとめた振り返り（同じ失敗の多い順など）がここに出ます。' : okv ? 'まだまとめがありません（毎朝6時半ごろに作成）。' : 'スプレッドシートのプログラムを新しくすると、ここに振り返りが出ます（「プログラムをコピー」で貼り直し、新バージョンでデプロイ）。'}</p>`; return; }
+  const ul = a => (a || []).length ? `<ul class="trli">${a.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  const t = sm.today || {};
+  rv.innerHTML = `<h2>振り返り（Claudeのまとめ・${esc(sm.day ? ymd(sm.day) : '')}）</h2>
+    ${sm.headline ? `<p><b>${esc(sm.headline)}</b></p>` : ''}
+    ${t.pnl != null ? `<p class="note">この日の損益 <b class="${t.pnl >= 0 ? 'pos' : 'neg'}">${yen0(t.pnl)}</b>${t.trades != null ? `・取引${t.trades}回（勝ち${t.wins || 0}・負け${t.losses || 0}）` : ''}${t.notes != null ? `・気づき${t.notes}件` : ''}</p>` : ''}
+    ${ms.length ? `<div class="grp">同じ失敗（これまでの記録から、多い順）</div><ul class="mistl">${ms.map(m => li(m, true)).join('')}</ul>` : ''}
+    ${(sm.rules || []).length ? `<div class="grp">次に試すルール</div>${ul(sm.rules)}` : ''}
+    ${(sm.good || []).length ? `<div class="grp">うまくいったこと</div>${ul(sm.good)}` : ''}
+    ${(sm.advice || []).length ? `<div class="grp">記録のしかた</div>${ul(sm.advice)}` : ''}
+    <p class="note">作成：${esc(sm.generated || '')}。記録とメモを整理したもので、売買を勧めるものではありません。</p>`;
 }
 function trCloudHtml() {
   const c = trCloud(), on = c.url && c.key;
