@@ -2547,7 +2547,7 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
     const s = document.createElement('script'); s.async = true; s.src = src; s.textContent = JSON.stringify(cfg); c.appendChild(s); box.appendChild(c); };
   put('tr-1m', 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',
     {symbol: 'OANDA:JP225USD', interval: TR_TF, timezone: 'Asia/Tokyo', style: '1', locale: 'ja', autosize: true, theme: dark ? 'dark' : 'light',
-      allow_symbol_change: false, hide_side_toolbar: true,
+      allow_symbol_change: false, hide_side_toolbar: true, hide_volume: true,   // 出来高は出さない（2026-11-25 オーナー指定）
       // 線の種類（2026-11-25）：5つ全部を一度に指定すると、無料の埋め込みでは後ろの指標（ボリンジャー・MACD・RSI）が出なかった。
       // そのため「ボリンジャー＋MACD＋RSI」（実機で表示を確認済み）と「移動平均線5・25本＋MACD＋RSI」を切り替える
       // 2026-11-25 オーナー指定で「移動平均線3本（5・25・75）」を追加（日本でよく使われる組み合わせ）。実機での表示は未確認
