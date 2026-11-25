@@ -163,6 +163,10 @@ header h1{padding-right:4px}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .muted{color:var(--muted)}
+.rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
+.rsed{border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0 10px;background:var(--bg)}
+.rsrow{display:flex;gap:6px;align-items:center;margin:5px 0}.rsrow input[type=text]{flex:1;min-width:0;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
+.rsrow .btn{padding:5px 8px;flex:0 0 auto;font-size:calc(var(--fs)*12px)}.rsrow{gap:4px}.rsrow input[type=text]{font-size:calc(var(--fs)*14px)}
 #tr-cloud{overflow-wrap:anywhere}#tr-cloud input{width:100%;box-sizing:border-box;margin:4px 0}
 .trmsg{padding:12px 14px;border-radius:10px;margin:10px 0;font-size:calc(var(--fs)*15px);line-height:1.6}.trmsg.neg{background:var(--negbg)}.trmsg.pos{background:var(--posbg)}
 .trapps{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0}
@@ -228,7 +232,7 @@ header h1{padding-right:4px}
       <div class="trmsg" id="tr-editing" style="display:none"></div>
       <div class="trrow"><label>日付 <input type="date" id="tr-date"></label><label>時刻 <input type="time" id="tr-time"></label></div>
       <div><div class="grp">入った方向</div><div class="trchips" id="tr-dir"></div></div>
-      <div><div class="grp">入った根拠（あてはまるものを全部）</div><div class="trchips" id="tr-rs"></div></div>
+      <div><div class="grp">入った根拠（あてはまるものを全部） <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="tr-rs"></div></div>
       <div class="trrow"><button class="btn" id="tr-sign" data-sign="+" type="button">勝ち（＋）</button><input type="number" id="tr-amt" inputmode="numeric" min="0" step="1" placeholder="今日の合計（円）"><span>円</span></div>
       <input type="text" id="tr-memo" placeholder="メモ（銘柄・根拠・反省など、なくても可）">
       <div class="note" id="tr-prev"></div><div id="tr-diff"></div>
@@ -1960,6 +1964,46 @@ const TR_REASONS = ['MACDのクロス（分足）', 'MACDのクロス（日足�
 const trChips = (list, sel, single) => list.map(x => { const [v, l] = Array.isArray(x) ? x : [x, x];
   return `<button type="button" class="trchip${(single ? sel === v : (sel || []).includes(v)) ? ' on' : ''}" data-v="${v}">${l}</button>`; }).join('');
 const chipVals = el => [...el.querySelectorAll('.trchip.on')].map(b => b.dataset.v);
+/* ---- 根拠の一覧を編集（2026-11-25 オーナー指定）：追加・名前の変更・削除・並べ替え。localStorage trReasons に保存 ----
+   名前を変えたときは、過去の記録の根拠も同じ名前に置き換えられる（根拠ごとの成績がつながるように）。 */
+const trReasons = () => { const v = trGet('trReasons', null); return Array.isArray(v) && v.length ? v : TR_REASONS.slice(); };
+const trRsChips = sel => { const L = trReasons(), extra = (sel || []).filter(x => !L.includes(x)); return trChips([...L, ...extra], sel || []); };
+let TR_RSED = null, TR_RSBOX = null;   // 編集中の一覧 [{name, orig}] と、それを出している枠
+function trRsEdHtml() {
+  const esc = v => String(v).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  return `<div class="rsed"><div class="grp">根拠の一覧を編集</div>
+    <p class="note">名前を直す・↑↓で並べ替え・✕で外す・下で追加して、「保存」を押します。</p>
+    ${TR_RSED.map((x, i) => `<div class="rsrow"><input type="text" class="rsname" data-i="${i}" value="${esc(x.name)}" maxlength="40">
+      <button class="btn rsmv" data-i="${i}" data-d="-1" type="button" ${i ? '' : 'disabled'}>↑</button><button class="btn rsmv" data-i="${i}" data-d="1" type="button" ${i < TR_RSED.length - 1 ? '' : 'disabled'}>↓</button><button class="btn rsdel" data-i="${i}" type="button">✕</button></div>`).join('')}
+    <div class="rsrow"><input type="text" id="rs-new" placeholder="新しい根拠（例：一目均衡表の雲抜け）" maxlength="40"><button class="btn" id="rs-add" type="button">＋ 追加</button></div>
+    <label class="note"><input type="checkbox" id="rs-rename" checked> 名前を変えた根拠は、過去の記録の根拠も新しい名前にする</label>
+    <div class="trrow"><button class="btn trgo" id="rs-save" type="button">保存</button><button class="btn" id="rs-cancel" type="button">やめる</button><button class="btn" id="rs-reset" type="button">最初の一覧に戻す</button></div>
+    <div class="note" id="rs-msg"></div></div>`;
+}
+function trRsEdOpen(box) { TR_RSED = trReasons().map(n => ({name: n, orig: n})); TR_RSBOX = box; trRsEdDraw(); }
+function trRsEdDraw() { document.querySelectorAll('.rsedbox').forEach(b => { b.innerHTML = TR_RSED && b === TR_RSBOX ? trRsEdHtml() : ''; }); }
+function trRsEdRead() { document.querySelectorAll('.rsedbox .rsname').forEach(inp => { const x = TR_RSED[+inp.dataset.i]; if (x) x.name = inp.value; }); }
+function trRsEdSave() {
+  trRsEdRead();
+  const names = TR_RSED.map(x => x.name.trim().replace(/[,／]/g, '・')).filter(Boolean);
+  if (new Set(names).size !== names.length) { document.querySelectorAll('#rs-msg').forEach(m => { m.innerHTML = '<span class="neg">同じ名前が2つあります。</span>'; }); return; }
+  if (!names.length) { document.querySelectorAll('#rs-msg').forEach(m => { m.innerHTML = '<span class="neg">根拠を1つ以上残してください。</span>'; }); return; }
+  const ren = {}; TR_RSED.forEach(x => { const n = x.name.trim().replace(/[,／]/g, '・'); if (x.orig && n && n !== x.orig) ren[x.orig] = n; });
+  trSet('trReasons', names);
+  let changed = 0;
+  if (Object.keys(ren).length && $('#rs-rename') && $('#rs-rename').checked) {
+    const L = trGet('trLog', []), now = Date.now();
+    L.forEach(r => { if ((r.reasons || []).some(k => ren[k])) { r.reasons = r.reasons.map(k => ren[k] || k); r.u = now; changed++; } });
+    trSet('trLog', L);
+    const p = trGet('trPending', {}) || {}; if (p.reasons) { p.reasons = p.reasons.map(k => ren[k] || k); trSet('trPending', p); }
+  }
+  // 選んでいる根拠を残したまま、チップを並べ直す
+  const keep = id => { const el = $(id); if (!el) return; const sel = chipVals(el).map(k => ren[k] || k); el.innerHTML = trRsChips(sel); };
+  keep('#tr-rs'); keep('#trp-rs');
+  TR_RSED = null; trRsEdDraw();
+  if (changed) { renderTrLog(); trSync(); }
+  if ($('#trp-rs')) trPendingCheck();
+}
 let TR_EDIT = null;   // 訂正中の記録のid
 const TR_APPS = [
   ['iSPEED（株）を開く', 'https://apps.apple.com/jp/app/id389339704'],
@@ -2019,7 +2063,7 @@ function renderTrCheck() {
       ${trMaterialsHtml()}
       <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">入る方向と根拠（2つ以上）を選ぶと、アプリを開くボタンが押せるようになります。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
         <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
-        <div class="grp">根拠</div><div class="trchips" id="trp-rs">${trChips(TR_REASONS, (trGet('trPending', {}) || {}).reasons || [])}</div>
+        <div class="grp">根拠 <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="trp-rs">${trRsChips((trGet('trPending', {}) || {}).reasons || [])}</div>
         <div class="note" id="trp-msg"></div></div>
       ${trClaudeHtml()}
       <div class="trapps" id="tr-apps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
@@ -2042,7 +2086,7 @@ function trFormFill(rec) {
   // 記録フォームに値を入れる（rec が無ければ、今日の「今回の根拠」を初期値に）
   const pend = trGet('trPending', {}) || {}, src = rec || (pend.date === trToday() ? pend : {});
   $('#tr-dir').innerHTML = trChips(TR_DIRS, src.dir, true);
-  $('#tr-rs').innerHTML = trChips(TR_REASONS, src.reasons || []);
+  $('#tr-rs').innerHTML = trRsChips(src.reasons || []);
 }
 
 /* ---- アプリを開く前の「上げ下げの判断材料」 ----
@@ -2385,7 +2429,7 @@ function tr1mAdd() {
   const dir = pend.dir || (j.dir === 'buy' || j.dir === 'sell' ? j.dir : null);
   trSet('trPending', {date: trToday(), dir, reasons: rs});
   const d = $('#trp-dir'), r = $('#trp-rs');
-  if (d && r) { d.innerHTML = trChips(TR_DIRS, dir, true); r.innerHTML = trChips(TR_REASONS, rs); trPendingCheck(); }
+  if (d && r) { d.innerHTML = trChips(TR_DIRS, dir, true); r.innerHTML = trRsChips(rs); trPendingCheck(); }
   else if (!TR_EDIT) trFormFill();
   $('#tr1m-msg').innerHTML = `<span class="pos">「今回の根拠」に入れました：${add.join('、') || '（分類できる根拠なし）'}${!pend.dir && dir ? `／方向：${dir === 'buy' ? '買い' : '売り'}` : ''}</span>${d ? '' : '<br>チェックを通過すると、根拠の欄に入った状態で表示されます。'}`;
 }
@@ -2586,6 +2630,13 @@ document.addEventListener('click', e => {
   else if (e.target.closest('.trdel')) { const id = +e.target.closest('.trdel').dataset.id; if (confirm('この記録を削除しますか？')) { trSet('trLog', trGet('trLog', []).filter(r => r.id !== id)); const dl = trGet('trDel', {}) || {}; dl[id] = Date.now(); trSet('trDel', dl); trSync(); if (TR_EDIT === id) trEndEdit(); else renderTrade(); } }
   else if (e.target.closest('.tredit')) trStartEdit(+e.target.closest('.tredit').dataset.id);
   else if (e.target.closest('#tr-cancel')) trEndEdit();
+  else if (e.target.closest('.rsedbtn')) { if (TR_RSED) { TR_RSED = null; trRsEdDraw(); } else { const bx = e.target.closest('.grp').nextElementSibling; trRsEdOpen(bx); setTimeout(() => bx.scrollIntoView({block: 'nearest'}), 30); } }
+  else if (e.target.closest('.rsmv')) { trRsEdRead(); const b = e.target.closest('.rsmv'), i = +b.dataset.i, j = i + +b.dataset.d; [TR_RSED[i], TR_RSED[j]] = [TR_RSED[j], TR_RSED[i]]; trRsEdDraw(); }
+  else if (e.target.closest('.rsdel')) { trRsEdRead(); TR_RSED.splice(+e.target.closest('.rsdel').dataset.i, 1); trRsEdDraw(); }
+  else if (e.target.closest('#rs-add')) { trRsEdRead(); const v = (e.target.closest('.rsed').querySelector('#rs-new').value || '').trim(); if (v) { TR_RSED.push({name: v, orig: null}); trRsEdDraw(); } }
+  else if (e.target.closest('#rs-save')) trRsEdSave();
+  else if (e.target.closest('#rs-cancel')) { TR_RSED = null; trRsEdDraw(); }
+  else if (e.target.closest('#rs-reset')) { if (confirm('根拠の一覧を最初の12個に戻しますか？（過去の記録はそのまま）')) { TR_RSED = TR_REASONS.map(n => ({name: n, orig: null})); trRsEdDraw(); } }
   else if (e.target.closest('#tr-cloud-save')) trCloudSave();
   else if (e.target.closest('#tr-sync-now')) trSync(true);
   else if (e.target.closest('#tr-sync-off')) { if (confirm('この端末でスプレッドシートとつなぐのをやめますか？（シートの記録は消えません。この端末の記録も残ります）')) { trSet('trCloud', {}); $('#tr-cloud').innerHTML = trCloudHtml(); } }
