@@ -174,7 +174,7 @@ header h1{padding-right:4px}
 #modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;padding:12px}#modal.on{display:flex}
 .mdbox{background:var(--panel);color:var(--fg);border-radius:16px;width:100%;max-width:560px;max-height:80vh;overflow:auto;padding:14px 16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 .mdhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:calc(var(--fs)*17px)}#md-close{padding:4px 10px}
-.sttab tr[data-st]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;cursor:context-menu}
+.sttab tr[data-st]{cursor:pointer}.sttab tr[data-st]:active td{background:var(--hl)}
 @media (min-width:601px){#modal{align-items:center}}
 .cfdform label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0;font-weight:600}.cfdform label span{display:flex;align-items:center;gap:6px;font-weight:400}
 .cfdform input{font:inherit;font-size:calc(var(--fs)*17px);width:9em;max-width:52vw;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);text-align:right}
@@ -2408,7 +2408,7 @@ function renderSched() {
     <div class="stleg"><span><i class="stt"></i>取引時間（日経先物）</span><span><i class="stc"></i>注意</span><span><i class="sta"></i>避けたい</span><span><i class="sto"></i>休み</span><span><b class="stnow2"></b>今</span></div>
     ${(() => { const near = sc.pt.filter(x => x[0] >= m && x[0] <= m + 120), nx = sc.pt.find(x => x[0] > m + 120);
       const list = TR_SCHED_ALL ? sc.pt : near;
-      return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div><p class="note" style="margin:0">行を長押しすると、その時間の注意点が出ます。</p>`
+      return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div><p class="note" style="margin:0">行をタップすると、その時間の注意点が出ます。</p>`
         + (list.length ? `<div class="wrap"><table class="sttab"><tbody>${list.map(row).join('')}</tbody></table></div>`
           : `<p class="note">この2時間に予定はありません。${nx ? `次は ${hm(nx[0])} ${nx[1]}（あと${inMin(nx[0] - m)}）` : '今日の予定はもうありません'}。</p>`)
         + `<p><button class="btn" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : `▼ 展開して今日の予定をすべて表示（${sc.pt.length}件）`}</button></p>`; })()}
@@ -2416,7 +2416,7 @@ function renderSched() {
     <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>3日以内に重要な予定はありません</li>'}</ul>`;
 }
 
-/* ---- 時間割の行を長押し → その時刻の説明をポップアップ（2026-11-25 オーナー指定。以前の「避けたい・注意の時間帯」一覧の代わり） ---- */
+/* ---- 時間割の行をタップ → その時刻の説明をポップアップ（2026-11-25 オーナー指定。以前の「避けたい・注意の時間帯」一覧の代わり） ---- */
 const ST_KIND = {open: ['寄り', '取引が始まる時刻です。注文がまとめて出て、値が大きく動きやすいところです。'],
   close: ['引け', '取引が終わる時刻です。引けにかけて注文が集中し、値が飛ぶことがあります。'],
   ev: ['発表', '経済指標などが発表される時刻です（発表がある日だけ）。予想との差で値が飛ぶことがあります。'],
@@ -2437,17 +2437,7 @@ function openModal(title, html) {
   $('#md-title').textContent = title; $('#md-body').innerHTML = html; m.classList.add('on');
 }
 addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal')) $('#modal').classList.remove('on'); });
-(() => {   // 長押し（0.5秒）。指が動いたら取り消し。PC は右クリックでも開く
-  let tm = null, sx = 0, sy = 0;
-  const start = (e, x, y) => { const r = e.target.closest('.sttab tr[data-st]'); if (!r) return; sx = x; sy = y; clearTimeout(tm);
-    tm = setTimeout(() => { tm = null; if (navigator.vibrate) navigator.vibrate(15); stExplain(+r.dataset.st); }, 500); };
-  const cancel = () => { clearTimeout(tm); tm = null; };
-  document.addEventListener('touchstart', e => { if (e.touches.length === 1) start(e, e.touches[0].clientX, e.touches[0].clientY); }, {passive: true});
-  document.addEventListener('touchmove', e => { if (tm && Math.hypot(e.touches[0].clientX - sx, e.touches[0].clientY - sy) > 10) cancel(); }, {passive: true});
-  document.addEventListener('touchend', cancel); document.addEventListener('touchcancel', cancel);
-  document.addEventListener('mousedown', e => start(e, e.clientX, e.clientY)); document.addEventListener('mouseup', cancel);
-  document.addEventListener('contextmenu', e => { const r = e.target.closest('.sttab tr[data-st]'); if (r) { e.preventDefault(); cancel(); stExplain(+r.dataset.st); } });
-})();
+document.addEventListener('click', e => { const r = e.target.closest('.sttab tr[data-st]'); if (r) stExplain(+r.dataset.st); });   // 行をタップで説明（2026-11-25 オーナー指定で長押しから変更）
 function mountEvTv() {
   const box = document.getElementById('tr-evtv'); if (!box || box.dataset.on) return; box.dataset.on = '1';
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
