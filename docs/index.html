@@ -171,6 +171,11 @@ header h1{padding-right:4px}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .muted{color:var(--muted)}
+#modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;padding:12px}#modal.on{display:flex}
+.mdbox{background:var(--panel);color:var(--fg);border-radius:16px;width:100%;max-width:560px;max-height:80vh;overflow:auto;padding:14px 16px 18px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.mdhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:calc(var(--fs)*17px)}#md-close{padding:4px 10px}
+.sttab tr[data-st]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;cursor:context-menu}
+@media (min-width:601px){#modal{align-items:center}}
 .cfdform label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0;font-weight:600}.cfdform label span{display:flex;align-items:center;gap:6px;font-weight:400}
 .cfdform input{font:inherit;font-size:calc(var(--fs)*17px);width:9em;max-width:52vw;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);text-align:right}
 .cfdform details label{font-weight:400}.cfdform details input{width:5em}.cfdseg{margin-bottom:6px}
@@ -2394,8 +2399,7 @@ function renderSched() {
     : `<div class="trmsg ${st.trading ? 'pos' : ''}"><b>${st.trading ? '今は取引時間中で、避けたい時間帯ではありません' : '今は日経先物の取引時間外です'}</b>${st.nextBad ? `<br><small>次の避けたい時間帯：${hm(st.nextBad[0])}〜 ${st.nextBad[3]}（あと${inMin(st.nextBad[0] - m)}）</small>` : ''}</div>`;
   const row = x => { const past = x[0] < m, kind = {open: '寄り', close: '引け', ev: '発表', big: '重要'}[x[2]];
     const av = sc.sp.find(y => y[2] === 'avoid' && y[0] <= x[0] && x[0] < y[1]);
-    return `<tr class="${past ? 'past' : ''}${x[2] === 'big' ? ' big' : ''}"><td class="num">${hm(x[0])}</td><td><span class="stk ${x[2]}">${kind}</span></td><td>${x[1]}${av ? `<br><small class="neg">避ける：${hm(av[0])}〜${hm(av[1])}</small>` : ''}</td></tr>`; };
-  const avoidList = sc.sp.filter(x => x[2] === 'avoid' || x[2] === 'care').sort((a, b) => a[0] - b[0]);
+    return `<tr class="${past ? 'past' : ''}${x[2] === 'big' ? ' big' : ''}" data-st="${x[0]}"><td class="num">${hm(x[0])}</td><td><span class="stk ${x[2]}">${kind}</span></td><td>${x[1]}${av ? `<br><small class="neg">避ける：${hm(av[0])}〜${hm(av[1])}</small>` : ''}</td></tr>`; };
   const up = upcomingEvents(sc.s, 3).filter(x => x[0] > sc.s);   // 3日以内（2026-11-25 オーナー指定）
   box.innerHTML = `<h2>今日の時間割（${+sc.s.slice(5, 7)}/${+sc.s.slice(8)}（${W}）朝8時〜翌朝6時・日本時間）</h2>
     ${sc.notes.map(t => `<div class="trmsg warnbox">${t}</div>`).join('')}
@@ -2404,15 +2408,46 @@ function renderSched() {
     <div class="stleg"><span><i class="stt"></i>取引時間（日経先物）</span><span><i class="stc"></i>注意</span><span><i class="sta"></i>避けたい</span><span><i class="sto"></i>休み</span><span><b class="stnow2"></b>今</span></div>
     ${(() => { const near = sc.pt.filter(x => x[0] >= m && x[0] <= m + 120), nx = sc.pt.find(x => x[0] > m + 120);
       const list = TR_SCHED_ALL ? sc.pt : near;
-      return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div>`
+      return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div><p class="note" style="margin:0">行を長押しすると、その時間の注意点が出ます。</p>`
         + (list.length ? `<div class="wrap"><table class="sttab"><tbody>${list.map(row).join('')}</tbody></table></div>`
           : `<p class="note">この2時間に予定はありません。${nx ? `次は ${hm(nx[0])} ${nx[1]}（あと${inMin(nx[0] - m)}）` : '今日の予定はもうありません'}。</p>`)
         + `<p><button class="btn" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : `▼ 展開して今日の予定をすべて表示（${sc.pt.length}件）`}</button></p>`; })()}
-    <h3>避けたい・注意の時間帯</h3>
-    <ul class="trli">${avoidList.map(x => `<li class="${x[1] <= m ? 'past' : ''}"><b class="${x[2] === 'avoid' ? 'neg' : ''}">${x[2] === 'avoid' ? '避ける' : '注意'} ${hm(x[0])}〜${hm(x[1])}</b> ${x[3]}<br><small>${x[4] || ''}</small></li>`).join('') || '<li>なし</li>'}</ul>
     <h3>この先の重要な予定（3日以内）</h3>
     <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>3日以内に重要な予定はありません</li>'}</ul>`;
 }
+
+/* ---- 時間割の行を長押し → その時刻の説明をポップアップ（2026-11-25 オーナー指定。以前の「避けたい・注意の時間帯」一覧の代わり） ---- */
+const ST_KIND = {open: ['寄り', '取引が始まる時刻です。注文がまとめて出て、値が大きく動きやすいところです。'],
+  close: ['引け', '取引が終わる時刻です。引けにかけて注文が集中し、値が飛ぶことがあります。'],
+  ev: ['発表', '経済指標などが発表される時刻です（発表がある日だけ）。予想との差で値が飛ぶことがあります。'],
+  big: ['重要', '相場を大きく動かす重要な発表です。前後は値が飛びやすく、損切りが思った値段でできないことがあります。']};
+function stExplain(t) {
+  const st = schedNow(), sc = st.sc, p = sc.pt.find(x => x[0] === t); if (!p) return;
+  const spans = sc.sp.filter(x => (x[2] === 'avoid' || x[2] === 'care') && x[0] <= t && t <= x[1]).sort((a, b) => (a[2] === 'avoid' ? 0 : 1) - (b[2] === 'avoid' ? 0 : 1));
+  const k = ST_KIND[p[2]] || ['', ''];
+  openModal(`${hm(t)}　${p[1]}`, `<p><span class="stk ${p[2]}">${k[0]}</span> ${k[1]}</p>`
+    + (spans.length ? spans.map(x => `<div class="trmsg ${x[2] === 'avoid' ? 'neg' : 'warnbox'}"><b>${x[2] === 'avoid' ? '避ける' : '注意'} ${hm(x[0])}〜${hm(x[1])}　${x[3]}</b>${x[4] ? `<br><small>${x[4]}</small>` : ''}</div>`).join('')
+      : '<p class="note">この時刻に、避けたい・注意の時間帯はありません。</p>')
+    + (t < st.m ? '<p class="note">この時刻はもう過ぎています。</p>' : `<p class="note">あと${inMin(t - st.m)}</p>`));
+}
+function openModal(title, html) {
+  let m = $('#modal');
+  if (!m) { m = document.createElement('div'); m.id = 'modal'; m.innerHTML = '<div class="mdbox" role="dialog" aria-modal="true"><div class="mdhead"><b id="md-title"></b><button class="btn" id="md-close" type="button">✕</button></div><div id="md-body"></div></div>';
+    document.body.appendChild(m); m.addEventListener('click', e => { if (e.target === m || e.target.closest('#md-close')) m.classList.remove('on'); }); }
+  $('#md-title').textContent = title; $('#md-body').innerHTML = html; m.classList.add('on');
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal')) $('#modal').classList.remove('on'); });
+(() => {   // 長押し（0.5秒）。指が動いたら取り消し。PC は右クリックでも開く
+  let tm = null, sx = 0, sy = 0;
+  const start = (e, x, y) => { const r = e.target.closest('.sttab tr[data-st]'); if (!r) return; sx = x; sy = y; clearTimeout(tm);
+    tm = setTimeout(() => { tm = null; if (navigator.vibrate) navigator.vibrate(15); stExplain(+r.dataset.st); }, 500); };
+  const cancel = () => { clearTimeout(tm); tm = null; };
+  document.addEventListener('touchstart', e => { if (e.touches.length === 1) start(e, e.touches[0].clientX, e.touches[0].clientY); }, {passive: true});
+  document.addEventListener('touchmove', e => { if (tm && Math.hypot(e.touches[0].clientX - sx, e.touches[0].clientY - sy) > 10) cancel(); }, {passive: true});
+  document.addEventListener('touchend', cancel); document.addEventListener('touchcancel', cancel);
+  document.addEventListener('mousedown', e => start(e, e.clientX, e.clientY)); document.addEventListener('mouseup', cancel);
+  document.addEventListener('contextmenu', e => { const r = e.target.closest('.sttab tr[data-st]'); if (r) { e.preventDefault(); cancel(); stExplain(+r.dataset.st); } });
+})();
 function mountEvTv() {
   const box = document.getElementById('tr-evtv'); if (!box || box.dataset.on) return; box.dataset.on = '1';
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
