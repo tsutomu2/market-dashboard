@@ -289,7 +289,7 @@ body.on-trade .tabj{display:inline-flex}
 
 <section class="page" id="p-hist">
   <div class="box" id="tr-cloud"></div>
-  <div class="cards" id="tr-sum"></div>
+  <div class="cards" id="tr-sum"></div><p class="note neg" id="tr-sum-note"></p>
   <div class="box"><h2>根拠ごとの成績</h2><p class="note">どの根拠で入ったときに勝てているか。1回の取引に根拠が複数あれば、それぞれに数えます。</p><div class="wrap" id="tr-rstat"></div></div>
   
   <div class="box"><h2>日ごとの損益（直近30日）</h2><div class="chart" style="height:220px"><canvas id="tr-chart"></canvas></div></div>
@@ -2652,10 +2652,18 @@ document.addEventListener('click', e => { const b = e.target.closest('.cfdseg bu
 /* ---- 損益の記録 ---- */
 function trRows() {
   // 日付・時刻順に並べ、同じ日の前回の合計との差を「この回の損益」にする
-  const L = trGet('trLog', []).slice().sort((a, b) => (a.date + a.t).localeCompare(b.date + b.t) || a.id - b.id);
+  // 日付・時刻の書き方の違い（2026/11/25、11:5 など）をそろえてから計算する（そろっていないと今日・今月の集計から外れるため）
+  const L = trGet('trLog', []).map(r => ({...r, date: trNormD(r.date, r.id), t: trNormT(r.t), cum: Number(r.cum) || 0}))
+    .sort((a, b) => (a.date + a.t).localeCompare(b.date + b.t) || a.id - b.id);
   const prev = {};
   return L.map(r => { const p = prev[r.date] ?? 0; prev[r.date] = r.cum; return {...r, diff: r.cum - p}; });
 }
+function trNormD(d, id) {   // いろいろな書き方の日付を YYYY-MM-DD に。読めなければ記録した時刻（id）の日付
+  const m = String(d ?? '').trim().match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  return id ? isoD(new Date(Number(id))) : String(d ?? '');
+}
+function trNormT(t) { const m = String(t ?? '').match(/(\d{1,2})\D+(\d{1,2})/); return m ? `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}` : String(t ?? ''); }
 function trDayTotals(rows) { const m = {}; rows.forEach(r => { m[r.date] = r.cum; }); return m; }   // その日の最後の合計＝その日の損益
 let TR_SYNC_T = 0;
 function renderTrade() {
@@ -2675,6 +2683,9 @@ function renderTrLog() {   // 損益の集計・グラフ・一覧（損益履�
   const cardP = (lab, from) => { const v = sum(from), c = cnt(from);
     return card(lab, yen0(v), c.n ? `${c.n}回（勝ち${c.w}・負け${c.l}、勝率${Math.round(c.w / Math.max(1, c.w + c.l) * 100)}%）` : '記録なし', v > 0 ? 'pos' : v < 0 ? 'neg' : ''); };
   $('#tr-sum').innerHTML = cardP('今日', today) + cardP('今週（月曜から）', wk0) + cardP('今月', mo0) + cardP('今年', yr0);
+  // 集計に入らない記録（今年以外・先の日付）があれば、日付を出して知らせる
+  const out = rows.filter(x => !(x.date >= yr0 && x.date <= today));
+  $('#tr-sum-note').innerHTML = out.length ? `今年の集計に入っていない記録が${out.length}件あります（日付：${[...new Set(out.map(x => x.date))].slice(0, 5).join('、')}${out.some(x => x.date > today) ? '。先の日付があります' : ''}）。日付が違う場合は、下の一覧の「✎ 訂正」で直してください。` : '';
   $('#tr-todaybox').innerHTML = cardP('今日', today) + cardP('今週（月曜から）', wk0);
   // 入力フォーム（日付は今日。前回の合計を表示）
   const dsel = ($('#tr-date') && $('#tr-date').value) || today;
@@ -2694,7 +2705,7 @@ function renderTrLog() {   // 損益の集計・グラフ・一覧（損益履�
   const rev = rows.slice().reverse().slice(0, 60);
   const esc = v => String(v || '').replace(/[<>&]/g, c => ({'<': '&lt;', '>': '&gt;', '&': '&amp;'}[c]));
   $('#tr-hist').innerHTML = rev.length ? rev.map(r =>
-    `<div class="trrec${TR_EDIT === r.id ? ' hl' : ''}"><div class="trr1"><span class="trrt">${md(r.date)} ${r.t}</span><b class="trrv ${r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : ''}">${yen0(r.diff)}</b>` +
+    `<div class="trrec${TR_EDIT === r.id ? ' hl' : ''}"><div class="trr1"><span class="trrt">${r.date.slice(0, 4) === today.slice(0, 4) && r.date <= today ? md(r.date) : r.date.replace(/-/g, '/')} ${r.t}</span><b class="trrv ${r.diff > 0 ? 'pos' : r.diff < 0 ? 'neg' : ''}">${yen0(r.diff)}</b>` +
     `<span class="trrb"><button class="btn tredit" data-id="${r.id}" type="button">✎ 訂正</button><button class="btn trdel" data-id="${r.id}" type="button">✕ 削除</button></span></div>` +
     `<div class="trr2">その時点の合計 ${yen0(r.cum)}${r.dir ? `・<b>${r.dir === 'buy' ? '買い' : '売り'}</b>` : ''}</div>` +
     `${(r.reasons || []).length ? `<div>${r.reasons.map(x => `<span class="trtag">${x.replace(/（.*/, '')}</span>`).join('')}</div>` : ''}${r.memo ? `<div class="trr2">${esc(r.memo)}</div>` : ''}</div>`).join('') : '<p class="note">まだ記録がありません。</p>';
