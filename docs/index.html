@@ -166,6 +166,10 @@ header h1{padding-right:4px}
 .trmsg.warnbox{background:var(--warn);color:var(--warnfg)}.stev summary{cursor:pointer;color:var(--accent);margin:8px 0}
 .trask{display:flex;gap:8px;align-items:stretch;margin:10px 0 4px}.trask .trclaude{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3}.trask .trclaude small{font-size:calc(var(--fs)*12px);font-weight:400;opacity:.85}.trask .trcopy{flex:0 0 auto}
 .muted{color:var(--muted)}
+/* 短期トレードの「グラフ」「記録する」へ飛ぶボタン（2026-11-25 オーナー指定）。短期トレードのタブを開いているときだけ出す */
+.tabj{display:none;flex:none;align-self:center;border:1px solid var(--accent);background:var(--panel);color:var(--accent);border-radius:999px;padding:3px 8px;margin:0 2px;font:inherit;font-size:calc(var(--fs)*12.5px);font-weight:600;white-space:nowrap;cursor:pointer}
+body.on-trade .tabj{display:inline-block}
+.trtfseg,#tr-recbox,#tr-check{scroll-margin-top:52px}
 .trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
@@ -210,6 +214,7 @@ header h1{padding-right:4px}
 <nav class="tabs">
     <button class="tab on" data-page="trade">短期トレード</button>
     <button class="tab" data-page="hist">損益履歴</button>
+    <button class="tabj" data-jump="chart" type="button">📈 グラフ</button><button class="tabj" data-jump="rec" type="button">📝 記録</button>
     <button class="tab" data-page="sho">SHO手法で判断</button>
     <button class="tab" data-page="signal">シグナル</button>
     <button class="tab" data-page="chart">チャート</button>
@@ -2693,6 +2698,11 @@ document.addEventListener('click', e => {
   else if (e.target.closest('.tredit')) trStartEdit(+e.target.closest('.tredit').dataset.id);
   else if (e.target.closest('#tr-cancel')) trEndEdit();
   else if (e.target.closest('#tr-1m-fs')) openFs(`日経225（${tfName(TR_TF)}・MACD・ボリンジャー・RSI）`, 'tv-tr');
+  else if (e.target.closest('.tabj')) {
+    const to = e.target.closest('.tabj').dataset.jump, pg = $('#p-trade');
+    if (to === 'rec') { if (pg.classList.contains('trgate')) pg.classList.add('trrec'); $('#tr-recbox').scrollIntoView({behavior: 'smooth', block: 'start'}); setTimeout(() => $('#tr-amt').focus({preventScroll: true}), 450); }
+    else { const t = $('.trtfseg'); if (t && !pg.classList.contains('trgate')) t.scrollIntoView({behavior: 'smooth', block: 'start'});
+      else { $('#tr-check').scrollIntoView({behavior: 'smooth', block: 'start'}); const n = $('#tr-check .trn'); if (n && !$('#tr-jumpmsg')) n.insertAdjacentHTML('afterend', '<p class="note neg" id="tr-jumpmsg">グラフはチェックを通過すると表示されます。</p>'); } } }
   else if (e.target.closest('#tr-sched-all')) { TR_SCHED_ALL = !TR_SCHED_ALL; renderSched(); }
   else if (e.target.closest('#tr-reconly')) { const pg = $('#p-trade'); pg.classList.toggle('trrec'); if (pg.classList.contains('trrec')) $('#tr-recbox').scrollIntoView({block: 'start'}); }
   else if (e.target.closest('.rsedbtn')) { if (TR_RSED) { TR_RSED = null; trRsEdDraw(); } else { const bx = e.target.closest('.grp').nextElementSibling; trRsEdOpen(bx); setTimeout(() => bx.scrollIntoView({block: 'nearest'}), 30); } }
@@ -2747,6 +2757,7 @@ document.addEventListener('change', e => {
 
 function renderAll() {
   const on = (document.querySelector('.tab.on') || {}).dataset?.page;
+  document.body.classList.toggle('on-trade', on === 'trade');
   $('#period-box').style.display = ['signal', 'sho', 'chart', 'trade', 'hist'].includes(on) ? 'none' : '';
   $('#tape').style.display = on === 'trade' || on === 'hist' ? 'none' : '';   // 短期トレードのタブでは上部の相場（指数）を出さない
   ({signal: renderSignal, trade: renderTrade, hist: renderTrLog, sho: renderShoPage, chart: renderChart, margin: renderMargin, tech: renderTech, corr: renderCorr, nikkei: renderNikkei, investor: renderInvestor}[on] || renderSignal)();
