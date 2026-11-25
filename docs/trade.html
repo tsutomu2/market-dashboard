@@ -2093,10 +2093,7 @@ function renderTrCheck() {
       <div class="trmat"><h3>今回の根拠をチェック</h3><p class="note">アプリを開く前に、入る方向と根拠（2つ以上）を選びましょう（選ばずに開くときは確認が出ます）。選んだ内容は、下の「損益を記録」に自動で入ります。</p>
         <div class="grp">入る方向</div><div class="trchips" id="trp-dir">${trChips(TR_DIRS, (trGet('trPending', {}) || {}).dir, true)}</div>
         <div class="grp">根拠 <button class="btn rsedbtn" type="button">✎ 根拠を編集</button></div><div class="rsedbox"></div><div class="trchips" id="trp-rs">${trRsChips((trGet('trPending', {}) || {}).reasons || [])}</div>
-        <div class="note" id="trp-msg"></div></div>
-      <div class="trapps" id="tr-apps">${TR_APPS.map(([l, u]) => `<a class="btn trbig trgo" href="${u}" target="_blank" rel="noopener">${l}</a>`).join('')}</div>
-      <p class="note">楽天証券のアプリ（App Store のページ）が開きます。インストール済みなら「開く」を押してください。取引が終わったら、下の「損益を記録」に入力します。</p>
-      <button class="btn" id="tr-reset" type="button">チェックをやり直す</button>`;
+        <div class="note" id="trp-msg" style="display:none"></div></div>`;   // 根拠の注意・アプリのボタン・やり直しは削除（2026-11-25 オーナー指定。アプリのボタンは時間割の一番下）
     trMountTv();
     trPendingCheck();
   }
@@ -2113,7 +2110,7 @@ function trPendingCheck() {
   const d = $('#trp-dir'), r = $('#trp-rs'); if (!d || !r) return;
   const dir = chipVals(d)[0] || null, rs = chipVals(r), ok = dir && rs.length >= 2;
   trSet('trPending', {date: trToday(), dir, reasons: rs});
-  $('#tr-apps').classList.toggle('trlock', !ok);
+  if ($('#tr-apps')) $('#tr-apps').classList.toggle('trlock', !ok);
   trSchedApps();
   $('#trp-msg').innerHTML = ok ? `<span class="pos">OK：${rs.length}つの根拠で${dir === 'buy' ? '買い' : '売り'}。</span>` : `<span class="neg">${!dir ? '方向を選んでください。' : ''}${rs.length < 2 ? `根拠をあと${2 - rs.length}つ以上選んでください。` : ''}</span>`;
   if (!TR_EDIT) trFormFill();
