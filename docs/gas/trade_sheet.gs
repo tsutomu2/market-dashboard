@@ -45,7 +45,9 @@ function sheet_() {
   return s;
 }
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-function txt_(v, fmt) { return v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), fmt) : String(v); }
+function txt_(v, fmt) {   // シートが日付・時刻に変えたセルも YYYY-MM-DD・HH:mm の文字で返す（instanceof Date が効かないことがあるため型名で見る）
+  return Object.prototype.toString.call(v) === '[object Date]' ? Utilities.formatDate(v, Session.getScriptTimeZone(), fmt) : String(v);
+}
 
 function doGet() { return out_({ok: true, v: 2, app: 'trade-sheet', note: 'POST で使います'}); }
 
@@ -65,8 +67,9 @@ function doPost(e) {
         const row = [String(r.id), r.date, r.t, KIND[r.k] || KIND.trade, r.k === 'note' ? '' : Number(r.amt) || 0,
           r.dir === 'buy' ? '買い' : r.dir === 'sell' ? '売り' : '', (r.reasons || []).join('／'), r.memo || '', Number(r.u || r.id), r.del ? 1 : ''];
         const n = idx[String(r.id)];
-        if (n) s.getRange(n, 1, 1, row.length).setValues([row]);
-        else { s.appendRow(row); idx[String(r.id)] = s.getLastRow(); }
+        if (!n) { s.appendRow(['']); n = s.getLastRow(); idx[String(r.id)] = n; }
+        s.getRange(n, 1, 1, 3).setNumberFormat('@');   // id・日付・時刻は文字のまま（日付や時刻に変換させない）
+        s.getRange(n, 1, 1, row.length).setValues([row]);
       });
       const last = s.getLastRow();   // 日付・時刻順に並べ直す
       if (last > 2) s.getRange(2, 1, last - 1, COLS.length).sort([{column: 2, ascending: true}, {column: 3, ascending: true}]);

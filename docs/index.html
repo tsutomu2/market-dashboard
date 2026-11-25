@@ -198,7 +198,7 @@ body.on-trade .tabj{display:inline-flex}
 .trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
-#p-trade.trgate>*:not(#tr-check):not(#tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
+#p-trade.trgate>*:not(#tr-check, #tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
 .rsed{border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0 10px;background:var(--bg)}
 .rsrow{display:flex;gap:6px;align-items:center;margin:5px 0}.rsrow input[type=text]{flex:1;min-width:0;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg)}
@@ -2682,12 +2682,18 @@ function trRows() {
 }
 const trIsTrade = r => r.k === 'trade' || r.k === 'old';   // 勝ち負け・根拠ごとの成績に数える記録
 const TR_KIND = {trade: '取引', day: '今日の合計', note: '気づき', old: '合計（旧形式）'};
+const TR_MON = {Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12};
 function trNormD(d, id) {   // いろいろな書き方の日付を YYYY-MM-DD に。読めなければ記録した時刻（id）の日付
+  const e = String(d ?? '').match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? (\d{1,2}),? (\d{4})/);   // スプレッドシートが日付に変えて返した「Wed Nov 25 2026 00:00:00 GMT+0900」の形（2026-11-25）
+  if (e) return `${e[3]}-${String(TR_MON[e[1]]).padStart(2, '0')}-${e[2].padStart(2, '0')}`;
   const m = String(d ?? '').trim().match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
   if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
   return id ? isoD(new Date(Number(id))) : String(d ?? '');
 }
-function trNormT(t) { const m = String(t ?? '').match(/(\d{1,2})\D+(\d{1,2})/); return m ? `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}` : String(t ?? ''); }
+function trNormT(t) {   // 「Sat Dec 30 1899 19:32:00 GMT+0918」の形も時:分を取る
+  const m = String(t ?? '').match(/(\d{1,2}):(\d{2})/) || String(t ?? '').match(/(\d{1,2})\D+(\d{1,2})/);
+  return m ? `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}` : String(t ?? '');
+}
 function trDayTotals(rows) {   // その日の損益：「今日の合計」の記録があればその値、無ければ取引の損益の合計（以前の形式はその日の最後の合計）
   const tot = {}, sum = {}, old = {};
   rows.forEach(r => { if (r.k === 'day') tot[r.date] = r.amt; else if (r.k === 'trade') sum[r.date] = (sum[r.date] || 0) + r.amt; else if (r.k === 'old') old[r.date] = r.amt; });
@@ -2790,10 +2796,17 @@ async function trCloudCall(body) {
 function trSyncMsg(html) { const m = $('#tr-sync-msg'); if (m) m.innerHTML = html; const b = $('#tr-sync-badge'); if (b) b.innerHTML = html; }
 // シートとの受け渡しの形：{id, k（trade/day/note/old）, date, t, amt, dir, reasons, memo, u, del}。以前の形式（k なし）は k:'old'、amt＝その時点の合計
 const trToSheet = r => ({id: r.id, k: r.k || 'old', date: r.date, t: r.t, amt: Number(r.k ? r.amt : r.cum) || 0, dir: r.dir || null, reasons: r.reasons || [], memo: r.memo || '', u: r.u || r.id});
-const trFromSheet = r => { const b = {id: r.id, date: r.date, t: r.t, memo: r.memo || '', dir: r.dir || null, reasons: r.reasons || [], u: r.u};
+const trFromSheet = r => { const b = {id: r.id, date: trNormD(r.date, r.id), t: trNormT(r.t), memo: r.memo || '', dir: r.dir || null, reasons: r.reasons || [], u: r.u};
   return r.k === 'old' || !r.k ? {...b, cum: Number(r.amt) || 0} : {...b, k: r.k, amt: Number(r.amt) || 0}; };
+function trFixDates() {   // 2026-11-25：シートから日付・時刻が長い英語の形で戻り「0/0 30:18」と出た記録を直す（直した記録は更新時刻を付けてシートにも送り直す）
+  const L = trGet('trLog', []); let n = 0;
+  L.forEach(r => { const d = trNormD(r.date, r.id), t = trNormT(r.t); if (d !== r.date || t !== r.t) { r.date = d; r.t = t; r.u = Date.now(); n++; } });
+  if (n) trSet('trLog', L);
+  return n;
+}
 async function trSync(manual) {
   const c = trCloud(); if (!c.url || !c.key) return;
+  trFixDates();
   if (TR_SYNCING) { TR_SYNC_AGAIN = true; return; }
   TR_SYNCING = true; trSyncMsg('<span class="muted">スプレッドシートと同期中…</span>');
   try {
@@ -2915,6 +2928,7 @@ function trStartEdit(id) {
   $('#tr-editing').style.display = ''; $('#tr-editing').innerHTML = `<b>訂正中：</b>${md(trNormD(r.date, r.id))} の「${TR_KIND[r.k || 'old']}」の記録。直して「訂正する」を押してください。`;
   $('#tr-save').textContent = '訂正する'; $('#tr-cancel').style.display = '';
   renderTrade();
+  const pg = $('#p-trade'); if (pg.classList.contains('trgate')) pg.classList.add('trrec');   // チェック前でも訂正の欄を出す（2026-11-25 オーナー指摘「訂正もできません」）
   setTimeout(() => $('#tr-editing').scrollIntoView({block: 'center'}), 50);
 }
 function trEndEdit() {
@@ -3091,7 +3105,7 @@ $('#ch-tv-fs').addEventListener('click', () => openFs($('#ch-tv-t').textContent,
 
 /* ---------------- UI ---------------- */
 $('#i-checks').innerHTML = ENT.map(([k, l], i) => `<label><input type="checkbox" id="chk-${k}" ${i < 3 ? 'checked' : ''}> ${l}</label>`).join('');
-$('#tr-date').value = trToday(); trApplyMode();
+trFixDates(); $('#tr-date').value = trToday(); trApplyMode();
 /* スマホ：画面を左右にスワイプしてタブを切り替える。
    横に60px以上・縦の動きの1.5倍以上で切り替え。グラフ・横スクロールする表・入力欄・全画面表示・地図などの上では切り替えない */
 (() => {
