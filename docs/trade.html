@@ -169,6 +169,14 @@ header h1{padding-right:4px}
 .stnow{position:absolute;top:-2px;bottom:-2px;width:3px;margin-left:-1px;background:var(--accent)}
 .sttick{position:relative;height:16px;font-size:calc(var(--fs)*11px);color:var(--muted)}.sttick span{position:absolute;transform:translateX(-50%)}.sttick span:first-child{transform:none}
 .stleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:calc(var(--fs)*12px);color:var(--muted);margin:4px 0 8px}.stleg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+/* 値動きのクセ（トレンド／レンジ／荒れやすい）（2026-11-25 オーナー指定） */
+.flbar{position:relative;height:18px;border-radius:6px;background:var(--line);overflow:hidden;margin:4px 0 2px}.flbar i{position:absolute;top:0;bottom:0}
+.fl-trend{background:#3b82f6}.fl-range{background:#8b93a7}.fl-wild{background:#ec4899}.fl-off{background:var(--line)}
+.stleg i.fl-trend{background:#3b82f6}.stleg i.fl-range{background:#8b93a7}.stleg i.fl-wild{background:#ec4899}
+.flnow{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0 4px}.flnow .flh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}.flbar .stnow{background:var(--fg);width:3px}
+.flnow .flk{flex:0 0 auto;color:#fff;font-weight:700;border-radius:8px;padding:3px 10px;font-size:calc(var(--fs)*14px)}
+.flnow.trend{border-color:#3b82f6}.flnow.range{border-color:#8b93a7}.flnow.wild{border-color:#ec4899}
+.fllist{width:100%;border-collapse:collapse;font-size:calc(var(--fs)*13px)}.fllist td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}.fllist tr.now td{background:var(--hl)}.fllist tr.past{opacity:.55}
 .stleg i.stt{background:var(--posbg);border:1px solid var(--pos)}.stleg i.stc{background:#e6b54a}.stleg i.sta{background:var(--neg)}.stleg i.sto{background:var(--line)}.stnow2{display:inline-block;width:3px;height:12px;background:var(--accent);margin-right:4px;vertical-align:-1px}
 .sttab{width:100%}.sttab td{padding:5px 6px;vertical-align:top;text-align:left;white-space:normal}.sttab td:first-child,.sttab td:nth-child(2){white-space:nowrap;width:1%}.sttab tr.past{opacity:.45}.sttab tr.big td{font-weight:700}.trli li.past{opacity:.45}
 .stk{display:inline-block;font-size:calc(var(--fs)*11px);padding:1px 7px;border-radius:999px;background:var(--line);white-space:nowrap}.stk.big{background:var(--neg);color:#fff}.stk.open{background:var(--posbg);color:var(--pos)}.stk.close{background:var(--negbg);color:var(--neg)}
@@ -2413,6 +2421,41 @@ function schedText() {   // Claude の質問文・チェックの質問に添え
   if (big.length) out.push('今日の重要発表：' + big.join('、'));
   return out.join('。');
 }
+/* ---- 値動きのクセ：トレンドになりやすい・レンジになりやすい時間（2026-11-25 オーナー指定） ----
+   日経平均（先物・CFD）でよく言われる一般的な傾向を時間帯で並べた目安（このアプリのデータで数えた統計ではない）。
+   欧州（ロンドン8時）と米国（指標・NY寄り）の時刻は夏時間で1時間ずれる。実際にどちらかはチャート（ボリンジャーの幅・高値安値）で確かめる。 */
+function euDst(s) { const y = +s.slice(0, 4); return s >= uymd(lastDow(y, 2, 0)) && s < uymd(lastDow(y, 9, 0)); }
+const FL_NAME = {trend: 'トレンドになりやすい', range: 'レンジになりやすい', wild: '荒れやすい（上下に振れる）', off: '取引時間外'};
+const FL_TIP = {trend: '流れの向きに乗る時間。押し目・戻りを待って、流れと同じ向きで入る。逆張りは控える',
+  range: '上下の端で跳ね返されやすい時間。ブレイクはだましになりやすく、利確は早め。無理に入らないのも手',
+  wild: '方向が定まらず上下に大きく振れる時間。入るなら量を減らす。様子見が無難', off: ''};
+function flowSpans(s) {
+  const out = [], jp = jpBiz(s), us = usBiz(s), et = usDst(s) ? 13 * 60 : 14 * 60, eo = euDst(s) ? 960 : 1020;
+  const t830 = 8 * 60 + 30 + et, t930 = 9 * 60 + 30 + et, add = (a, b, k, l, r) => { if (b > a) out.push([a, b, k, l, r]); };
+  if (jp) {
+    add(480, 525, 'range', '寄り前', '先物が始まる前（CFDのみ）。取引が薄く、方向が出にくい');
+    add(525, 555, 'wild', '寄り付き', '注文が集中して上下に大きく振れる。最初の方向がだましになることも多い');
+    add(555, 630, 'trend', '朝の流れ', '寄り付きで決まった方向に続きやすい、1日の中でトレンドが出やすい時間');
+    add(630, 690, 'range', '前場の後半', '朝の動きが一段落して落ち着きやすい（10:30ごろの中国・香港の寄り付きで動くことはある）');
+    add(690, 750, 'range', '昼休み', '現物が休みで取引が薄い。狭い幅の上下になりやすい');
+    add(750, 780, 'wild', '後場の寄り付き', '昼休みの間の動き（アジア市場・先物）を取り込んで値が飛ぶことがある');
+    add(780, 870, 'range', '後場の中だるみ', '材料が出にくく、狭い幅で行ったり来たりしやすい');
+    add(870, 925, 'trend', '大引けに向けて', '持ち高の調整で、引けに向けて一方向に動きやすい');
+    add(925, 945, 'wild', '引けの前後', '引けのオークションに注文が集中し、値が飛ぶ');
+    add(945, 1020, 'range', '日中とナイトの間', '先物は休み（CFDのみ）。取引が薄い');
+  } else add(480, 1020, 'range', '東証は休み', '日本の市場が休みで取引が薄く、方向が出にくい');
+  if (us) {
+    add(1020, eo, 'range', 'ナイトの始まり', '欧州が開く前。日中の続きで方向が出にくい');
+    add(Math.max(1020, eo), Math.max(1020, eo) + 90, 'trend', '欧州の寄り付き', `欧州勢が入り、方向が出やすい（ロンドン8時＝日本時間${hm(eo)}）`);
+    add(Math.max(1020, eo) + 90, t830, 'range', '欧州の昼', '米国の指標待ちで、落ち着きやすい');
+    add(t830, t930, 'trend', '米国の指標〜寄り前', `米国の指標（${hm(t830)}）で方向が出やすい。発表の瞬間は荒れる`);
+    add(t930, t930 + 90, 'trend', 'NYの寄り付き後', '1日の中でいちばんトレンドが出やすい時間');
+    add(t930 + 90, 1620, 'range', 'NYの昼', '落ち着いて、狭い幅になりやすい（FOMCの日は発表で大きく動く）');
+    add(1620, 1800, 'range', '早朝', '取引が薄く、方向が出にくい');
+  } else add(1020, 1800, 'range', '米国は休場', '米国が休みで、夜は方向感が出にくい');
+  return out.sort((a, b) => a[0] - b[0]);
+}
+let TR_FLOW_ALL = false;
 let TR_SCHED_ALL = false;   // 時間割の表：false＝今から2時間の予定だけ、true＝今日の予定をすべて（2026-11-25 オーナー指定）
 function renderSched() {
   const box = $('#tr-sched-main'); if (!box) return;
@@ -2432,6 +2475,15 @@ function renderSched() {
     ${msg}
     <div class="stbar">${bar}<b class="stnow" style="left:${pc(m)}%"></b></div><div class="sttick">${ticks}</div>
     <div class="stleg"><span><i class="stt"></i>取引時間（日経先物）</span><span><i class="stc"></i>注意</span><span><i class="sta"></i>避けたい</span><span><i class="sto"></i>休み</span><span><b class="stnow2"></b>今</span></div>
+    ${(() => { const fl = flowSpans(sc.s), cur = fl.find(x => x[0] <= m && m < x[1]), nx = fl.find(x => x[0] > m && (!cur || x[2] !== cur[2]));
+      const fbar = fl.map(x => `<i class="fl-${x[2]}" style="left:${pc(x[0])}%;width:${pc(x[1]) - pc(x[0])}%" title="${hm(x[0])}〜${hm(x[1])} ${x[3]}"></i>`).join('');
+      const kc = {trend: '#3b82f6', range: '#8b93a7', wild: '#ec4899'};
+      return `<div class="grp" style="margin-top:10px">値動きのクセ（トレンド／レンジ）</div>
+        ${cur ? `<div class="flnow ${cur[2]}"><div class="flh"><span class="flk" style="background:${kc[cur[2]]}">今は${cur[2] === 'trend' ? 'トレンド' : cur[2] === 'range' ? 'レンジ' : '荒れ'}</span><b>${cur[3]}（${hm(cur[0])}〜${hm(cur[1])}）</b></div><div><b>${FL_NAME[cur[2]]}時間</b>。${cur[4]}<br><small class="muted">→ ${FL_TIP[cur[2]]}</small>${nx ? `<br><small>次は <b>${hm(nx[0])}</b> から「${FL_NAME[nx[2]]}」（${nx[3]}、あと${inMin(nx[0] - m)}）</small>` : ''}</div></div>` : ''}
+        <div class="flbar">${fbar}<b class="stnow" style="left:${pc(m)}%"></b></div><div class="sttick">${ticks}</div>
+        <div class="stleg"><span><i class="fl-trend"></i>トレンドになりやすい</span><span><i class="fl-range"></i>レンジになりやすい</span><span><i class="fl-wild"></i>荒れやすい</span></div>
+        <details class="note"${TR_FLOW_ALL ? ' open' : ''} id="tr-flow-all"><summary>時間帯ごとの目安を見る</summary><table class="fllist"><tbody>${fl.map(x => `<tr class="${x[0] <= m && m < x[1] ? 'now' : x[1] <= m ? 'past' : ''}"><td class="num" style="white-space:nowrap">${hm(x[0])}〜${hm(x[1])}</td><td><span class="flk" style="display:inline-block;color:#fff;border-radius:6px;padding:0 6px;background:${kc[x[2]]}">${x[2] === 'trend' ? 'トレンド' : x[2] === 'range' ? 'レンジ' : '荒れ'}</span> <b>${x[3]}</b><br><small>${x[4]}</small></td></tr>`).join('')}</tbody></table>
+        <p>よく言われる一般的な傾向の目安です（このアプリのデータで数えた統計ではありません）。その日の材料で変わるので、実際にトレンドかレンジかはチャートのボリンジャーの幅や高値・安値の切り上げ／切り下げで確かめてください。</p></details>`; })()}
     ${(() => { const near = sc.pt.filter(x => x[0] >= m && x[0] <= m + 120), nx = sc.pt.find(x => x[0] > m + 120);
       const list = TR_SCHED_ALL ? sc.pt : near;
       return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div><p class="note" style="margin:0">行をタップすると、その時間の注意点が出ます。</p>`
@@ -3013,6 +3065,7 @@ document.addEventListener('click', e => {
     else { const t = $('.trtfseg'); if (t && !pg.classList.contains('trgate')) t.scrollIntoView({behavior: 'smooth', block: 'start'});
       else { $('#tr-check').scrollIntoView({behavior: 'smooth', block: 'start'}); const n = $('#tr-check .trn'); if (n && !$('#tr-jumpmsg')) n.insertAdjacentHTML('afterend', '<p class="note neg" id="tr-jumpmsg">グラフはチェックを通過すると表示されます。</p>'); } } }
   else if (e.target.closest('#tr-sched-all')) { TR_SCHED_ALL = !TR_SCHED_ALL; renderSched(); }
+  else if (e.target.closest('#tr-flow-all summary')) setTimeout(() => { TR_FLOW_ALL = $('#tr-flow-all').open; }, 0);
   else if (e.target.closest('#tr-reconly')) { const pg = $('#p-trade'); pg.classList.toggle('trrec'); if (pg.classList.contains('trrec')) $('#tr-recbox').scrollIntoView({block: 'start'}); }
   else if (e.target.closest('.rsedbtn')) { if (TR_RSED) { TR_RSED = null; trRsEdDraw(); } else { const bx = e.target.closest('.grp').nextElementSibling; trRsEdOpen(bx); setTimeout(() => bx.scrollIntoView({block: 'nearest'}), 30); } }
   else if (e.target.closest('.rsmv')) { trRsEdRead(); const b = e.target.closest('.rsmv'), i = +b.dataset.i, j = i + +b.dataset.d; [TR_RSED[i], TR_RSED[j]] = [TR_RSED[j], TR_RSED[i]]; trRsEdDraw(); }
