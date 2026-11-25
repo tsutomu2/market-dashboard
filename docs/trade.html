@@ -175,6 +175,15 @@ header h1{padding-right:4px}
 .stleg i.fl-trend{background:#3b82f6}.stleg i.fl-range{background:#8b93a7}.stleg i.fl-wild{background:#ec4899}
 .flnow{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0 4px}.flnow .flh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}.flbar .stnow{background:var(--fg);width:3px}
 .flnow .flk{flex:0 0 auto;color:#fff;font-weight:700;border-radius:8px;padding:3px 10px;font-size:calc(var(--fs)*14px)}
+.spbar i.sp-high,.stleg i.sp-high,.spk.sp-high{background:#7c3aed}.spbar i.sp-mid,.stleg i.sp-mid,.spk.sp-mid{background:#c4b5fd}.stleg i.sp-normal,.spk.sp-normal{background:var(--line)}
+.spk{display:inline-block;border-radius:6px;padding:0 6px;font-weight:700;color:var(--fg)}.spk.sp-high{color:#fff}
+.spnow{border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0 4px}.spnow.sp-high{border-color:#7c3aed}.spnow.sp-mid{border-color:#c4b5fd}
+.cbtab{width:100%;border-collapse:collapse}.cbtab td{text-align:left;white-space:normal;vertical-align:top;padding:6px 4px;border-bottom:1px solid var(--line);font-size:calc(var(--fs)*13px)}.cbtab td:first-child{white-space:nowrap;position:static;width:1%;padding-right:8px}
+.cbl{display:flex;flex-wrap:wrap;gap:4px}.cbn{margin-top:3px;font-size:calc(var(--fs)*12px);line-height:1.5}.cbtab .spk,.cbtab .flk2,.cbtab .cbv{font-size:calc(var(--fs)*12px)}
+.cbtab tr[data-seg]{cursor:pointer}.cbtab tr[data-seg]:active td{background:var(--hl)}.cbtab tr.now td{background:var(--hl)}.cbtab tr.past{opacity:.45}
+.cbv{display:inline-block;border-radius:6px;padding:1px 6px;font-weight:700}.cbv.v-x{background:var(--negbg);color:var(--neg)}.cbv.v-c{background:#fbecc4;color:#7a5600}.cbv.v-g{background:#dbeafe;color:#1d4ed8}.cbv.v-r{background:var(--line);color:var(--fg)}
+.flk2{display:inline-block;color:#fff;border-radius:6px;padding:0 6px;font-weight:700}.cbcare{color:#9a6b00}
+.cbnow{border-radius:10px;padding:8px 12px;margin:4px 0 6px;border:1.5px solid var(--line)}.cbnow.v-x{border-color:var(--neg)}.cbnow.v-c{border-color:#e6b54a}.cbnow.v-g{border-color:#3b82f6}
 .flnow.trend{border-color:#3b82f6}.flnow.range{border-color:#8b93a7}.flnow.wild{border-color:#ec4899}
 .fllist{width:100%;border-collapse:collapse;font-size:calc(var(--fs)*13px)}.fllist td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left;white-space:normal;position:static}.fllist tr.now td{background:var(--hl)}.fllist tr.past{opacity:.55}
 .stleg i.stt{background:var(--posbg);border:1px solid var(--pos)}.stleg i.stc{background:#e6b54a}.stleg i.sta{background:var(--neg)}.stleg i.sto{background:var(--line)}.stnow2{display:inline-block;width:3px;height:12px;background:var(--accent);margin-right:4px;vertical-align:-1px}
@@ -2418,6 +2427,7 @@ function schedText() {   // Claude の質問文・チェックの質問に添え
   const st = schedNow(), out = [];
   if (st.bad) out.push(`今は「${st.bad[3]}」（${hm(st.bad[0])}〜${hm(st.bad[1])}、${st.bad[2] === 'avoid' ? '避けたい時間帯' : '注意'}）`);
   if (st.nextBad) out.push(`次の避けたい時間帯：${hm(st.nextBad[0])}〜 ${st.nextBad[3]}（あと${inMin(st.nextBad[0] - st.m)}）`);
+  const spn = spAt(spreadSpans(st.sc.s), st.m); if (spn) out.push(`スプレッド：${SP_NAME[spn[2]]}時間（${spn[3]}、〜${hm(spn[1])}）`);
   const big = st.sc.pt.filter(x => x[2] === 'big' && x[0] > st.m).map(x => `${hm(x[0])} ${x[1]}`);
   if (big.length) out.push('今日の重要発表：' + big.join('、'));
   return out.join('。');
@@ -2464,40 +2474,112 @@ function trFlowOf(r) {   // 記録の日付・時刻が、トレンド／レン�
   const x = flowSpans(s).find(y => y[0] <= m && m < y[1]); return x ? x[2] : null;
 }
 const FL_SHORT = {trend: 'トレンドの時間', range: 'レンジの時間', wild: '荒れの時間'};
-let TR_SCHED_ALL = false;   // 時間割の表：false＝今から2時間の予定だけ、true＝今日の予定をすべて（2026-11-25 オーナー指定）
+/* ---- スプレッドが広がりやすい時間（2026-11-26 オーナー指定） ----
+   日経225のCFDでよく言われる一般的な傾向の目安（証券会社が公表している時刻ではない）。元になる日経先物が休みの時間・取引が薄い時間・重要発表の前後に広がりやすい。
+   実際のスプレッドは楽天証券の取引画面で確かめる。 */
+const SP_NAME = {high: 'スプレッドが広がりやすい', mid: 'やや広がることがある', normal: 'ふだんどおり'};
+const SP_SHORT = {high: '広い', mid: 'やや広い', normal: 'ふつう'};
+function spreadSpans(s) {
+  const out = [], jp = jpBiz(s), us = usBiz(s), et = usDst(s) ? 13 * 60 : 14 * 60, dow = new Date(s + 'T00:00:00Z').getUTCDay();
+  const isEv = k => EV_DAYS[k].includes(s), add = (a, b, lv, l, r) => { if (b > a) out.push([a, b, lv, l, r]); };
+  if (dow === 0 || dow === 6) return out;
+  if (jp) {
+    add(480, 525, dow === 1 ? 'high' : 'mid', dow === 1 ? '週明けの始まり' : '先物の寄り前', dow === 1 ? '週末のあとで値段が付きにくく、窓が開きやすい。スプレッドが広がりやすい' : '日経先物が始まる前（CFDのみ）。取引が薄く、ふだんより広がることがある');
+    add(525, 535, 'mid', '寄り付きの瞬間', '注文が集中して値が飛ぶため、一時的に広がることがある');
+    add(945, 1020, 'high', '先物の休み（日中とナイトの間）', '元になる日経先物が取引されていないので、CFDのスプレッドが広がりやすい');
+    if (isEv('boj')) add(690, 810, 'high', '日銀の発表待ち〜発表', '発表の時刻が決まっておらず、発表の瞬間は値が飛ぶ。スプレッドが広がりやすい');
+  } else add(480, 1020, 'high', '東証は休み', '日経先物の日中の取引が無い日。CFDの値段の元が薄く、スプレッドが広がりやすい');
+  if (us) {
+    const t830 = 8 * 60 + 30 + et, big = isEv('nfp') ? '米国の雇用統計' : isEv('cpi') ? '米国の消費者物価（CPI）' : '';
+    if (big) add(t830 - 5, t830 + 10, 'high', big, '月に1度の最重要指標。発表の前後はスプレッドが大きく広がることがある');
+    else add(t830 - 2, t830 + 5, 'mid', '米国の指標発表', '発表の瞬間だけ広がることがある');
+    if (isEv('fomc')) { const tf = 14 * 60 + et; add(tf - 10, tf + 30, 'high', 'FOMCの発表', '発表と議長会見の前後はスプレッドが広がりやすい'); }
+  } else if (jp) add(1020, 1620, 'mid', '米国は休場', '夜の取引が薄く、ふだんより広がりやすい');
+  add(1620, 1740, 'mid', '早朝の薄い時間', '取引が少なく、スプレッドが広がりやすい');
+  add(1740, 1800, 'high', 'ナイトの引け前（早朝5時台）', '先物の引け（6:00）が近く、取引がとても薄い。スプレッドが広がりやすい');
+  return out.sort((a, b) => a[0] - b[0]);
+}
+const spAt = (sps, t) => { const h = sps.filter(x => x[0] <= t && t < x[1]); return h.find(x => x[2] === 'high') || h.find(x => x[2] === 'mid') || null; };
+/* 時間割・値動きのクセ・スプレッドを1つの表にまとめる（2026-11-26 オーナー指定「2時間分の3つの表をわかりやすくまとめて、その日によって更新」）
+   区切りは3つの帯の境目と予定の時刻。同じ中身が続く行はまとめる。判定：✕見送り（避けたい・スプレッド広い・取引時間外）／△慎重に（荒れ・注意・やや広い）／◎トレンド／○レンジ */
+function comboRows(sc, a, b) {
+  const fl = flowSpans(sc.s), sps = spreadSpans(sc.s), cut = new Set([a, b]);
+  [...sc.sp, ...fl, ...sps].forEach(x => [x[0], x[1]].forEach(t => { if (t > a && t < b) cut.add(t); }));
+  sc.pt.forEach(x => { if (x[0] > a && x[0] < b) cut.add(x[0]); });
+  const ts = [...cut].sort((x, y) => x - y), rows = [];
+  for (let i = 0; i < ts.length - 1; i++) {
+    const t = ts[i], u = ts[i + 1], inS = sc.sp.filter(x => x[0] <= t && t < x[1]);
+    const av = inS.find(x => x[2] === 'avoid'), ca = inS.find(x => x[2] === 'care'), trading = inS.some(x => x[2] === 'trade');
+    const f = fl.find(x => x[0] <= t && t < x[1]), sp = spAt(sps, t), lv = sp ? sp[2] : 'normal';
+    const ev = sc.pt.filter(x => x[0] >= t && x[0] < u);
+    const v = !trading ? ['x', '取引時間外'] : av ? ['x', '見送り'] : lv === 'high' ? ['x', '見送り'] : (f && f[2] === 'wild') || ca || lv === 'mid' ? ['c', '慎重に'] : f && f[2] === 'trend' ? ['g', '流れに乗る'] : ['r', 'レンジ向き'];
+    const key = [v[0], f && f[3], lv, av && av[3], ca && ca[3], trading].join('|'), pr = rows[rows.length - 1];
+    if (pr && pr.key === key && !ev.length && !pr.ev.length) { pr.b = u; continue; }
+    rows.push({a: t, b: u, key, v, f, sp, lv, av, ca, trading, ev});
+  }
+  return rows;
+}
+const V_MARK = {x: '✕', c: '△', g: '◎', r: '○'};
+function comboTable(sc, rows, m) {
+  const kc = {trend: '#3b82f6', range: '#8b93a7', wild: '#ec4899'};
+  return `<table class="cbtab"><tbody>${rows.map(r => {
+    const note = [...r.ev.map(x => `<span class="stk ${x[2]}">${{open: '寄り', close: '引け', ev: '発表', big: '重要'}[x[2]]}</span> ${hm(x[0])} ${x[1]}`),
+      r.av ? `<span class="neg">避ける：${r.av[3]}</span>` : r.ca ? `<span class="cbcare">注意：${r.ca[3]}</span>` : '', !r.trading ? '<span class="muted">先物は休み（CFDのみ）</span>' : ''].filter(Boolean).join('<br>');
+    return `<tr class="cb-${r.v[0]}${r.a <= m && m < r.b ? ' now' : r.b <= m ? ' past' : ''}" data-seg="${r.a}"><td class="num">${hm(r.a)}<br><small>〜${hm(r.b)}</small></td>
+      <td><div class="cbl"><span class="cbv v-${r.v[0]}">${V_MARK[r.v[0]]} ${r.v[1]}</span>${r.f ? `<span class="flk2" style="background:${kc[r.f[2]]}">${r.f[2] === 'trend' ? 'トレンド' : r.f[2] === 'range' ? 'レンジ' : '荒れ'}</span>` : ''}<span class="spk sp-${r.lv}">スプレッド${SP_SHORT[r.lv]}</span></div>${note ? `<div class="cbn">${note}</div>` : ''}</td></tr>`; }).join('')}</tbody></table>`;
+}
+function segExplain(a) {
+  const st = schedNow(), sc = st.sc, all = comboRows(sc, Math.min(st.m, 480), 1800), r = all.find(x => x.a <= a && a < x.b) || all.find(x => x.a === a); if (!r) return;
+  const vt = {x: 'この時間は新しく入るのを見送るのが無難です。', c: '入るなら量を減らし、損切りを必ず入れておきます。', g: '流れの向きに乗りやすい時間です。押し目・戻りを待って、流れと同じ向きで入ります。', r: '上下の端で跳ね返されやすい時間です。ブレイクはだましになりやすく、利確は早めに。'};
+  openModal(`${hm(r.a)}〜${hm(r.b)}　${V_MARK[r.v[0]]} ${r.v[1]}`, `<p>${vt[r.v[0]]}</p>
+    ${r.f ? `<p><b>値動き：${FL_NAME[r.f[2]]}</b>（${r.f[3]}）<br>${r.f[4]}<br><small class="muted">→ ${FL_TIP[r.f[2]]}</small></p>` : ''}
+    <p><b>スプレッド：${SP_NAME[r.lv]}</b>${r.sp ? `（${r.sp[3]}）<br>${r.sp[4]}` : '<br>元になる日経先物が取引されていて、ふだんどおりの時間です。'}</p>
+    ${r.av ? `<p class="neg"><b>避けたい時間帯：${r.av[3]}</b>（${hm(r.av[0])}〜${hm(r.av[1])}）<br>${r.av[4] || ''}</p>` : ''}${r.ca ? `<p><b>注意：${r.ca[3]}</b>（${hm(r.ca[0])}〜${hm(r.ca[1])}）<br>${r.ca[4] || ''}</p>` : ''}
+    ${r.ev.map(x => `<p><b>${hm(x[0])} ${x[1]}</b><br>${ST_KIND[x[2]][1]}</p>`).join('')}
+    <p class="note">よく言われる一般的な傾向の目安です。実際の値動き・スプレッドはチャートと楽天証券の取引画面で確かめてください。</p>`);
+}
+let TR_SCHED_ALL = false;   // まとめの表：false＝これから2時間、true＝今日すべて（2026-11-25 オーナー指定）
+let TR_SP_ALL = false;
 function renderSched() {
   const box = $('#tr-sched-main'); if (!box) return;
   const st = schedNow(), sc = st.sc, m = st.m, d = new Date(sc.s + 'T00:00:00Z');
   const W = ['日', '月', '火', '水', '木', '金', '土'][d.getUTCDay()], T0 = 480, T1 = 1800, pc = t => ((Math.min(Math.max(t, T0), T1) - T0) / (T1 - T0) * 100).toFixed(2);
-  const cls = {trade: 'stt', avoid: 'sta', care: 'stc', off: 'sto'};
+  const cls = {trade: 'stt', avoid: 'sta', care: 'stc', off: 'sto'}, wkend = d.getUTCDay() === 0 || d.getUTCDay() === 6;
   const bar = sc.sp.map(x => `<i class="${cls[x[2]]}" style="left:${pc(x[0])}%;width:${pc(x[1]) - pc(x[0])}%" title="${hm(x[0])}〜${hm(x[1])} ${x[3]}"></i>`).join('');
   const ticks = [480, 720, 960, 1200, 1440, 1680].map(t => `<span style="left:${pc(t)}%">${hm(t).replace('翌', '')}</span>`).join('');
   const msg = st.bad ? `<div class="trmsg ${st.bad[2] === 'avoid' ? 'neg' : 'warnbox'}"><b>今は${st.bad[2] === 'avoid' ? '避けたい時間帯' : '注意の時間帯'}：${st.bad[3]}</b>（〜${hm(st.bad[1])}）<br><small>${st.bad[4] || ''}</small></div>`
     : `<div class="trmsg ${st.trading ? 'pos' : ''}"><b>${st.trading ? '今は取引時間中で、避けたい時間帯ではありません' : '今は日経先物の取引時間外です'}</b>${st.nextBad ? `<br><small>次の避けたい時間帯：${hm(st.nextBad[0])}〜 ${st.nextBad[3]}（あと${inMin(st.nextBad[0] - m)}）</small>` : ''}</div>`;
-  const row = x => { const past = x[0] < m, kind = {open: '寄り', close: '引け', ev: '発表', big: '重要'}[x[2]];
-    const av = sc.sp.find(y => y[2] === 'avoid' && y[0] <= x[0] && x[0] < y[1]);
-    return `<tr class="${past ? 'past' : ''}${x[2] === 'big' ? ' big' : ''}" data-st="${x[0]}"><td class="num">${hm(x[0])}</td><td><span class="stk ${x[2]}">${kind}</span></td><td>${x[1]}${av ? `<br><small class="neg">避ける：${hm(av[0])}〜${hm(av[1])}</small>` : ''}</td></tr>`; };
+  const fl = flowSpans(sc.s), sps = spreadSpans(sc.s), kc = {trend: '#3b82f6', range: '#8b93a7', wild: '#ec4899'};
+  const rows = wkend ? [] : comboRows(sc, TR_SCHED_ALL ? T0 : Math.max(m, T0), TR_SCHED_ALL ? T1 : Math.min(m + 120, T1));
+  const cur = rows.find(r => r.a <= m && m < r.b), spNow = spAt(sps, m);
+  const combo = `<div class="grp" style="margin-top:6px">${TR_SCHED_ALL ? '今日の時間割まとめ（すべて）' : `これから2時間のまとめ（${hm(Math.max(m, T0))}〜${hm(Math.min(m + 120, T1))}）`}</div>
+    ${wkend ? '<p class="note">今日は土日のため、取引はありません。</p>' : rows.length ? `${cur ? `<div class="cbnow v-${cur.v[0]}"><b>今：${V_MARK[cur.v[0]]} ${cur.v[1]}</b>　${cur.f ? `値動き「${cur.f[2] === 'trend' ? 'トレンド' : cur.f[2] === 'range' ? 'レンジ' : '荒れ'}」` : ''}・スプレッド「${SP_SHORT[cur.lv]}」${cur.av ? `・<span class="neg">${cur.av[3]}</span>` : cur.ca ? `・${cur.ca[3]}` : ''}</div>` : ''}${comboTable(sc, rows, m)}
+      <p class="note" style="margin:2px 0 0">◎流れに乗る　○レンジ向き　△慎重に　✕見送り。行をタップすると理由が出ます。日付・曜日・祝日・夏時間・発表日から毎日作り直します。</p>`
+      : '<p class="note">今日の時間はもう終わりました（朝6時に次の日に切り替わります）。</p>'}
+    <p><button class="btn${TR_SCHED_ALL ? ' open' : ''}" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : '▼ 展開して今日の時間割をすべて表示'}</button></p>`;
   const up = upcomingEvents(sc.s, 3).filter(x => x[0] > sc.s);   // 3日以内（2026-11-25 オーナー指定）
   box.innerHTML = `<h2>今日の時間割（${+sc.s.slice(5, 7)}/${+sc.s.slice(8)}（${W}）朝8時〜翌朝6時・日本時間）</h2>
     ${sc.notes.map(t => `<div class="trmsg warnbox">${t}</div>`).join('')}
     ${msg}
+    ${combo}
+    <div class="grp" style="margin-top:10px">予定と避けたい時間</div>
     <div class="stbar">${bar}<b class="stnow" style="left:${pc(m)}%"></b></div><div class="sttick">${ticks}</div>
     <div class="stleg"><span><i class="stt"></i>取引時間（日経先物）</span><span><i class="stc"></i>注意</span><span><i class="sta"></i>避けたい</span><span><i class="sto"></i>休み</span><span><b class="stnow2"></b>今</span></div>
-    ${(() => { const fl = flowSpans(sc.s), cur = fl.find(x => x[0] <= m && m < x[1]), nx = fl.find(x => x[0] > m && (!cur || x[2] !== cur[2]));
+    ${(() => { const c = fl.find(x => x[0] <= m && m < x[1]), nx = fl.find(x => x[0] > m && (!c || x[2] !== c[2]));
       const fbar = fl.map(x => `<i class="fl-${x[2]}" style="left:${pc(x[0])}%;width:${pc(x[1]) - pc(x[0])}%" title="${hm(x[0])}〜${hm(x[1])} ${x[3]}"></i>`).join('');
-      const kc = {trend: '#3b82f6', range: '#8b93a7', wild: '#ec4899'};
       return `<div class="grp" style="margin-top:10px">値動きのクセ（トレンド／レンジ）</div>
-        ${cur ? `<div class="flnow ${cur[2]}"><div class="flh"><span class="flk" style="background:${kc[cur[2]]}">今は${cur[2] === 'trend' ? 'トレンド' : cur[2] === 'range' ? 'レンジ' : '荒れ'}</span><b>${cur[3]}（${hm(cur[0])}〜${hm(cur[1])}）</b></div><div><b>${FL_NAME[cur[2]]}時間</b>。${cur[4]}<br><small class="muted">→ ${FL_TIP[cur[2]]}</small>${nx ? `<br><small>次は <b>${hm(nx[0])}</b> から「${FL_NAME[nx[2]]}」（${nx[3]}、あと${inMin(nx[0] - m)}）</small>` : ''}</div></div>` : ''}
+        ${c ? `<div class="flnow ${c[2]}"><div class="flh"><span class="flk" style="background:${kc[c[2]]}">今は${c[2] === 'trend' ? 'トレンド' : c[2] === 'range' ? 'レンジ' : '荒れ'}</span><b>${c[3]}（${hm(c[0])}〜${hm(c[1])}）</b></div><div><b>${FL_NAME[c[2]]}時間</b>。${c[4]}<br><small class="muted">→ ${FL_TIP[c[2]]}</small>${nx ? `<br><small>次は <b>${hm(nx[0])}</b> から「${FL_NAME[nx[2]]}」（${nx[3]}、あと${inMin(nx[0] - m)}）</small>` : ''}</div></div>` : ''}
         <div class="flbar">${fbar}<b class="stnow" style="left:${pc(m)}%"></b></div><div class="sttick">${ticks}</div>
         <div class="stleg"><span><i class="fl-trend"></i>トレンドになりやすい</span><span><i class="fl-range"></i>レンジになりやすい</span><span><i class="fl-wild"></i>荒れやすい</span></div>
         <details class="note"${TR_FLOW_ALL ? ' open' : ''} id="tr-flow-all"><summary>時間帯ごとの目安を見る</summary><table class="fllist"><tbody>${fl.map(x => `<tr class="${x[0] <= m && m < x[1] ? 'now' : x[1] <= m ? 'past' : ''}"><td class="num" style="white-space:nowrap">${hm(x[0])}〜${hm(x[1])}</td><td><span class="flk" style="display:inline-block;color:#fff;border-radius:6px;padding:0 6px;background:${kc[x[2]]}">${x[2] === 'trend' ? 'トレンド' : x[2] === 'range' ? 'レンジ' : '荒れ'}</span> <b>${x[3]}</b><br><small>${x[4]}</small></td></tr>`).join('')}</tbody></table>
         <p>よく言われる一般的な傾向の目安です（このアプリのデータで数えた統計ではありません）。その日の材料で変わるので、実際にトレンドかレンジかはチャートのボリンジャーの幅や高値・安値の切り上げ／切り下げで確かめてください。</p></details>`; })()}
-    ${(() => { const near = sc.pt.filter(x => x[0] >= m && x[0] <= m + 120), nx = sc.pt.find(x => x[0] > m + 120);
-      const list = TR_SCHED_ALL ? sc.pt : near;
-      return `<div class="grp" style="margin-top:8px">${TR_SCHED_ALL ? '今日の予定（すべて）' : `これから2時間の予定（${hm(m)}〜${hm(m + 120)}）`}</div><p class="note" style="margin:0">行をタップすると、その時間の注意点が出ます。</p>`
-        + (list.length ? `<div class="wrap"><table class="sttab"><tbody>${list.map(row).join('')}</tbody></table></div>`
-          : `<p class="note">この2時間に予定はありません。${nx ? `次は ${hm(nx[0])} ${nx[1]}（あと${inMin(nx[0] - m)}）` : '今日の予定はもうありません'}。</p>`)
-        + `<p><button class="btn${TR_SCHED_ALL ? ' open' : ''}" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : `▼ 展開して今日の予定をすべて表示（${sc.pt.length}件）`}</button></p>`; })()}
+    ${wkend ? '' : (() => { const nx = sps.find(x => x[0] > m), sbar = sps.map(x => `<i class="sp-${x[2]}" style="left:${pc(x[0])}%;width:${Math.max(pc(x[1]) - pc(x[0]), 0.6)}%" title="${hm(x[0])}〜${hm(x[1])} ${x[3]}"></i>`).join('');
+      return `<div class="grp" style="margin-top:10px">スプレッドが広がりやすい時間</div>
+        <div class="spnow sp-${spNow ? spNow[2] : 'normal'}"><b>今は${spNow ? `${SP_NAME[spNow[2]]}時間：${spNow[3]}` : 'スプレッドはふだんどおりの時間'}</b>${spNow ? `（〜${hm(spNow[1])}）<br><small>${spNow[4]}</small>` : ''}${nx ? `<br><small>次に広がりやすいのは <b>${hm(nx[0])}</b>〜 ${nx[3]}（あと${inMin(nx[0] - m)}）</small>` : ''}</div>
+        <div class="flbar spbar">${sbar}<b class="stnow" style="left:${pc(m)}%"></b></div><div class="sttick">${ticks}</div>
+        <div class="stleg"><span><i class="sp-high"></i>広がりやすい</span><span><i class="sp-mid"></i>やや広がることがある</span><span><i class="sp-normal"></i>ふだんどおり</span></div>
+        <details class="note"${TR_SP_ALL ? ' open' : ''} id="tr-sp-all"><summary>広がりやすい時間の一覧を見る</summary><table class="fllist"><tbody>${sps.map(x => `<tr class="${x[0] <= m && m < x[1] ? 'now' : x[1] <= m ? 'past' : ''}"><td class="num" style="white-space:nowrap">${hm(x[0])}〜${hm(x[1])}</td><td><span class="spk sp-${x[2]}">${SP_SHORT[x[2]]}</span> <b>${x[3]}</b><br><small>${x[4]}</small></td></tr>`).join('')}</tbody></table>
+        <p>CFD（日経225）でよく言われる一般的な傾向の目安です（証券会社が公表している時刻ではありません）。元になる日経先物が休みの時間・取引が薄い時間・重要な発表の前後に広がりやすくなります。実際のスプレッドは楽天証券の取引画面で確かめてください。</p></details>`; })()}
     <h3>この先の重要な予定（3日以内）</h3>
     <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>3日以内に重要な予定はありません</li>'}</ul>`;
 }
@@ -2523,7 +2605,8 @@ function openModal(title, html) {
   $('#md-title').textContent = title; $('#md-body').innerHTML = html; m.classList.add('on');
 }
 addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal')) $('#modal').classList.remove('on'); });
-document.addEventListener('click', e => { const r = e.target.closest('.sttab tr[data-st]'); if (r) stExplain(+r.dataset.st); });   // 行をタップで説明（2026-11-25 オーナー指定で長押しから変更）
+document.addEventListener('click', e => { const r = e.target.closest('.sttab tr[data-st]'); if (r) stExplain(+r.dataset.st); });
+document.addEventListener('click', e => { const r = e.target.closest('.cbtab tr[data-seg]'); if (r) segExplain(+r.dataset.seg); });   // まとめの表の行をタップで理由（2026-11-26）   // 行をタップで説明（2026-11-25 オーナー指定で長押しから変更）
 function mountEvTv() {
   const box = document.getElementById('tr-evtv'); if (!box || box.dataset.on) return; box.dataset.on = '1';
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -3075,6 +3158,7 @@ document.addEventListener('click', e => {
       else { $('#tr-check').scrollIntoView({behavior: 'smooth', block: 'start'}); const n = $('#tr-check .trn'); if (n && !$('#tr-jumpmsg')) n.insertAdjacentHTML('afterend', '<p class="note neg" id="tr-jumpmsg">グラフはチェックを通過すると表示されます。</p>'); } } }
   else if (e.target.closest('#tr-sched-all')) { TR_SCHED_ALL = !TR_SCHED_ALL; renderSched(); }
   else if (e.target.closest('#tr-flow-all summary')) setTimeout(() => { TR_FLOW_ALL = $('#tr-flow-all').open; }, 0);
+  else if (e.target.closest('#tr-sp-all summary')) setTimeout(() => { TR_SP_ALL = $('#tr-sp-all').open; }, 0);
   else if (e.target.closest('#tr-reconly')) { const pg = $('#p-trade'); pg.classList.toggle('trrec'); if (pg.classList.contains('trrec')) $('#tr-recbox').scrollIntoView({block: 'start'}); }
   else if (e.target.closest('.rsedbtn')) { if (TR_RSED) { TR_RSED = null; trRsEdDraw(); } else { const bx = e.target.closest('.grp').nextElementSibling; trRsEdOpen(bx); setTimeout(() => bx.scrollIntoView({block: 'nearest'}), 30); } }
   else if (e.target.closest('.rsmv')) { trRsEdRead(); const b = e.target.closest('.rsmv'), i = +b.dataset.i, j = i + +b.dataset.d; [TR_RSED[i], TR_RSED[j]] = [TR_RSED[j], TR_RSED[i]]; trRsEdDraw(); }
