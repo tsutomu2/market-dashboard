@@ -232,7 +232,6 @@ header h1{padding-right:4px}
 <!-- ============ 短期トレード ============ -->
 <section class="page on" id="p-trade">
   <div class="box" id="tr-sched"><div id="tr-sched-main"></div>
-    <details class="stev"><summary>日本・米国などの経済指標カレンダー（TradingView・重要度 中以上）</summary><div class="trtv" id="tr-evtv"></div></details>
     <div id="tr-sched-apps"></div></div>
   <div class="box" id="tr-check"></div>
   <div class="box" id="tr-recbox"><h2>損益を記録</h2>
@@ -2377,7 +2376,7 @@ function renderSched() {
     const av = sc.sp.find(y => y[2] === 'avoid' && y[0] <= x[0] && x[0] < y[1]);
     return `<tr class="${past ? 'past' : ''}${x[2] === 'big' ? ' big' : ''}"><td class="num">${hm(x[0])}</td><td><span class="stk ${x[2]}">${kind}</span></td><td>${x[1]}${av ? `<br><small class="neg">避ける：${hm(av[0])}〜${hm(av[1])}</small>` : ''}</td></tr>`; };
   const avoidList = sc.sp.filter(x => x[2] === 'avoid' || x[2] === 'care').sort((a, b) => a[0] - b[0]);
-  const up = upcomingEvents(sc.s, 21).filter(x => x[0] > sc.s).slice(0, 8);
+  const up = upcomingEvents(sc.s, 3).filter(x => x[0] > sc.s);   // 3日以内（2026-11-25 オーナー指定）
   box.innerHTML = `<h2>今日の時間割（${+sc.s.slice(5, 7)}/${+sc.s.slice(8)}（${W}）朝8時〜翌朝6時・日本時間）</h2>
     ${sc.notes.map(t => `<div class="trmsg warnbox">${t}</div>`).join('')}
     ${msg}
@@ -2391,9 +2390,8 @@ function renderSched() {
         + `<p><button class="btn" id="tr-sched-all" type="button">${TR_SCHED_ALL ? '▲ 閉じる（これから2時間だけ表示）' : `▼ 展開して今日の予定をすべて表示（${sc.pt.length}件）`}</button></p>`; })()}
     <h3>避けたい・注意の時間帯</h3>
     <ul class="trli">${avoidList.map(x => `<li class="${x[1] <= m ? 'past' : ''}"><b class="${x[2] === 'avoid' ? 'neg' : ''}">${x[2] === 'avoid' ? '避ける' : '注意'} ${hm(x[0])}〜${hm(x[1])}</b> ${x[3]}<br><small>${x[4] || ''}</small></li>`).join('') || '<li>なし</li>'}</ul>
-    <h3>この先の重要な予定（3週間）</h3>
-    <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>なし</li>'}</ul>
-    <p class="note">日経先物：日中 8:45〜15:45、ナイト 17:00〜翌6:00。東証（現物）：9:00〜11:30・12:30〜15:30。米国の時刻は夏時間・冬時間を自動で切り替えます。日銀・FOMC・雇用統計・CPIの日程は公表済みの予定（2026年11月に確認）で、変わることがあります。日本・米国のほかの指標は、下の経済指標カレンダーで確かめてください。</p>`;
+    <h3>この先の重要な予定（3日以内）</h3>
+    <ul class="trli">${up.map(x => `<li><b>${+x[0].slice(5, 7)}/${+x[0].slice(8)}（${['日', '月', '火', '水', '木', '金', '土'][new Date(x[0] + 'T00:00:00Z').getUTCDay()]}）</b> ${x[1]}${x[2] ? `　<small>${x[2]}</small>` : ''}</li>`).join('') || '<li>3日以内に重要な予定はありません</li>'}</ul>`;
 }
 function mountEvTv() {
   const box = document.getElementById('tr-evtv'); if (!box || box.dataset.on) return; box.dataset.on = '1';
