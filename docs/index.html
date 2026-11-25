@@ -190,6 +190,10 @@ header h1{padding-right:4px}
 .tabj{display:none}
 body.on-trade .tabj{display:inline-flex}
 .trtfseg,#tr-recbox,#tr-check{scroll-margin-top:52px}
+/* 分足の見えた形：上げ／下げを切り替え（2026-11-25 オーナー指定） */
+.tr1mside{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box;margin:6px 0 2px}.tr1mside button{padding:9px 4px;font-size:calc(var(--fs)*14px);font-weight:700}
+.tr1mside .t1s.pos.on{background:var(--pos);color:#fff}.tr1mside .t1s.neg.on{background:var(--neg);color:#fff}.tr1mside .t1s.pos:not(.on){color:var(--pos)}.tr1mside .t1s.neg:not(.on){color:var(--neg)}
+.t1grp.hide{display:none}.t1grp>.grp{display:none}
 .trindseg{display:grid;grid-template-columns:1fr 1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
@@ -2465,6 +2469,7 @@ const tfName = tf => (TR_TFS.find(x => x[0] === String(tf)) || ['', `${tf}分足
 let TR_IND = ['bb', 'ma', 'ma3'].includes(trGet('trInd', 'bb')) ? trGet('trInd', 'bb') : 'bb';   // チャートの線：bb＝ボリンジャー、ma＝移動平均線5・25、ma3＝移動平均線5・25・75
 let TR_TF = (TR_TFS.find(x => x[0] === String(trGet('trTf', '3'))) || TR_TFS[1])[0];
 const TR1M_TTL = 30 * 60000;
+let TR1M_SIDE = trGet('tr1mSide', 1) === -1 ? -1 : 1;   // 見えた形の一覧：1＝上げの形、-1＝下げの形を表示（2026-11-25 オーナー指定で切り替え式に）
 const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見方, 根拠の分類]
   ['mgc', 1, 'MACDがゴールデンクロスした（しそう）', 'チャート下の欄：青い線がオレンジの線を下から上に抜ける。棒（ヒストグラム）がマイナスから縮んでいる', 'MACDのクロス（分足）'],
   ['m0u', 1, 'MACDが0の線より上', '青い線が0の線より上＝上向きの勢いの中', 'MACDのクロス（分足）'],
@@ -2523,13 +2528,16 @@ function tr1mHtml() {
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div><div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
-    ${grp(1, '▲ 上げの形', 'pos')}${grp(-1, '▼ 下げの形', 'neg')}${grp(0, '● 注意', '')}
+    <div class="seg tr1mside">${[[1, '▲ 上げの形', 'pos'], [-1, '▼ 下げの形', 'neg']].map(([sd, l, c]) => { const n = TR1M.filter(x => x[1] === sd && v.on.includes(x[0])).length;
+      return `<button type="button" class="t1s ${c}${TR1M_SIDE === sd ? ' on' : ''}" data-side="${sd}">${l}<span class="t1n" data-n="${sd}">${n ? `（${n}）` : ''}</span></button>`; }).join('')}</div>
+    <div class="t1grp${TR1M_SIDE === 1 ? '' : ' hide'}" data-grp="1">${grp(1, '▲ 上げの形', 'pos')}</div><div class="t1grp${TR1M_SIDE === -1 ? '' : ' hide'}" data-grp="-1">${grp(-1, '▼ 下げの形', 'neg')}</div>${grp(0, '● 注意', '')}
     <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
 }
 function tr1mSave(quiet) {
   const on = [...document.querySelectorAll('#tr1m .trchip.on')].map(b => b.dataset.v);
   trSet('tr1m', {t: on.length ? Date.now() : 0, on, tf: TR_TF});
   const s = $('#tr1m-sum'); if (s) s.innerHTML = tr1mSumHtml();
+  document.querySelectorAll('#tr1m .t1n').forEach(x => { const n = TR1M.filter(t => t[1] === +x.dataset.n && on.includes(t[0])).length; x.textContent = n ? `（${n}）` : ''; });
 }
 function tr1mAdd() {
   const v = tr1mGet(), j = tr1mJudge(v.on), pend = trGet('trPending', {}) || {};
@@ -2851,6 +2859,9 @@ document.addEventListener('click', e => {
     if (g.id === 'tr-dir' || g.id === 'trp-dir') { const was = c.classList.contains('on'); g.querySelectorAll('.trchip').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); } else c.classList.toggle('on');
     if (g.id.startsWith('trp-')) trPendingCheck();
     if (g.closest('#tr1m')) tr1mSave(); }
+  else if (e.target.closest('.t1s')) { TR1M_SIDE = +e.target.closest('.t1s').dataset.side; trSet('tr1mSide', TR1M_SIDE);
+    document.querySelectorAll('#tr1m .t1s').forEach(b => b.classList.toggle('on', +b.dataset.side === TR1M_SIDE));
+    document.querySelectorAll('#tr1m .t1grp').forEach(g => g.classList.toggle('hide', +g.dataset.grp !== TR1M_SIDE)); }
   else if (e.target.closest('#tr1m-open')) { TR1M_OPEN = !TR1M_OPEN; renderTrCheck(); if (TR1M_OPEN) $('#tr1m').scrollIntoView({block: 'start'}); }
   else if (e.target.closest('#tr1m-clear')) { trSet('tr1m', {t: 0, on: []}); $('#tr1m').querySelectorAll('.trchip.on').forEach(x => x.classList.remove('on')); tr1mSave(true); }
   else if (e.target.closest('#tr1m-add')) tr1mAdd();
