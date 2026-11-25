@@ -1967,7 +1967,13 @@ const TR_Q = [
 ];
 const TR_DIRS = [['buy', '買い（上がる）'], ['sell', '売り（下がる）']];
 const TR_REASONS = ['MACDのクロス（分足）', 'MACDのクロス（日足）', '移動平均線（5日・25日線）', 'ボリンジャーバンド（±2σ・バンドウォーク）', 'RSI・騰落レシオ（売られすぎ・過熱）',
-  '節目の価格（PER・高値安値・25日線）', '連動指数・前夜の米国', 'VIX（恐怖指数）', '需給（信用残・1570倍率・海外勢）', 'SHO手法の判断・動画', 'ニュース・発表', 'その他（メモに記入）'];
+  'VIX（恐怖指数）', 'その他（メモに記入）'];
+// 2026-11-25 オーナー指定で外した根拠。端末に保存した一覧（trReasons）からも1回だけ外す（過去の記録の根拠はそのまま）
+const TR_REASONS_DROP = ['節目の価格（PER・高値安値・25日線）', '連動指数・前夜の米国', '需給（信用残・1570倍率・海外勢）', 'SHO手法の判断・動画', 'ニュース・発表'];
+try { if (!localStorage.getItem('trReasonsDrop1')) { const v = JSON.parse(localStorage.getItem('trReasons') || 'null');
+  if (Array.isArray(v)) localStorage.setItem('trReasons', JSON.stringify(v.filter(x => !TR_REASONS_DROP.includes(x))));
+  const pd = JSON.parse(localStorage.getItem('trPending') || 'null'); if (pd && pd.reasons) { pd.reasons = pd.reasons.filter(x => !TR_REASONS_DROP.includes(x)); localStorage.setItem('trPending', JSON.stringify(pd)); }
+  localStorage.setItem('trReasonsDrop1', '1'); } } catch (e) { /* 保存できない環境 */ }
 const trChips = (list, sel, single) => list.map(x => { const [v, l] = Array.isArray(x) ? x : [x, x];
   return `<button type="button" class="trchip${(single ? sel === v : (sel || []).includes(v)) ? ' on' : ''}" data-v="${v}">${l}</button>`; }).join('');
 const chipVals = el => [...el.querySelectorAll('.trchip.on')].map(b => b.dataset.v);
@@ -2411,14 +2417,14 @@ const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見
   ['bmu', 1, 'ボリンジャーの真ん中の線より上', '真ん中の線（20本の平均）の上で動いている', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['bbl', 1, '−2σ（下の線）に触れて反発した', '下の線に触れたあと、陽線（上げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['rsu', 1, 'RSIが30以下から上向きに戻った', 'RSIの欄：30の線を下から上に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
-  ['hlu', 1, '安値が切り上がっている', '前の安値を割らずに、安値が少しずつ高くなっている', '節目の価格（PER・高値安値・25日線）'],
+  ['hlu', 1, '安値が切り上がっている', '前の安値を割らずに、安値が少しずつ高くなっている', null],
   ['tau', 1, 'テクニカル判定が「買い」「強い買い」', '「テクニカル判定を開く」のまとめの針が右側', null],
   ['mdc', -1, 'MACDがデッドクロスした（しそう）', '青い線がオレンジの線を上から下に抜ける。棒がプラスから縮んでいる', 'MACDのクロス（分足）'],
   ['m0d', -1, 'MACDが0の線より下', '青い線が0の線より下＝下向きの勢いの中', 'MACDのクロス（分足）'],
   ['bmd', -1, 'ボリンジャーの真ん中の線より下', '真ん中の線（20本の平均）の下で動いている', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['bbh', -1, '+2σ（上の線）に触れて反落した', '上の線に触れたあと、陰線（下げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['rsd', -1, 'RSIが70以上から下向きに戻った', 'RSIの欄：70の線を上から下に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
-  ['hld', -1, '高値が切り下がっている', '前の高値を超えられず、高値が少しずつ低くなっている', '節目の価格（PER・高値安値・25日線）'],
+  ['hld', -1, '高値が切り下がっている', '前の高値を超えられず、高値が少しずつ低くなっている', null],
   ['tad', -1, 'テクニカル判定が「売り」「強い売り」', '「テクニカル判定を開く」のまとめの針が左側', null],
   ['bwk', 0, 'バンドに沿って動き続けている（バンドウォーク）', '+2σや−2σの線に沿って足が並ぶ。逆張り（反発・反落ねらい）はしない', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['sqz', 0, 'バンドの幅が狭くなっている', '大きく動く前のことが多い。どちらに抜けるかを見てから', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
@@ -2686,7 +2692,7 @@ document.addEventListener('click', e => {
   else if (e.target.closest('#rs-add')) { trRsEdRead(); const v = (e.target.closest('.rsed').querySelector('#rs-new').value || '').trim(); if (v) { TR_RSED.push({name: v, orig: null}); trRsEdDraw(); } }
   else if (e.target.closest('#rs-save')) trRsEdSave();
   else if (e.target.closest('#rs-cancel')) { TR_RSED = null; trRsEdDraw(); }
-  else if (e.target.closest('#rs-reset')) { if (confirm('根拠の一覧を最初の12個に戻しますか？（過去の記録はそのまま）')) { TR_RSED = TR_REASONS.map(n => ({name: n, orig: null})); trRsEdDraw(); } }
+  else if (e.target.closest('#rs-reset')) { if (confirm('根拠の一覧を最初の一覧（7個）に戻しますか？（過去の記録はそのまま）')) { TR_RSED = TR_REASONS.map(n => ({name: n, orig: null})); trRsEdDraw(); } }
   else if (e.target.closest('#tr-cloud-save')) trCloudSave();
   else if (e.target.closest('#tr-sync-now')) trSync(true);
   else if (e.target.closest('#tr-sync-off')) { if (confirm('この端末でスプレッドシートとつなぐのをやめますか？（シートの記録は消えません。この端末の記録も残ります）')) { trSet('trCloud', {}); $('#tr-cloud').innerHTML = trCloudHtml(); } }
