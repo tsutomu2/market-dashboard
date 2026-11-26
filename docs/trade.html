@@ -215,6 +215,11 @@ body.on-trade .tabj{display:inline-flex}
 .t1grp.hide{display:none}.t1grp>.grp{display:none}
 .trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
 .trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
+.trtv,#fs-body .tvbox{position:relative}
+.tvvl{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #f59e0b;z-index:2;pointer-events:none;transform:translateX(-1px)}
+.tvvh{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);z-index:3;pointer-events:auto;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none;
+  background:#f59e0b;color:#fff;font-weight:700;border-radius:14px;padding:6px 8px;font-size:calc(var(--fs)*12px);line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap}
+.tvvbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 0}.tvvbar .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}.tvvbar .btn.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check, #tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
@@ -2688,7 +2693,7 @@ function tr1mHtml() {
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
-    <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div><div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
+    <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
     <div class="seg tr1mside">${[[1, '▲ 上げの形', 'pos'], [-1, '▼ 下げの形', 'neg']].map(([sd, l, c]) => { const n = TR1M.filter(x => x[1] === sd && v.on.includes(x[0])).length;
@@ -2712,6 +2717,35 @@ function tr1mAdd() {
   else if (!TR_EDIT) { trFormFill(); if (TR_MODE !== 'trade') { TR_MODE = 'trade'; trSet('trMode', TR_MODE); trApplyMode(); } }
   $('#tr1m-msg').innerHTML = `<span class="pos">下の「損益を記録」に入れました：${add.join('、') || '（分類できる根拠なし）'}${!pend.dir && dir ? `／方向：${dir === 'buy' ? '買い' : '売り'}` : ''}</span>`;
 }
+/* ---- 分足チャートの縦線（2026-11-26 オーナー指定「縦線を入れて左右に動かし、その時刻を3つのグラフで比べたい」） ----
+   TradingView の埋め込みは中を操作できないので、チャートの上に縦線を重ねる。線は値段・MACD・RSIの3つの欄を上から下まで通る（3つは同じ時間の軸）。
+   線そのものは指を通す（チャートは今までどおり触れる）。動かすのはオレンジのつまみ、または ◀ ▶ のボタン。位置は幅に対する割合で localStorage trVline に保存。
+   チャートを左右にずらしても線は画面の同じ位置に残る（時刻を追いかけはしない）。 */
+const tvvGet = () => ({on: true, x: 0.7, ...(trGet('trVline', {}) || {})});
+function tvVbarHtml(short) { const v = tvvGet();
+  return `<div class="tvvbar"${short ? ' data-short="1"' : ''}><button type="button" class="btn tvv-on${v.on ? ' on' : ''}">｜ 縦線：${v.on ? 'あり' : 'なし'}</button>${v.on ? `<button type="button" class="btn tvv-mv" data-d="-1">◀</button><button type="button" class="btn tvv-mv" data-d="1">▶</button>${short ? '' : '<small class="muted">オレンジのつまみを左右に動かすと、同じ時刻の値段・MACD・RSIを比べられます</small>'}` : ''}</div>`; }
+function tvVline(box) {
+  if (!box) return; box.querySelectorAll('.tvvl').forEach(x => x.remove());
+  const v = tvvGet(); if (!v.on) return;
+  const ln = document.createElement('div'); ln.className = 'tvvl';
+  const hd = document.createElement('div'); hd.className = 'tvvh'; hd.textContent = '◀ ▶'; ln.appendChild(hd); box.appendChild(ln);
+  const RIGHT = 72;   // 右の値段の目盛りの幅（ここには入れない）
+  const place = f => { const w = box.clientWidth, max = Math.max(0.1, (w - RIGHT) / w); v.x = Math.min(Math.max(f, 0.01), max); ln.style.left = (v.x * 100).toFixed(2) + '%'; };
+  place(v.x);
+  let drag = false;
+  hd.addEventListener('pointerdown', e => { drag = true; hd.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); });
+  hd.addEventListener('pointermove', e => { if (!drag) return; const r = box.getBoundingClientRect(); place((e.clientX - r.left) / r.width); });
+  const end = () => { if (!drag) return; drag = false; trSet('trVline', {on: true, x: v.x}); syncVlines(box); };
+  hd.addEventListener('pointerup', end); hd.addEventListener('pointercancel', end);
+}
+function syncVlines(except) { document.querySelectorAll('.trtv, #fs-body .tvbox').forEach(b => { if (b !== except && b.querySelector('.tvvl, iframe, .tradingview-widget-container')) tvVline(b); }); }
+document.addEventListener('click', e => {
+  const on = e.target.closest('.tvv-on'), mv = e.target.closest('.tvv-mv'); if (!on && !mv) return;
+  const v = tvvGet();
+  if (on) { v.on = !v.on; trSet('trVline', v); document.querySelectorAll('.tvvbar').forEach(b => { b.outerHTML = tvVbarHtml(!!b.dataset.short); }); syncVlines(); return; }
+  const b = $('#tr-1m') || document.querySelector('#fs-body .tvbox'), w = b ? b.clientWidth : 360;
+  v.x = v.x + (+mv.dataset.d) * 4 / w; trSet('trVline', v); syncVlines();
+});
 function trMountTv(target) {   // target を渡すとその枠に描く（全画面表示用）
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   const put = (id, src, cfg) => { const box = target || document.getElementById(id); if (!box) return; box.innerHTML = '';
@@ -2732,7 +2766,7 @@ function trMountTv(target) {   // target を渡すとその枠に描く（全画
       // 注意：studies は全部 {id, inputs} の形にそろえる（文字列と混ぜると読み込みに失敗して指標が消える）
       studies: TR_IND === 'bb' ? ['BB@tv-basicstudies', 'MACD@tv-basicstudies', 'RSI@tv-basicstudies']
         : [{id: 'STD;MA%Ribbon', inputs: {in_3: 5, in_4: false, in_8: false, in_15: 75}}, {id: 'MASimple@tv-basicstudies', inputs: {length: 25}}, {id: 'MACD@tv-basicstudies'}, {id: 'RSI@tv-basicstudies'}],
-    });
+    });  tvVline(target || document.getElementById('tr-1m'));
 }
 
 /* ---- CFD計算（2026-11-25 オーナー指定）：証拠金とロット数から、損切り・利確の目安を出す ----
@@ -3276,8 +3310,8 @@ function openFs(title, id) {
   $('#fs-title').textContent = title || '';
   body.innerHTML = '';
   if (id === 'tv' || id === 'tv-tr') {
-    const box = document.createElement('div'); box.style.height = '100%'; body.appendChild(box);
-    if (id === 'tv') mountTv(box, (TF[curTF] && TF[curTF].tv) || '60'); else trMountTv(box);
+    const box = document.createElement('div'); box.style.height = '100%'; if (id === 'tv-tr') box.className = 'tvbox'; body.appendChild(box);
+    if (id === 'tv') mountTv(box, (TF[curTF] && TF[curTF].tv) || '60'); else { trMountTv(box); body.insertAdjacentHTML('afterbegin', tvVbarHtml(true)); box.style.height = 'calc(100% - 44px)'; }
   } else {
     const cfg = chartCfg[id]; if (!cfg) return;
     const cv = document.createElement('canvas'); body.appendChild(cv);
