@@ -119,5 +119,16 @@
 "buy_amt": 160901153395,
 "ratio": 20.01,
 "ratio_seido": 13.55
+},
+{
+"date": "2026-11-25",
+"sell": 139301,
+"buy": 2528785,
+"sell_seido": 138708,
+"buy_seido": 1713436,
+"sell_amt": 7865630790,
+"buy_amt": 160427236390,
+"ratio": 18.15,
+"ratio_seido": 12.35
 }
 ]
