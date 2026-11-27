@@ -2116,6 +2116,8 @@ const trSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const trToday = () => isoD(new Date());
 const yen0 = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt0.format(Math.abs(Math.round(v))) + '円';
 let TRS = {status: 'start'};   // チェックの進み具合（画面を開き直すと最初から）
+// iPad（指で操作・画面の短い辺が700px以上）ではトレード前チェックを出さず、すぐチャートなどを表示する（2026-11-27 オーナー指定。スマホは今までどおり）
+const IS_TABLET = (() => { try { return matchMedia('(pointer:coarse)').matches && Math.min(screen.width, screen.height) >= 700; } catch (e) { return false; } })();
 const TR_PASS_MIN = 30;   // 通過してからこの分数のうちに開き直したときは、チェックを飛ばして続きから（楽天のアプリから戻ったときなど）
 
 function trStart() {
@@ -2142,6 +2144,7 @@ function renderTrCheck() {
     if (q0 && trGet('trCool', 0) > lastNg.t + q0.cool * 60000) trSet('trCool', lastNg.t + q0.cool * 60000); }   // 待ち時間を短くしたとき、前の長い待ちを持ち越さない
   const cool = trGet('trCool', 0), left = Math.ceil((cool - Date.now()) / 60000);
   // 開いたら、まずチェック（2026-11-25 オーナー指定）。通過するまで時間割・判断材料・アプリのボタンは出さない
+  if (TRS.status === 'start' && IS_TABLET && !TRS.force) TRS = {status: 'done', tablet: true};
   if (TRS.status === 'start') {
     const pass = trGet('trChecks', []).filter(c => c.ok).slice(-1)[0];
     if (pass && Date.now() - pass.t < TR_PASS_MIN * 60000) TRS = {status: 'done', resumed: pass.t};
@@ -2173,7 +2176,7 @@ function renderTrCheck() {
     box.innerHTML = head + `<div class="trmsg neg"><b>ストップ：今は取引しないでください</b><br>${q.stop}${q.cool ? `<br><small>${q.cool >= 60 ? '1時間' : q.cool + '分'}たつまで、チェックをやり直せません。</small>` : ''}</div>
       <button class="btn trbig" id="tr-reset" type="button" ${left > 0 ? 'disabled' : ''}>${left > 0 ? `あと約${left}分` : '最初からやり直す'}</button>` + recOnly;
   } else if (TRS.status === 'done') {
-    box.innerHTML = head + `<div class="trmsg pos"><b>準備OK</b>${TRS.resumed ? `（${new Date(TRS.resumed).toTimeString().slice(0, 5)}に通過。${TR_PASS_MIN}分以内なので続きから表示）` : ''}<br>${TR_Q.length}問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>
+    box.innerHTML = (TRS.tablet ? `<p class="note trtab">iPad ではトレード前チェックを省いて、すぐチャートを表示しています。<button class="btn" id="tr-docheck" type="button">チェックをする</button></p>` : head + `<div class="trmsg pos"><b>準備OK</b>${TRS.resumed ? `（${new Date(TRS.resumed).toTimeString().slice(0, 5)}に通過。${TR_PASS_MIN}分以内なので続きから表示）` : ''}<br>${TR_Q.length}問すべて確認できました。アプリを開く前に、下の判断材料と自分の根拠が合っているか確かめましょう。</div>`) + `
       ${trMaterialsHtml()}
       <div class="note" id="trp-msg" style="display:none"></div>`;   // 「今回の根拠をチェック」は下の「損益を記録」と同じ内容なので削除（2026-11-25 オーナー指定「シンプルに」）。方向・根拠は記録フォームで選ぶ
     trMountTv();
@@ -2386,7 +2389,7 @@ function daySchedule(s) {
   const isEv = k => EV_DAYS[k].includes(s), sq = sqDay(y, mo) === s, majorSq = sq && [2, 5, 8, 11].includes(mo);
   const notes = [];
   if (jp) {
-    sp.push([525, 690, 'trade', '先物（日中）・現物 前場'], [690, 750, 'care', '昼休み（現物は休み・先物は取引あり）', '取引が薄く、急に動くことがある'], [750, 945, 'trade', '先物（日中）・現物 後場'],
+    sp.push([525, 690, 'trade', '先物（日中）・現物 前場'], [690, 750, 'trade', '先物（日中）・現物は昼休み'], [690, 750, 'care', '昼休み（現物は休み・先物は取引あり）', '取引が薄く、急に動くことがある'], [750, 945, 'trade', '先物（日中）・現物 後場'],
       [945, 1020, 'off', '先物は休み（日中とナイトの間）'], [1020, 1800, 'trade', '先物（ナイト）']);
     sp.push([525, 555, 'avoid', '寄り付き直後', '先物8:45・現物9:00の寄り付きは注文が集中し、値が飛びやすい'],
       [750, 765, 'care', '後場の寄り付き', '昼休みの間のニュースで値が飛ぶことがある'],
@@ -3252,6 +3255,7 @@ function trEndEdit() {
 document.addEventListener('click', e => {
   if (e.target.closest('#tr-start')) trStart();
   else if (e.target.closest('#tr-reset')) { TRS = {status: 'start'}; renderTrCheck(); }
+  else if (e.target.closest('#tr-docheck')) { TRS = {status: 'start', force: true}; renderTrCheck(); }
   else if (e.target.closest('[data-tra]')) trAnswer(e.target.closest('[data-tra]').dataset.tra === '1');
   else if (e.target.closest('#tr-sign')) { const b = $('#tr-sign'); b.dataset.sign = b.dataset.sign === '-' ? '+' : '-'; b.textContent = b.dataset.sign === '-' ? '負け（−）' : '勝ち（＋）'; b.classList.toggle('neg', b.dataset.sign === '-'); trPreview(); }
   else if (e.target.closest('#tr-save')) trSave();
