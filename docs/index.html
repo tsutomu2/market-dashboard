@@ -228,7 +228,7 @@ body.on-trade .tabj{display:inline-flex}
 .t1qa{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}.t1qa .btn{flex:1;min-width:84px;padding:10px 6px;font-weight:700}.t1y{background:var(--posbg);border-color:var(--pos);color:var(--pos)}.t1n{background:var(--negbg);border-color:var(--neg);color:var(--neg)}
 .t1qf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:calc(var(--fs)*12px)}.t1qf .btn{padding:4px 10px}
 .t1qr{font-size:calc(var(--fs)*16px);margin:8px 0 2px}.t1ql{margin:4px 0;padding-left:0;list-style:none;font-size:calc(var(--fs)*13px)}.t1ql li{margin:2px 0}
-.t1qbtn{width:100%;margin:8px 0}
+.t1qbtn{width:100%;margin:10px 0;background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}.t1qbtn small{display:block;color:#fff;opacity:.9;font-weight:400;margin-top:2px}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check, #tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
@@ -2681,7 +2681,7 @@ function tr1mText() {
 }
 function tr1mSumHtml() {
   const v = tr1mGet(), j = tr1mJudge(v.on);
-  if (!j.it.length) return '<p class="note">チャートを見て、当てはまるものをタップしてください（いくつでも）。</p>';
+  if (!j.it.length) return '';
   const m = trMaterials(), mu = m.filter(x => x[0] > 0).length, mdn = m.filter(x => x[0] < 0).length;
   const day = mu - mdn >= 2 ? 'buy' : mdn - mu >= 2 ? 'sell' : 'flat', pend = trGet('trPending', {}) || {};
   const word = {buy: '買い寄り', sell: '売り寄り', flat: '方向感なし'};
@@ -2697,23 +2697,17 @@ function tr1mSumHtml() {
       ${j.it.filter(x => x[1] < 0).length ? `<br><span class="neg">▼ 下げ：</span>${j.it.filter(x => x[1] < 0).map(x => x[2]).join('／')}` : ''}
       ${j.it.filter(x => x[1] === 0).length ? `<br>● 注意：${j.it.filter(x => x[1] === 0).map(x => x[2]).join('／')}` : ''}</div>
     ${warn.map(w => `<p class="note neg">⚠ ${w}</p>`).join('')}
-    <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「損益を記録」に入れる</button><button class="btn" id="tr1m-clear" type="button">選び直す</button></div>
-    <p class="note" id="tr1m-msg">分足はすぐ変わるため、選んだ内容は30分たつと消えます。</p>`;
+    <div class="trapps"><button class="btn" id="tr1m-add" type="button">この根拠を「損益を記録」に入れる</button><button class="btn" id="tr1m-clear" type="button">答え直す</button></div>
+    <p class="note" id="tr1m-msg">分足はすぐ変わるため、答えた内容は30分たつと消えます。</p>`;
 }
 function tr1mHtml() {
-  const v = tr1mGet(), grp = (side, title, cls) => `<div class="grp ${cls}">${title}</div><div class="trchips" id="tr1m-${cls || 'nt'}">${TR1M.filter(x => x[1] === side)
-    .map(x => `<button type="button" class="trchip${v.on.includes(x[0]) ? ' on' : ''}" data-v="${x[0]}" title="${x[3]}">${x[2]}</button>`).join('')}</div>`;
+  // 見えた形をタップで選ぶ一覧（上げの形・下げの形・注意のチップ、見方）は 2026-11-27 オーナー指定で削除。下の質問の枠（T1Q）で答える
   return `<div id="tr1m">   <!-- 見出し「分足のテクニカル根拠」と説明文は2026-11-25 オーナー指定で削除 -->
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>MACD・ボリンジャー・RSIなど6問を3択で。上げ・下げの形を数えます</small></button>
-    <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
-    <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
-    <div class="seg tr1mside">${[[1, '▲ 上げの形', 'pos'], [-1, '▼ 下げの形', 'neg']].map(([sd, l, c]) => { const n = TR1M.filter(x => x[1] === sd && v.on.includes(x[0])).length;
-      return `<button type="button" class="t1s ${c}${TR1M_SIDE === sd ? ' on' : ''}" data-side="${sd}">${l}<span class="t1n" data-n="${sd}">${n ? `（${n}）` : ''}</span></button>`; }).join('')}</div>
-    <div class="t1grp${TR1M_SIDE === 1 ? '' : ' hide'}" data-grp="1">${grp(1, '▲ 上げの形', 'pos')}</div><div class="t1grp${TR1M_SIDE === -1 ? '' : ' hide'}" data-grp="-1">${grp(-1, '▼ 下げの形', 'neg')}</div>${grp(0, '● 注意', '')}
     <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
 }
 /* ---- チャートを見ながら3択で答える質問（2026-11-27 オーナー指定。同日「3択・メジャーな指標・5〜6問」に作り直し） ----
@@ -2734,11 +2728,7 @@ let T1QS = null;   // {ans:{質問の番号: 選択肢の番号|'s'}, hist:[]}
 function t1qList() { return T1Q.map((q, i) => ({q, i})).filter(x => !x.q[3] || (x.q[3] === 'bb') === (TR_IND === 'bb')); }
 function t1qOn() { const on = []; t1qList().forEach(({q, i}) => { const a = T1QS.ans[i]; if (a !== undefined && a !== 's' && q[2][a][1]) on.push(q[2][a][1]); }); return on; }
 function t1qNext() { return t1qList().find(({i}) => !(i in T1QS.ans)); }
-function t1qSync() {   // ページの「見えた形」のチップにも反映（30分で消えるのは今までどおり）
-  const on = t1qOn();
-  document.querySelectorAll('#tr1m .trchip').forEach(c => c.classList.toggle('on', on.includes(c.dataset.v)));
-  tr1mSave();
-}
+function t1qSync() { tr1mSave(t1qOn()); }   // 答えを「見えた形」として保存（30分で消えるのは今までどおり）。結果はチャートの下に出る
 function t1qOpen() {
   T1QS = {ans: {}, hist: []};
   let el = $('#t1q'); if (!el) { el = document.createElement('div'); el.id = 't1q'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'チャートを見ながら答える質問'); document.body.appendChild(el); }
@@ -2779,11 +2769,10 @@ document.addEventListener('click', e => {
   if (t.closest('.t1qb')) { const i = T1QS.hist.pop(); if (i != null) delete T1QS.ans[i]; t1qSync(); t1qDraw(); return; }
   const a = t.closest('[data-a]'); if (a && T1QS) { const i = +$('#t1q').dataset.cur; T1QS.ans[i] = a.dataset.a === 's' ? 's' : +a.dataset.a; T1QS.hist.push(i); t1qSync(); t1qDraw(); }
 });
-function tr1mSave(quiet) {
-  const on = [...document.querySelectorAll('#tr1m .trchip.on')].map(b => b.dataset.v);
+function tr1mSave(on) {   // on＝見えた形の一覧（省略すると今の内容のまま、足の名前だけ更新）
+  if (!Array.isArray(on)) on = tr1mGet().on;
   trSet('tr1m', {t: on.length ? Date.now() : 0, on, tf: TR_TF});
   const s = $('#tr1m-sum'); if (s) s.innerHTML = tr1mSumHtml();
-  document.querySelectorAll('#tr1m .t1n').forEach(x => { const n = TR1M.filter(t => t[1] === +x.dataset.n && on.includes(t[0])).length; x.textContent = n ? `（${n}）` : ''; });
 }
 function tr1mAdd() {
   const v = tr1mGet(), j = tr1mJudge(v.on), pend = trGet('trPending', {}) || {};
@@ -3294,7 +3283,7 @@ document.addEventListener('click', e => {
     document.querySelectorAll('#tr1m .t1s').forEach(b => b.classList.toggle('on', +b.dataset.side === TR1M_SIDE));
     document.querySelectorAll('#tr1m .t1grp').forEach(g => g.classList.toggle('hide', +g.dataset.grp !== TR1M_SIDE)); }
   else if (e.target.closest('#tr1m-open')) { TR1M_OPEN = !TR1M_OPEN; renderTrCheck(); if (TR1M_OPEN) $('#tr1m').scrollIntoView({block: 'start'}); }
-  else if (e.target.closest('#tr1m-clear')) { trSet('tr1m', {t: 0, on: []}); $('#tr1m').querySelectorAll('.trchip.on').forEach(x => x.classList.remove('on')); tr1mSave(true); }
+  else if (e.target.closest('#tr1m-clear')) { tr1mSave([]); t1qOpen(); }
   else if (e.target.closest('#tr1m-add')) tr1mAdd();
   else if (e.target.closest('#tr-apps.trlock a, #tr-apps2.trlock a')) {   // 根拠を選んでいなくても開ける（2026-11-25 オーナー指定）。一度だけ確認する
     if (!confirm('入る方向と根拠（2つ以上）がまだ選ばれていません。\nこのまま楽天証券アプリを開きますか？')) { e.preventDefault(); const m = $('#trp-msg'); if (m) m.closest('.trmat').scrollIntoView({block: 'start'}); } }
