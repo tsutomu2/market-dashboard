@@ -231,6 +231,7 @@ body.on-trade .tabj{display:inline-flex}
 .t1qf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:calc(var(--fs)*12px)}.t1qf .btn{padding:4px 10px}
 .t1qr{font-size:calc(var(--fs)*16px);margin:8px 0 2px}.t1ql{margin:4px 0;padding-left:0;list-style:none;font-size:calc(var(--fs)*13px)}.t1ql li{margin:2px 0}
 .t1qbtn{width:100%;margin:10px 0;background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}.t1qbtn small{display:block;color:#fff;opacity:.9;font-weight:400;margin-top:2px}
+.trtvbtns{display:flex;gap:6px}.trshot{cursor:pointer;background:#f59e0b;border-color:#f59e0b;color:#fff;font-weight:700}.t1qshot{cursor:pointer;text-align:center}.trshotl{display:block;margin:8px 0;font-size:calc(var(--fs)*13px)}.trshotl textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);margin-top:4px}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check, #tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
@@ -2708,7 +2709,7 @@ function tr1mHtml() {
     <div class="seg trtfseg">${TR_TFS.map(([v, l]) => `<button type="button" class="trtf${TR_TF === v ? ' on' : ''}" data-tf="${v}">${v === 'D' ? l : l.replace('足', '')}</button>`).join('')}</div>
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
-    <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
+    <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><span class="trtvbtns"><label class="btn fsbtn trshot">📷 画像を保存<input type="file" accept="image/*" class="tr-shot" hidden></label><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></span></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
     <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>MACD・ボリンジャー・RSIなど6問を3択で。上げ・下げの形を数えます</small></button>
     <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
 }
@@ -2766,7 +2767,7 @@ function t1qDraw() {
   } else {
     const word = j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし', cls = j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : '';
     el.innerHTML = head + `<div class="t1qr ${cls}">${tfName(TR_TF)}の見え方：<b>${word}</b>　<small>${tally}</small></div>
-      <div class="t1qa"><button type="button" class="btn trgo t1qadd">この根拠を「記録」に入れる</button><button type="button" class="btn t1qagain">もう一度</button><button type="button" class="btn t1qx2">閉じる</button></div>
+      <div class="t1qa"><button type="button" class="btn trgo t1qadd">この根拠を「記録」に入れる</button><label class="btn t1qshot">📷 画像を保存<input type="file" accept="image/*" class="tr-shot" hidden></label><button type="button" class="btn t1qagain">もう一度</button><button type="button" class="btn t1qx2">閉じる</button></div>
       <ul class="t1ql">${j.it.map(x => `<li class="${x[1] > 0 ? 'pos' : x[1] < 0 ? 'neg' : ''}">${x[1] > 0 ? '▲' : x[1] < 0 ? '▼' : '―'} ${x[2]}</li>`).join('') || '<li>上げ・下げの形はありませんでした</li>'}</ul>
       <p class="note" style="margin:4px 0">上げと下げの差が2以上で「買い寄り／売り寄り」。判断するのはご自身です。</p>`;
     delete el.dataset.cur;
@@ -3175,6 +3176,35 @@ document.addEventListener('change', async e => {
 document.addEventListener('click', e => {
   const x = e.target.closest('[data-imgx]'); if (x) { TR_IMGS = TR_IMGS.filter(n => n !== x.dataset.imgx); trImgForm(); return; }
   const im = e.target.closest('img[data-img]'); if (im && im.src) openModal('チャートの画像', `<img class="trimgfull" src="${im.src}" alt="チャートの画像">`);
+});
+/* ---- チャートの画像をコメント付きで保存（2026-11-27 オーナー指定「スクリーンショットにコメントを入れて、スプレッドシートかドライブに保存するボタン」） ----
+   TradingView のチャートは別のサイトの枠（iframe）なので、ページからは写真に撮れない（iPhone・iPad のブラウザには画面を撮る機能も無い）。
+   そこで、先に本体のボタンでスクリーンショットを撮ってもらい、「📷 画像を保存」で写真を選ぶ → コメントを入れて「保存」。
+   記録は「気づき」（k:'note'）として trLog に入れ、画像は端末の IndexedDB と送り待ち（trImgQ）へ。同期でシートの「記録」に1行、画像はドライブの「短期トレードの画像」に入る。 */
+let TR_SHOT = null;   // 選んだ画像の名前
+document.addEventListener('change', async e => {
+  const inp = e.target.closest('.tr-shot'); if (!inp) return;
+  const f = inp.files[0]; inp.value = ''; if (!f) return;
+  let d; try { d = await trShrink(f); } catch (err) { alert('画像を読み込めませんでした：' + err.message); return; }
+  TR_SHOT = `shot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`; await trImgPut(TR_SHOT, d);
+  const auto = [`${tfName(TR_TF)}チャート`, tr1mText()].filter(Boolean).join('／'), c = trCloud();
+  openModal('チャートの画像を保存', `<img class="trimgfull" src="${d}" alt="選んだ画像" style="max-height:34vh;object-fit:contain">
+    <label class="trshotl">コメント<textarea id="tr-shot-memo" rows="3" placeholder="例：MACDがゴールデンクロス目前。25本線の上で押し目待ち"></textarea></label>
+    <label class="trshotl"><input type="checkbox" id="tr-shot-auto" checked> 自動で添える：<small>${auto}</small></label>
+    <div class="t1qa"><button type="button" class="btn trgo" id="tr-shot-save">保存</button><button type="button" class="btn" id="tr-shot-cancel">やめる</button></div>
+    <p class="note" id="tr-shot-msg">${c.url && c.key ? '「気づき」として記録し、スプレッドシートの「記録」に1行、画像は Google ドライブのフォルダ「短期トレードの画像」に保存します。' : '<span class="neg">スプレッドシートにつながっていないため、この端末にだけ保存します</span>（損益履歴タブの「スプレッドシートに保存」でつなぐと送られます）。'}</p>`);
+  setTimeout(() => { const m = $('#tr-shot-memo'); if (m) m.focus(); }, 300);
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('#tr-shot-cancel')) { TR_SHOT = null; $('#modal').classList.remove('on'); return; }
+  if (!e.target.closest('#tr-shot-save') || !TR_SHOT) return;
+  const memo = [($('#tr-shot-memo').value || '').trim(), $('#tr-shot-auto').checked ? `［${[`${tfName(TR_TF)}チャート`, tr1mText()].filter(Boolean).join('／')}］` : ''].filter(Boolean).join('\n');
+  const now = Date.now(), L = trGet('trLog', []);
+  L.push({id: now, k: 'note', date: trToday(), t: nowHM(), memo, imgs: [TR_SHOT], u: now});
+  const q = trGet('trImgQ', []) || []; if (!q.includes(TR_SHOT)) q.push(TR_SHOT); trSet('trImgQ', q);
+  trSet('trLog', L); TR_SHOT = null; trSync();
+  try { renderTrLog(); } catch (err) { /* 画面がまだ無い */ }
+  $('#md-body').innerHTML = `<div class="trmsg pos"><b>✓ 保存しました</b><br>「気づき」として記録しました（損益履歴タブの一覧に画像付きで出ます）。${trCloud().url ? 'スプレッドシートとドライブへ送っています。' : ''}</div><div class="t1qa"><button type="button" class="btn" id="tr-shot-cancel">閉じる</button></div>`;
 });
 function trCloudHtml() {
   const c = trCloud(), on = c.url && c.key;
