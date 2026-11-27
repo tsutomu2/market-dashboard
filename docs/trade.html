@@ -2660,6 +2660,8 @@ const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見
   ['bbl', 1, '−2σ（下の線）に触れて反発した', '下の線に触れたあと、陽線（上げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['rsu', 1, 'RSIが30以下から上向きに戻った', 'RSIの欄：30の線を下から上に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
   ['mxu', 1, '移動平均線：5本が25本の上（上抜け）', '黄色の短期5本線が青い中期25本線を下から上に抜けた、または上にある（「移動平均線3本」のとき）', null],
+  ['mlu', 1, '中期の線が上向き', 'ボリンジャーの真ん中の線（20本）や25本線が上向き＝大きな流れは上昇', null],
+  ['pbu', 1, '中期の線まで下がって反発（押し目買いの形）', '上向きの線まで下がったところで止まり、下ひげや陽線が出た', null],
   ['hlu', 1, '安値が切り上がっている', '前の安値を割らずに、安値が少しずつ高くなっている', null],
   ['mdc', -1, 'MACDがデッドクロスした（しそう）', '青い線がオレンジの線を上から下に抜ける。棒がプラスから縮んでいる', 'MACDのクロス（分足）'],
   ['m0d', -1, 'MACDが0の線より下', '青い線が0の線より下＝下向きの勢いの中', 'MACDのクロス（分足）'],
@@ -2667,6 +2669,8 @@ const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見
   ['bbh', -1, '+2σ（上の線）に触れて反落した', '上の線に触れたあと、陰線（下げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['rsd', -1, 'RSIが70以上から下向きに戻った', 'RSIの欄：70の線を上から下に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
   ['mxd', -1, '移動平均線：5本が25本の下（下抜け）', '黄色の短期5本線が青い中期25本線を上から下に抜けた、または下にある（「移動平均線3本」のとき）', null],
+  ['mld', -1, '中期の線が下向き', 'ボリンジャーの真ん中の線（20本）や25本線が下向き＝大きな流れは下落', null],
+  ['pbd', -1, '中期の線を割った・戻りで跳ね返された', '線を下に割って下げた、または下から線に当たって押し戻された', null],
   ['hld', -1, '高値が切り下がっている', '前の高値を超えられず、高値が少しずつ低くなっている', null],
   ['bwk', 0, 'バンドに沿って動き続けている（バンドウォーク）', '+2σや−2σの線に沿って足が並ぶ。逆張り（反発・反落ねらい）はしない', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['sqz', 0, 'バンドの幅が狭くなっている', '大きく動く前のことが多い。どちらに抜けるかを見てから', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
@@ -2682,6 +2686,14 @@ function tr1mText() {
   const j = tr1mJudge(v.on), hm = new Date(v.t).toTimeString().slice(0, 5);
   return `${tfName(v.tf || '1')}・${hm}確認、上げ${j.up}・下げ${j.dn}（${j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし'}）：${j.it.map(x => x[2]).join('、')}`;
 }
+function t1qWarn(on) {   // 中期の線の向きとクロスの組み合わせの注意（2026-11-27 オーナー指定「デッドクロス前の急な上げの傾向が分かるように」）
+  const w = [], has = k => on.includes(k);
+  if (has('mlu') && (has('mdc') || has('mxd'))) w.push('中期の線が上向きのうちの「デッドクロスしそう」は、押し目買いと売った人の買い戻しで急に上がる「だまし」になりやすい形です。売るなら、線を割って下げが確定してから。');
+  if (has('mld') && (has('mgc') || has('mxu'))) w.push('中期の線が下向きのうちの「ゴールデンクロスしそう」は、戻り売りで押し戻されやすい形です。買うなら、線を上に抜けて定着してから。');
+  if (has('mlu') && has('pbu')) w.push('上向きの中期の線で反発＝押し目買いの形（グランビルの法則の買い）。前の安値を割ったら形がくずれたサインです。');
+  if (has('mld') && has('pbd')) w.push('下向きの中期の線で跳ね返された＝戻り売りの形。前の高値を超えたら形がくずれたサインです。');
+  return w;
+}
 function tr1mSumHtml() {
   const v = tr1mGet(), j = tr1mJudge(v.on);
   if (!j.it.length) return '';
@@ -2692,6 +2704,7 @@ function tr1mSumHtml() {
   if (j.dir !== 'flat' && day !== 'flat' && j.dir !== day) warn.push(`日足の材料（上げ${mu}・下げ${mdn}＝${word[day]}）と逆向きです。短い時間の逆行は長続きしにくいので、量を減らすか見送りも考えましょう。`);
   if (pend.dir && j.dir !== 'flat' && pend.dir !== j.dir) warn.push(`選んでいる方向（${pend.dir === 'buy' ? '買い' : '売り'}）と${tfName(v.tf || TR_TF)}（${word[j.dir]}）が逆です。`);
   if (v.on.includes('bwk') && (v.on.includes('bbl') || v.on.includes('bbh'))) warn.push('バンドウォーク中の反発・反落ねらいは、そのまま走られやすい形です。');
+  warn.push(...t1qWarn(v.on));
   if (j.dir === 'flat') warn.push('上げと下げの根拠の差が小さく、方向感がありません。入るなら根拠がそろうまで待ちましょう。');
   const li = x => `<li>${x[2]}</li>`;
   return `<div class="trbal"><span class="pos">上げ ${j.up}</span><span class="trbar"><i style="width:${j.up / Math.max(1, j.up + j.dn) * 100}%"></i></span><span class="neg">下げ ${j.dn}</span></div>
@@ -2710,7 +2723,7 @@ function tr1mHtml() {
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><span class="trtvbtns"><label class="btn fsbtn trshot">📷 画像を保存<input type="file" accept="image/*" class="tr-shot" hidden></label><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></span></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
-    <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>MACD・ボリンジャー・RSIなど6問を3択で。上げ・下げの形を数えます</small></button>
+    <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>MACD・中期の線・RSIなど6問を3択で。上げ・下げの形を数えます</small></button>
     <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
 }
 /* ---- チャートを見ながら3択で答える質問（2026-11-27 オーナー指定。同日「3択・メジャーな指標・5〜6問」に作り直し） ----
@@ -2719,8 +2732,10 @@ function tr1mHtml() {
    チャートを見て判断するのは本人。質問：[見る段, 質問, [[選択肢, 入れる形], ×3], 表示の条件（bb＝ボリンジャー表示のとき、ma＝移動平均線3本のとき）] */
 const T1Q = [
   ['macd', 'MACD：青い線とオレンジの線は？', [['▲ ゴールデンクロスした・しそう', 'mgc'], ['▼ デッドクロスした・しそう', 'mdc'], ['― どちらでもない（横ばい）', null]]],
-  ['macd', 'MACD：青い線は0の線より？', [['▲ 上', 'm0u'], ['▼ 下', 'm0d'], ['― 0の線のあたり', null]]],
-  ['price', 'ボリンジャー：値段（ろうそく足）は真ん中の線より？', [['▲ 上', 'bmu'], ['▼ 下', 'bmd'], ['― 真ん中のあたり', null]], 'bb'],
+  // 2026-11-27 オーナー指定「デッドクロス前の急な上げ（上向きの中期線での押し目買い）が分かる問いを」：中期の線の向きと、線まで来たときの反応の2問を足し、
+  // かわりに「MACDと0の線」「値段とボリンジャーの真ん中の線」の2問を外した（6問のまま）
+  ['price', '中期の線（ボリンジャーの真ん中の線／青い25本線）の向きは？', [['▲ 上向き', 'mlu'], ['▼ 下向き', 'mld'], ['― 横ばい', null]]],
+  ['price', '値段が中期の線まで来たとき、どうなった？', [['▲ 線で止まって反発した（下ひげ・陽線）', 'pbu'], ['▼ 線を割って下げた・下から当たって跳ね返された', 'pbd'], ['― まだ線から離れている', null]]],
   ['price', 'ボリンジャー：外側の線（±2σ）では？', [['▲ −2σに触れて反発した', 'bbl'], ['▼ +2σに触れて反落した', 'bbh'], ['― どちらもない', null]], 'bb'],
   ['price', '移動平均線：短期5（黄）と中期25（青）は？', [['▲ 5が25を上に抜けた・上にある', 'mxu'], ['▼ 5が25を下に抜けた・下にある', 'mxd'], ['― 絡み合っている', null]], 'ma'],
   ['rsi', 'RSI：今の動きは？', [['▲ 30以下から上向きに戻った', 'rsu'], ['▼ 70以上から下向きに戻った', 'rsd'], ['― 30〜70の間', null]]],
@@ -2771,6 +2786,7 @@ function t1qDraw() {
     const word = j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし', cls = j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : '';
     el.innerHTML = head + `<div class="t1qr ${cls}">${tfName(TR_TF)}の見え方：<b>${word}</b>　<small>${tally}</small></div>
       <div class="t1qa"><button type="button" class="btn trgo t1qadd">この根拠を「記録」に入れる</button><label class="btn t1qshot">📷 画像を保存<input type="file" accept="image/*" class="tr-shot" hidden></label><button type="button" class="btn t1qagain">もう一度</button><button type="button" class="btn t1qx2">閉じる</button></div>
+      ${t1qWarn(t1qOn()).map(w => `<p class="note neg" style="margin:4px 0">⚠ ${w}</p>`).join('')}
       <ul class="t1ql">${j.it.map(x => `<li class="${x[1] > 0 ? 'pos' : x[1] < 0 ? 'neg' : ''}">${x[1] > 0 ? '▲' : x[1] < 0 ? '▼' : '―'} ${x[2]}</li>`).join('') || '<li>上げ・下げの形はありませんでした</li>'}</ul>
       <p class="note" style="margin:4px 0">上げと下げの差が2以上で「買い寄り／売り寄り」。判断するのはご自身です。</p>`;
     delete el.dataset.cur;
