@@ -222,6 +222,7 @@ body.on-trade .tabj{display:inline-flex}
 .tvvbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 0}.tvvbar .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}.tvvbar .btn.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
 #t1q{display:none;position:fixed;left:0;right:0;bottom:0;z-index:20;max-height:42vh;overflow:auto;background:var(--panel);border-top:2px solid var(--accent);border-radius:14px 14px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.18);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
 .t1qo{display:flex;flex-direction:column;gap:6px;margin:8px 0 6px}.t1qo .btn{text-align:left;padding:8px 12px;font-weight:700}
+.t1qj{display:flex;gap:6px}.t1qjb{font:inherit;font-weight:700;min-width:38px;height:34px;border-radius:8px;border:1.5px solid var(--accent);background:var(--panel);color:var(--accent);cursor:pointer;padding:0 8px}.t1qjb.on{background:var(--accent);color:#fff}
 #t1q.on{display:block}body.t1q-open{padding-bottom:44vh}
 .t1qh{display:flex;align-items:center;gap:8px}.t1qh b{flex:1}.t1qx{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:2px 10px;cursor:pointer}
 .t1qp{display:inline-block;margin:8px 0 4px;padding:2px 8px;border-radius:6px;font-size:calc(var(--fs)*12px);background:var(--line)}.t1qp.p-macd{background:#dbeafe;color:#1d4ed8}.t1qp.p-rsi{background:#f3e8ff;color:#7e22ce}.t1qp.p-price{background:#e3f3e8;color:#1f7a4d}
@@ -2738,12 +2739,23 @@ function t1qOpen() {
     const r = ch.getBoundingClientRect(), top = innerHeight - el.offsetHeight;
     scrollTo({top: Math.max(0, scrollY + r.bottom - top + 4), behavior: 'smooth'}); });
 }
+function t1qJump(k) {   // チャートの欄（値段・MACD・RSI）が、タブの帯と質問の枠の間のいちばん見やすい位置に来るようにスクロール（2026-11-27 オーナー指定）
+  const ch = $('#tr-1m'), sh = $('#t1q'); if (!ch) return;
+  // TradingView の埋め込み：上に道具の帯（約38px）、下に時刻の目盛り（約28px）、その間を 値段2：MACD1：RSI1 で分ける（iPhone・iPad で実測）
+  const r = ch.getBoundingClientRect(), H = r.height, T = 38, B = 28, inn = H - T - B;
+  const pane = {price: [T, T + inn * 0.5], macd: [T + inn * 0.5, T + inn * 0.75], rsi: [T + inn * 0.75, H]}[k]; if (!pane) return;
+  const tb = $('.tabbar'), aTop = tb ? tb.getBoundingClientRect().bottom : 0, aBot = sh && sh.classList.contains('on') ? sh.getBoundingClientRect().top : innerHeight;
+  const pTop = r.top + pane[0], pBot = r.top + pane[1], room = aBot - aTop;
+  const dy = pBot - pTop > room ? pTop - aTop - 4 : (pTop + pBot) / 2 - (aTop + aBot) / 2;
+  scrollTo({top: Math.max(0, scrollY + dy), behavior: 'smooth'});
+}
 function t1qClose() { const el = $('#t1q'); if (el) el.classList.remove('on'); document.body.classList.remove('t1q-open'); T1QS = null; }
 function t1qDraw() {
   const el = $('#t1q'); if (!el || !T1QS) return;
   const list = t1qList(), nx = t1qNext(), j = tr1mJudge(t1qOn()), done = Object.keys(T1QS.ans).length;
   const tally = `<span class="pos">上げ ${j.up}</span>・<span class="neg">下げ ${j.dn}</span>`;
-  const head = `<div class="t1qh"><b>${tfName(TR_TF)}を見て答える</b><span class="muted">${Math.min(done + (nx ? 1 : 0), list.length)} / ${list.length}</span><button type="button" class="t1qx" aria-label="閉じる">✕</button></div>`;
+  const cur = nx ? nx.q[0] : '', jb = (k, l, t) => `<button type="button" class="t1qjb${cur === k ? ' on' : ''}" data-j="${k}" title="${t}">${l}</button>`;
+  const head = `<div class="t1qh"><b>${tfName(TR_TF)}</b><span class="t1qj">${jb('price', TR_IND === 'bb' ? 'ボ' : '移', TR_IND === 'bb' ? 'ボリンジャーが見える位置へ' : '移動平均線が見える位置へ')}${jb('macd', 'M', 'MACDが見える位置へ')}${jb('rsi', 'R', 'RSIが見える位置へ')}</span><span class="muted">${Math.min(done + (nx ? 1 : 0), list.length)} / ${list.length}</span><button type="button" class="t1qx" aria-label="閉じる">✕</button></div>`;
   if (nx) {
     const p = T1Q_PANE[nx.q[0]];
     el.innerHTML = head + `<div class="t1qp p-${nx.q[0]}">見る場所：<b>${p[0]}</b>（${p[1]}）</div>
@@ -2764,6 +2776,7 @@ document.addEventListener('click', e => {
   const t = e.target;
   if (t.closest('#t1q-open')) { t1qOpen(); return; }
   if (!t.closest('#t1q')) return;
+  const jb = t.closest('.t1qjb'); if (jb) { t1qJump(jb.dataset.j); return; }
   if (t.closest('.t1qx, .t1qx2')) { t1qClose(); return; }
   if (t.closest('.t1qagain')) { T1QS = {ans: {}, hist: []}; t1qSync(); t1qDraw(); return; }
   if (t.closest('.t1qadd')) { tr1mAdd(); t1qClose(); const m = $('#tr1m-msg'); if (m) m.scrollIntoView({block: 'center', behavior: 'smooth'}); return; }
