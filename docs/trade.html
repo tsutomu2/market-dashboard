@@ -221,6 +221,7 @@ body.on-trade .tabj{display:inline-flex}
   background:#f59e0b;color:#fff;font-weight:700;border-radius:14px;padding:6px 8px;font-size:calc(var(--fs)*12px);line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap}
 .tvvbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 0}.tvvbar .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}.tvvbar .btn.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
 #t1q{display:none;position:fixed;left:0;right:0;bottom:0;z-index:20;max-height:42vh;overflow:auto;background:var(--panel);border-top:2px solid var(--accent);border-radius:14px 14px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.18);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+.t1qo{display:flex;flex-direction:column;gap:6px;margin:8px 0 6px}.t1qo .btn{text-align:left;padding:8px 12px;font-weight:700}
 #t1q.on{display:block}body.t1q-open{padding-bottom:44vh}
 .t1qh{display:flex;align-items:center;gap:8px}.t1qh b{flex:1}.t1qx{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:2px 10px;cursor:pointer}
 .t1qp{display:inline-block;margin:8px 0 4px;padding:2px 8px;border-radius:6px;font-size:calc(var(--fs)*12px);background:var(--line)}.t1qp.p-macd{background:#dbeafe;color:#1d4ed8}.t1qp.p-rsi{background:#f3e8ff;color:#7e22ce}.t1qp.p-price{background:#e3f3e8;color:#1f7a4d}
@@ -2653,12 +2654,14 @@ const TR1M = [   // [id, 向き(+1上げ/-1下げ/0注意), 見えたこと, 見
   ['bmu', 1, 'ボリンジャーの真ん中の線より上', '真ん中の線（20本の平均）の上で動いている', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['bbl', 1, '−2σ（下の線）に触れて反発した', '下の線に触れたあと、陽線（上げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['rsu', 1, 'RSIが30以下から上向きに戻った', 'RSIの欄：30の線を下から上に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
+  ['mxu', 1, '移動平均線：5本が25本の上（上抜け）', '黄色の短期5本線が青い中期25本線を下から上に抜けた、または上にある（「移動平均線3本」のとき）', null],
   ['hlu', 1, '安値が切り上がっている', '前の安値を割らずに、安値が少しずつ高くなっている', null],
   ['mdc', -1, 'MACDがデッドクロスした（しそう）', '青い線がオレンジの線を上から下に抜ける。棒がプラスから縮んでいる', 'MACDのクロス（分足）'],
   ['m0d', -1, 'MACDが0の線より下', '青い線が0の線より下＝下向きの勢いの中', 'MACDのクロス（分足）'],
   ['bmd', -1, 'ボリンジャーの真ん中の線より下', '真ん中の線（20本の平均）の下で動いている', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['bbh', -1, '+2σ（上の線）に触れて反落した', '上の線に触れたあと、陰線（下げの足）が出た', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['rsd', -1, 'RSIが70以上から下向きに戻った', 'RSIの欄：70の線を上から下に戻した', 'RSI・騰落レシオ（売られすぎ・過熱）'],
+  ['mxd', -1, '移動平均線：5本が25本の下（下抜け）', '黄色の短期5本線が青い中期25本線を上から下に抜けた、または下にある（「移動平均線3本」のとき）', null],
   ['hld', -1, '高値が切り下がっている', '前の高値を超えられず、高値が少しずつ低くなっている', null],
   ['bwk', 0, 'バンドに沿って動き続けている（バンドウォーク）', '+2σや−2σの線に沿って足が並ぶ。逆張り（反発・反落ねらい）はしない', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
   ['sqz', 0, 'バンドの幅が狭くなっている', '大きく動く前のことが多い。どちらに抜けるかを見てから', 'ボリンジャーバンド（±2σ・バンドウォーク）'],
@@ -2703,7 +2706,7 @@ function tr1mHtml() {
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
-    <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>はい・いいえで答えると、上げ・下げの形を数えます</small></button>
+    <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>MACD・ボリンジャー・RSIなど6問を3択で。上げ・下げの形を数えます</small></button>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
     <div class="seg tr1mside">${[[1, '▲ 上げの形', 'pos'], [-1, '▼ 下げの形', 'neg']].map(([sd, l, c]) => { const n = TR1M.filter(x => x[1] === sd && v.on.includes(x[0])).length;
@@ -2711,39 +2714,26 @@ function tr1mHtml() {
     <div class="t1grp${TR1M_SIDE === 1 ? '' : ' hide'}" data-grp="1">${grp(1, '▲ 上げの形', 'pos')}</div><div class="t1grp${TR1M_SIDE === -1 ? '' : ' hide'}" data-grp="-1">${grp(-1, '▼ 下げの形', 'neg')}</div>${grp(0, '● 注意', '')}
     <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
 }
-/* ---- チャートを見ながら「はい・いいえ」で答える質問（2026-11-27 オーナー指定） ----
+/* ---- チャートを見ながら3択で答える質問（2026-11-27 オーナー指定。同日「3択・メジャーな指標・5〜6問」に作り直し） ----
    画面の下に質問の枠（下から出る枠、後ろを暗くしない）を出し、その上の画面はスクロールできるのでチャートを見ながら答えられる。
-   答えは分足の「見えた形」（TR1M）のチップに入れ、tr1mJudge で 買い寄り／売り寄り／方向感なし を出す。チャートを見て判断するのは本人。
-   質問：[段, 質問, はいで入れる形, いいえで入れる形, はいなら飛ばす質問, ボリンジャー表示のときだけ] */
+   1問ごとに ▲上げ／▼下げ／―どちらでもない の3択。答えは分足の「見えた形」（TR1M）のチップに入れ、tr1mJudge で 買い寄り／売り寄り／方向感なし を出す。
+   チャートを見て判断するのは本人。質問：[見る段, 質問, [[選択肢, 入れる形], ×3], 表示の条件（bb＝ボリンジャー表示のとき、ma＝移動平均線3本のとき）] */
 const T1Q = [
-  ['macd', '青い線がオレンジの線を<b>下から上に</b>抜けた（ゴールデンクロス）、または抜けそうですか？', 'mgc', null, ['mdc']],
-  ['macd', '青い線がオレンジの線を<b>上から下に</b>抜けた（デッドクロス）、または抜けそうですか？', 'mdc', null, []],
-  ['macd', '青い線は<b>0の線より上</b>にありますか？', 'm0u', 'm0d', []],
-  ['price', '値段（ろうそく足）は、ボリンジャーの<b>真ん中の線より上</b>にありますか？', 'bmu', 'bmd', [], true],
-  ['price', '<b>下の線（−2σ）に触れたあと</b>、上げの足（陽線）が出ましたか？', 'bbl', null, ['bbh'], true],
-  ['price', '<b>上の線（+2σ）に触れたあと</b>、下げの足（陰線）が出ましたか？', 'bbh', null, [], true],
-  ['rsi', 'RSIが<b>30の線を下から上に</b>戻しましたか？', 'rsu', null, ['rsd']],
-  ['rsi', 'RSIが<b>70の線を上から下に</b>戻しましたか？', 'rsd', null, []],
-  ['price', '<b>安値が切り上がって</b>いますか？（前の安値を割らずに、安値が少しずつ高くなっている）', 'hlu', null, ['hld']],
-  ['price', '<b>高値が切り下がって</b>いますか？（前の高値を超えられず、高値が少しずつ低くなっている）', 'hld', null, []],
-  ['price', '足が<b>バンドの線に沿って</b>並び続けていますか？（バンドウォーク）', 'bwk', null, [], true],
-  ['price', '<b>バンドの幅が狭く</b>なっていますか？', 'sqz', null, [], true],
-  ['price', '<b>値動きが小さく</b>、方向がはっきりしませんか？', 'flt', null, []],
+  ['macd', 'MACD：青い線とオレンジの線は？', [['▲ ゴールデンクロスした・しそう', 'mgc'], ['▼ デッドクロスした・しそう', 'mdc'], ['― どちらでもない（横ばい）', null]]],
+  ['macd', 'MACD：青い線は0の線より？', [['▲ 上', 'm0u'], ['▼ 下', 'm0d'], ['― 0の線のあたり', null]]],
+  ['price', 'ボリンジャー：値段（ろうそく足）は真ん中の線より？', [['▲ 上', 'bmu'], ['▼ 下', 'bmd'], ['― 真ん中のあたり', null]], 'bb'],
+  ['price', 'ボリンジャー：外側の線（±2σ）では？', [['▲ −2σに触れて反発した', 'bbl'], ['▼ +2σに触れて反落した', 'bbh'], ['― どちらもない', null]], 'bb'],
+  ['price', '移動平均線：短期5（黄）と中期25（青）は？', [['▲ 5が25を上に抜けた・上にある', 'mxu'], ['▼ 5が25を下に抜けた・下にある', 'mxd'], ['― 絡み合っている', null]], 'ma'],
+  ['rsi', 'RSI：今の動きは？', [['▲ 30以下から上向きに戻った', 'rsu'], ['▼ 70以上から下向きに戻った', 'rsd'], ['― 30〜70の間', null]]],
+  ['price', '値段の流れ（高値・安値）は？', [['▲ 安値が切り上がっている', 'hlu'], ['▼ 高値が切り下がっている', 'hld'], ['― 横ばい（もみ合い）', 'flt']]],
 ];
-const T1Q_PANE = {price: ['上の段', '値段・ボリンジャー'], macd: ['真ん中の段', 'MACD'], rsi: ['下の段', 'RSI']};
-let T1QS = null;   // {i, ans:{質問の番号: 'y'|'n'|'s'}, hist:[], done}
-function t1qList() { return T1Q.map((q, i) => ({q, i})).filter(x => !(x.q[5] && TR_IND !== 'bb')); }
-function t1qOn() {   // 答えから「見えた形」を作る
-  const on = [], skip = new Set();
-  t1qList().forEach(({q, i}) => { const a = T1QS.ans[i]; if (a === 'y' && q[2]) { on.push(q[2]); q[4].forEach(s => skip.add(s)); } else if (a === 'n' && q[3]) on.push(q[3]); });
-  return {on: [...new Set(on)], skip};
-}
-function t1qNext() {   // まだ答えていない次の質問（「はい」で飛ばすものは除く）
-  const {skip} = t1qOn();
-  return t1qList().find(({q, i}) => !(i in T1QS.ans) && !skip.has(q[2]));
-}
+const T1Q_PANE = {price: ['上の段', '値段'], macd: ['真ん中の段', 'MACD'], rsi: ['下の段', 'RSI']};
+let T1QS = null;   // {ans:{質問の番号: 選択肢の番号|'s'}, hist:[]}
+function t1qList() { return T1Q.map((q, i) => ({q, i})).filter(x => !x.q[3] || (x.q[3] === 'bb') === (TR_IND === 'bb')); }
+function t1qOn() { const on = []; t1qList().forEach(({q, i}) => { const a = T1QS.ans[i]; if (a !== undefined && a !== 's' && q[2][a][1]) on.push(q[2][a][1]); }); return on; }
+function t1qNext() { return t1qList().find(({i}) => !(i in T1QS.ans)); }
 function t1qSync() {   // ページの「見えた形」のチップにも反映（30分で消えるのは今までどおり）
-  const {on} = t1qOn();
+  const on = t1qOn();
   document.querySelectorAll('#tr1m .trchip').forEach(c => c.classList.toggle('on', on.includes(c.dataset.v)));
   tr1mSave();
 }
@@ -2758,24 +2748,22 @@ function t1qOpen() {
 function t1qClose() { const el = $('#t1q'); if (el) el.classList.remove('on'); document.body.classList.remove('t1q-open'); T1QS = null; }
 function t1qDraw() {
   const el = $('#t1q'); if (!el || !T1QS) return;
-  const list = t1qList(), nx = t1qNext(), {on, skip} = t1qOn(), j = tr1mJudge(on);
-  const total = list.filter(({q, i}) => !skip.has(q[2]) || i in T1QS.ans).length, done = Object.keys(T1QS.ans).length;
-  const tally = `<span class="pos">上げ ${j.up}</span>・<span class="neg">下げ ${j.dn}</span>・注意 ${j.it.length - j.up - j.dn}`;
-  const head = `<div class="t1qh"><b>${tfName(TR_TF)}を見て答える</b><span class="muted">${Math.min(done + (nx ? 1 : 0), total)} / ${total}</span><button type="button" class="t1qx" aria-label="閉じる">✕</button></div>`;
+  const list = t1qList(), nx = t1qNext(), j = tr1mJudge(t1qOn()), done = Object.keys(T1QS.ans).length;
+  const tally = `<span class="pos">上げ ${j.up}</span>・<span class="neg">下げ ${j.dn}</span>`;
+  const head = `<div class="t1qh"><b>${tfName(TR_TF)}を見て答える</b><span class="muted">${Math.min(done + (nx ? 1 : 0), list.length)} / ${list.length}</span><button type="button" class="t1qx" aria-label="閉じる">✕</button></div>`;
   if (nx) {
     const p = T1Q_PANE[nx.q[0]];
     el.innerHTML = head + `<div class="t1qp p-${nx.q[0]}">見る場所：<b>${p[0]}</b>（${p[1]}）</div>
       <div class="t1qq">${nx.q[1]}</div>
-      <div class="t1qa"><button type="button" class="btn t1y" data-a="y">はい</button><button type="button" class="btn t1n" data-a="n">いいえ</button><button type="button" class="btn t1s2" data-a="s">わからない</button></div>
-      <div class="t1qf"><button type="button" class="btn t1qb"${T1QS.hist.length ? '' : ' disabled'}>← 戻る</button><span>${tally}</span></div>`;
+      <div class="t1qo">${nx.q[2].map(([l], k) => `<button type="button" class="btn t1o ${k === 0 ? 't1y' : k === 1 ? 't1n' : ''}" data-a="${k}">${l}</button>`).join('')}</div>
+      <div class="t1qf"><button type="button" class="btn t1qb"${T1QS.hist.length ? '' : ' disabled'}>← 戻る</button><button type="button" class="btn t1qs" data-a="s">わからない</button><span>${tally}</span></div>`;
     el.dataset.cur = nx.i;
   } else {
     const word = j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし', cls = j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : '';
-    el.innerHTML = head + `<div class="t1qr ${cls}">${tfName(TR_TF)}の見え方：<b>${word}</b></div><div class="t1qf" style="justify-content:flex-start">${tally}</div>
+    el.innerHTML = head + `<div class="t1qr ${cls}">${tfName(TR_TF)}の見え方：<b>${word}</b>　<small>${tally}</small></div>
       <div class="t1qa"><button type="button" class="btn trgo t1qadd">この根拠を「記録」に入れる</button><button type="button" class="btn t1qagain">もう一度</button><button type="button" class="btn t1qx2">閉じる</button></div>
-      <ul class="t1ql">${j.it.map(x => `<li class="${x[1] > 0 ? 'pos' : x[1] < 0 ? 'neg' : ''}">${x[1] > 0 ? '▲' : x[1] < 0 ? '▼' : '●'} ${x[2]}</li>`).join('') || '<li>当てはまる形はありませんでした</li>'}</ul>
-      <p class="note" style="margin:4px 0">上げの形と下げの形の差が2以上で「買い寄り／売り寄り」。${TR_IND !== 'bb' ? 'ボリンジャーの質問は、チャートを「ボリンジャー」にすると出ます。' : ''}判断するのはご自身です。</p>
-      `;
+      <ul class="t1ql">${j.it.map(x => `<li class="${x[1] > 0 ? 'pos' : x[1] < 0 ? 'neg' : ''}">${x[1] > 0 ? '▲' : x[1] < 0 ? '▼' : '―'} ${x[2]}</li>`).join('') || '<li>上げ・下げの形はありませんでした</li>'}</ul>
+      <p class="note" style="margin:4px 0">上げと下げの差が2以上で「買い寄り／売り寄り」。判断するのはご自身です。</p>`;
     delete el.dataset.cur;
   }
 }
@@ -2787,7 +2775,7 @@ document.addEventListener('click', e => {
   if (t.closest('.t1qagain')) { T1QS = {ans: {}, hist: []}; t1qSync(); t1qDraw(); return; }
   if (t.closest('.t1qadd')) { tr1mAdd(); t1qClose(); const m = $('#tr1m-msg'); if (m) m.scrollIntoView({block: 'center', behavior: 'smooth'}); return; }
   if (t.closest('.t1qb')) { const i = T1QS.hist.pop(); if (i != null) delete T1QS.ans[i]; t1qSync(); t1qDraw(); return; }
-  const a = t.closest('[data-a]'); if (a && T1QS) { const i = +$('#t1q').dataset.cur; T1QS.ans[i] = a.dataset.a; T1QS.hist.push(i); t1qSync(); t1qDraw(); }
+  const a = t.closest('[data-a]'); if (a && T1QS) { const i = +$('#t1q').dataset.cur; T1QS.ans[i] = a.dataset.a === 's' ? 's' : +a.dataset.a; T1QS.hist.push(i); t1qSync(); t1qDraw(); }
 });
 function tr1mSave(quiet) {
   const on = [...document.querySelectorAll('#tr1m .trchip.on')].map(b => b.dataset.v);
