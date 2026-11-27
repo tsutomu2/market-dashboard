@@ -220,6 +220,15 @@ body.on-trade .tabj{display:inline-flex}
 .tvvh{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);z-index:3;pointer-events:auto;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none;
   background:#f59e0b;color:#fff;font-weight:700;border-radius:14px;padding:6px 8px;font-size:calc(var(--fs)*12px);line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap}
 .tvvbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 0}.tvvbar .btn{padding:4px 10px;font-size:calc(var(--fs)*12px)}.tvvbar .btn.on{background:#f59e0b;border-color:#f59e0b;color:#fff}
+#t1q{display:none;position:fixed;left:0;right:0;bottom:0;z-index:20;max-height:42vh;overflow:auto;background:var(--panel);border-top:2px solid var(--accent);border-radius:14px 14px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.18);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+#t1q.on{display:block}body.t1q-open{padding-bottom:44vh}
+.t1qh{display:flex;align-items:center;gap:8px}.t1qh b{flex:1}.t1qx{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:2px 10px;cursor:pointer}
+.t1qp{display:inline-block;margin:8px 0 4px;padding:2px 8px;border-radius:6px;font-size:calc(var(--fs)*12px);background:var(--line)}.t1qp.p-macd{background:#dbeafe;color:#1d4ed8}.t1qp.p-rsi{background:#f3e8ff;color:#7e22ce}.t1qp.p-price{background:#e3f3e8;color:#1f7a4d}
+.t1qq{font-size:calc(var(--fs)*15px);line-height:1.5;margin:2px 0}.t1qtip{font-size:calc(var(--fs)*12px);color:var(--muted);margin:2px 0 6px}
+.t1qa{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}.t1qa .btn{flex:1;min-width:84px;padding:10px 6px;font-weight:700}.t1y{background:var(--posbg);border-color:var(--pos);color:var(--pos)}.t1n{background:var(--negbg);border-color:var(--neg);color:var(--neg)}
+.t1qf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:calc(var(--fs)*12px)}.t1qf .btn{padding:4px 10px}
+.t1qr{font-size:calc(var(--fs)*16px);margin:8px 0 2px}.t1ql{margin:4px 0;padding-left:0;list-style:none;font-size:calc(var(--fs)*13px)}.t1ql li{margin:2px 0}
+.t1qbtn{width:100%;margin:8px 0}
 .trtvhd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 -2px;font-weight:600}
 #p-trade.trgate>*:not(#tr-check, #tr-mist){display:none}#tr-mist:empty,#tr-review:empty{display:none}.app-trade #srcinfo{display:none}#p-trade.trgate.trrec>#tr-recbox,#p-trade.trgate.trrec>#tr-todayb{display:block}
 .rsedbtn{padding:2px 10px;font-size:calc(var(--fs)*12px);margin-left:6px;vertical-align:1px}
@@ -2694,6 +2703,7 @@ function tr1mHtml() {
     <div class="seg trindseg"><button type="button" class="trind${TR_IND === 'bb' ? ' on' : ''}" data-ind="bb">ボリンジャー</button><button type="button" class="trind${TR_IND === 'ma3' ? ' on' : ''}" data-ind="ma3">移動平均線3本<br><small>5・25・75</small></button></div>
     ${`<p class="trmaleg"${TR_IND === 'ma3' ? '' : ' hidden'}><span><i style="background:${TR_MA_COL.s}"></i>短期 5</span><span><i style="background:${TR_MA_COL.m}"></i>中期 25</span><span><i style="background:${TR_MA_COL.l}"></i>長期 75</span></p>`}
     <div class="trtvhd"><span>${tfName(TR_TF)}チャート</span><button class="btn fsbtn" id="tr-1m-fs" type="button">⤢ 全画面</button></div>${tvVbarHtml()}<div class="trtv" id="tr-1m" style="height:max(620px,85vh)"></div>
+    <button type="button" class="btn trbig t1qbtn" id="t1q-open">❓ チャートを見ながら質問に答える<small>はい・いいえで答えると、上げ・下げの形を数えます</small></button>
     <details class="note"><summary>見方（タップで開く）</summary><ul class="trli">${TR1M.map(x => `<li><b>${x[2]}</b><br><small>${x[3]}</small></li>`).join('')}</ul></details>
     <p class="note"><b>チャートで見えたことをタップ</b>してください。</p>
     <div class="seg tr1mside">${[[1, '▲ 上げの形', 'pos'], [-1, '▼ 下げの形', 'neg']].map(([sd, l, c]) => { const n = TR1M.filter(x => x[1] === sd && v.on.includes(x[0])).length;
@@ -2701,6 +2711,84 @@ function tr1mHtml() {
     <div class="t1grp${TR1M_SIDE === 1 ? '' : ' hide'}" data-grp="1">${grp(1, '▲ 上げの形', 'pos')}</div><div class="t1grp${TR1M_SIDE === -1 ? '' : ' hide'}" data-grp="-1">${grp(-1, '▼ 下げの形', 'neg')}</div>${grp(0, '● 注意', '')}
     <div id="tr1m-sum">${tr1mSumHtml()}</div></div>`;
 }
+/* ---- チャートを見ながら「はい・いいえ」で答える質問（2026-11-27 オーナー指定） ----
+   画面の下に質問の枠（下から出る枠、後ろを暗くしない）を出し、その上の画面はスクロールできるのでチャートを見ながら答えられる。
+   答えは分足の「見えた形」（TR1M）のチップに入れ、tr1mJudge で 買い寄り／売り寄り／方向感なし を出す。チャートを見て判断するのは本人。
+   質問：[段, 質問, はいで入れる形, いいえで入れる形, はいなら飛ばす質問, ボリンジャー表示のときだけ] */
+const T1Q = [
+  ['macd', '青い線がオレンジの線を<b>下から上に</b>抜けた（ゴールデンクロス）、または抜けそうですか？', 'mgc', null, ['mdc']],
+  ['macd', '青い線がオレンジの線を<b>上から下に</b>抜けた（デッドクロス）、または抜けそうですか？', 'mdc', null, []],
+  ['macd', '青い線は<b>0の線より上</b>にありますか？', 'm0u', 'm0d', []],
+  ['price', '値段（ろうそく足）は、ボリンジャーの<b>真ん中の線より上</b>にありますか？', 'bmu', 'bmd', [], true],
+  ['price', '<b>下の線（−2σ）に触れたあと</b>、上げの足（陽線）が出ましたか？', 'bbl', null, ['bbh'], true],
+  ['price', '<b>上の線（+2σ）に触れたあと</b>、下げの足（陰線）が出ましたか？', 'bbh', null, [], true],
+  ['rsi', 'RSIが<b>30の線を下から上に</b>戻しましたか？', 'rsu', null, ['rsd']],
+  ['rsi', 'RSIが<b>70の線を上から下に</b>戻しましたか？', 'rsd', null, []],
+  ['price', '<b>安値が切り上がって</b>いますか？（前の安値を割らずに、安値が少しずつ高くなっている）', 'hlu', null, ['hld']],
+  ['price', '<b>高値が切り下がって</b>いますか？（前の高値を超えられず、高値が少しずつ低くなっている）', 'hld', null, []],
+  ['price', '足が<b>バンドの線に沿って</b>並び続けていますか？（バンドウォーク）', 'bwk', null, [], true],
+  ['price', '<b>バンドの幅が狭く</b>なっていますか？', 'sqz', null, [], true],
+  ['price', '<b>値動きが小さく</b>、方向がはっきりしませんか？', 'flt', null, []],
+];
+const T1Q_PANE = {price: ['上の段', '値段・ボリンジャー'], macd: ['真ん中の段', 'MACD'], rsi: ['下の段', 'RSI']};
+let T1QS = null;   // {i, ans:{質問の番号: 'y'|'n'|'s'}, hist:[], done}
+function t1qList() { return T1Q.map((q, i) => ({q, i})).filter(x => !(x.q[5] && TR_IND !== 'bb')); }
+function t1qOn() {   // 答えから「見えた形」を作る
+  const on = [], skip = new Set();
+  t1qList().forEach(({q, i}) => { const a = T1QS.ans[i]; if (a === 'y' && q[2]) { on.push(q[2]); q[4].forEach(s => skip.add(s)); } else if (a === 'n' && q[3]) on.push(q[3]); });
+  return {on: [...new Set(on)], skip};
+}
+function t1qNext() {   // まだ答えていない次の質問（「はい」で飛ばすものは除く）
+  const {skip} = t1qOn();
+  return t1qList().find(({q, i}) => !(i in T1QS.ans) && !skip.has(q[2]));
+}
+function t1qSync() {   // ページの「見えた形」のチップにも反映（30分で消えるのは今までどおり）
+  const {on} = t1qOn();
+  document.querySelectorAll('#tr1m .trchip').forEach(c => c.classList.toggle('on', on.includes(c.dataset.v)));
+  tr1mSave();
+}
+function t1qOpen() {
+  T1QS = {ans: {}, hist: []};
+  let el = $('#t1q'); if (!el) { el = document.createElement('div'); el.id = 't1q'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'チャートを見ながら答える質問'); document.body.appendChild(el); }
+  document.body.classList.add('t1q-open'); el.classList.add('on'); t1qDraw();
+  const ch = $('#tr-1m'); if (ch) requestAnimationFrame(() => {   // チャートの下の端が質問の枠のすぐ上に来るように
+    const r = ch.getBoundingClientRect(), top = innerHeight - el.offsetHeight;
+    scrollTo({top: Math.max(0, scrollY + r.bottom - top + 4), behavior: 'smooth'}); });
+}
+function t1qClose() { const el = $('#t1q'); if (el) el.classList.remove('on'); document.body.classList.remove('t1q-open'); T1QS = null; }
+function t1qDraw() {
+  const el = $('#t1q'); if (!el || !T1QS) return;
+  const list = t1qList(), nx = t1qNext(), {on, skip} = t1qOn(), j = tr1mJudge(on);
+  const total = list.filter(({q, i}) => !skip.has(q[2]) || i in T1QS.ans).length, done = Object.keys(T1QS.ans).length;
+  const tally = `<span class="pos">上げ ${j.up}</span>・<span class="neg">下げ ${j.dn}</span>・注意 ${j.it.length - j.up - j.dn}`;
+  const head = `<div class="t1qh"><b>${tfName(TR_TF)}を見て答える</b><span class="muted">${Math.min(done + (nx ? 1 : 0), total)} / ${total}</span><button type="button" class="t1qx" aria-label="閉じる">✕</button></div>`;
+  if (nx) {
+    const p = T1Q_PANE[nx.q[0]];
+    el.innerHTML = head + `<div class="t1qp p-${nx.q[0]}">見る場所：<b>${p[0]}</b>（${p[1]}）</div>
+      <div class="t1qq">${nx.q[1]}</div>
+      <div class="t1qa"><button type="button" class="btn t1y" data-a="y">はい</button><button type="button" class="btn t1n" data-a="n">いいえ</button><button type="button" class="btn t1s2" data-a="s">わからない</button></div>
+      <div class="t1qf"><button type="button" class="btn t1qb"${T1QS.hist.length ? '' : ' disabled'}>← 戻る</button><span>${tally}</span></div>`;
+    el.dataset.cur = nx.i;
+  } else {
+    const word = j.dir === 'buy' ? '買い寄り' : j.dir === 'sell' ? '売り寄り' : '方向感なし', cls = j.dir === 'buy' ? 'pos' : j.dir === 'sell' ? 'neg' : '';
+    el.innerHTML = head + `<div class="t1qr ${cls}">${tfName(TR_TF)}の見え方：<b>${word}</b></div><div class="t1qf" style="justify-content:flex-start">${tally}</div>
+      <div class="t1qa"><button type="button" class="btn trgo t1qadd">この根拠を「記録」に入れる</button><button type="button" class="btn t1qagain">もう一度</button><button type="button" class="btn t1qx2">閉じる</button></div>
+      <ul class="t1ql">${j.it.map(x => `<li class="${x[1] > 0 ? 'pos' : x[1] < 0 ? 'neg' : ''}">${x[1] > 0 ? '▲' : x[1] < 0 ? '▼' : '●'} ${x[2]}</li>`).join('') || '<li>当てはまる形はありませんでした</li>'}</ul>
+      <p class="note" style="margin:4px 0">上げの形と下げの形の差が2以上で「買い寄り／売り寄り」。${TR_IND !== 'bb' ? 'ボリンジャーの質問は、チャートを「ボリンジャー」にすると出ます。' : ''}判断するのはご自身です。</p>
+      `;
+    delete el.dataset.cur;
+  }
+}
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('#t1q-open')) { t1qOpen(); return; }
+  if (!t.closest('#t1q')) return;
+  if (t.closest('.t1qx, .t1qx2')) { t1qClose(); return; }
+  if (t.closest('.t1qagain')) { T1QS = {ans: {}, hist: []}; t1qSync(); t1qDraw(); return; }
+  if (t.closest('.t1qadd')) { tr1mAdd(); t1qClose(); const m = $('#tr1m-msg'); if (m) m.scrollIntoView({block: 'center', behavior: 'smooth'}); return; }
+  if (t.closest('.t1qb')) { const i = T1QS.hist.pop(); if (i != null) delete T1QS.ans[i]; t1qSync(); t1qDraw(); return; }
+  const a = t.closest('[data-a]'); if (a && T1QS) { const i = +$('#t1q').dataset.cur; T1QS.ans[i] = a.dataset.a; T1QS.hist.push(i); t1qSync(); t1qDraw(); }
+});
 function tr1mSave(quiet) {
   const on = [...document.querySelectorAll('#tr1m .trchip.on')].map(b => b.dataset.v);
   trSet('tr1m', {t: on.length ? Date.now() : 0, on, tf: TR_TF});
@@ -3347,7 +3435,7 @@ trFixDates(); $('#tr-date').value = trToday(); trApplyMode();
    横に60px以上・縦の動きの1.5倍以上で切り替え。グラフ・横スクロールする表・入力欄・全画面表示・地図などの上では切り替えない */
 (() => {
   let sx = null, sy = null, st = 0, ok = false;
-  const blocked = el => el.closest('.chart, .wrap, input, select, textarea, .trtv, .tape, .hvp, #fs, .seg, .trchips, .tabs');
+  const blocked = el => el.closest('.chart, .wrap, input, select, textarea, .trtv, .tape, .hvp, #fs, .seg, .trchips, .tabs, #t1q');
   const scrollable = el => { if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 4) return true;   // 画面ごと横にはみ出しているときは横スクロールを優先
     for (let e = el; e && e !== document.body; e = e.parentElement) { if (e.scrollWidth > e.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowX)) return true; } return false; };
   document.addEventListener('touchstart', e => {
@@ -3367,6 +3455,7 @@ trFixDates(); $('#tr-date').value = trToday(); trApplyMode();
   }, {passive: true});
 })();
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  if (T1QS && b.dataset.page !== 'trade') t1qClose();
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.page));
   location.hash = b.dataset.page; renderAll();
