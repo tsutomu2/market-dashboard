@@ -214,7 +214,7 @@ body.on-trade .tabj{display:inline-flex}
 .tr1mside .t1s.pos.on{background:var(--pos);color:#fff}.tr1mside .t1s.neg.on{background:var(--neg);color:#fff}.tr1mside .t1s.pos:not(.on){color:var(--pos)}.tr1mside .t1s.neg:not(.on){color:var(--neg)}
 .t1grp.hide{display:none}.t1grp>.grp{display:none}
 .trindseg{display:grid;grid-template-columns:1fr 1fr;width:100%;box-sizing:border-box}.trindseg button{padding:7px 4px;font-size:calc(var(--fs)*12px);white-space:normal;line-height:1.3}
-.trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg button{padding:7px 2px;white-space:nowrap}
+.trtfseg{display:grid;grid-template-columns:repeat(6,1fr);width:100%;box-sizing:border-box}.trtfseg{position:sticky;top:var(--tabh,48px);z-index:4;box-shadow:0 2px 6px rgba(0,0,0,.12)}.trtfseg button{padding:7px 2px;white-space:nowrap}
 .trtv,#fs-body .tvbox{position:relative}
 .tvvl{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #f59e0b;z-index:2;pointer-events:none;transform:translateX(-1px)}
 .tvvh{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);z-index:3;pointer-events:auto;touch-action:none;cursor:ew-resize;user-select:none;-webkit-user-select:none;
@@ -2740,12 +2740,15 @@ function t1qOpen() {
     const r = ch.getBoundingClientRect(), top = innerHeight - el.offsetHeight;
     scrollTo({top: Math.max(0, scrollY + r.bottom - top + 4), behavior: 'smooth'}); });
 }
-function t1qJump(k) {   // チャートの欄（値段・MACD・RSI）が、タブの帯と質問の枠の間のいちばん見やすい位置に来るようにスクロール（2026-11-27 オーナー指定）
+// 分足の足の切替（1分・3分…）はチャートを見ている間タブの帯のすぐ下に固定（2026-11-27 オーナー指定）。帯の高さを CSS 変数 --tabh に入れる
+function setTabH() { const tb = $('.tabbar'); if (tb) document.documentElement.style.setProperty('--tabh', tb.offsetHeight + 'px'); }
+addEventListener('resize', setTabH); addEventListener('load', setTabH); setTimeout(setTabH, 0);
+function t1qJump(k) {   // 足の切替は上に固定されるので、見える範囲はその下から   // チャートの欄（値段・MACD・RSI）が、タブの帯と質問の枠の間のいちばん見やすい位置に来るようにスクロール（2026-11-27 オーナー指定）
   const ch = $('#tr-1m'), sh = $('#t1q'); if (!ch) return;
   // TradingView の埋め込み：上に道具の帯（約38px）、下に時刻の目盛り（約28px）、その間を 値段2：MACD1：RSI1 で分ける（iPhone・iPad で実測）
   const r = ch.getBoundingClientRect(), H = r.height, T = 38, B = 28, inn = H - T - B;
   const pane = {price: [T, T + inn * 0.5], macd: [T + inn * 0.5, T + inn * 0.75], rsi: [T + inn * 0.75, H]}[k]; if (!pane) return;
-  const tb = $('.tabbar'), aTop = tb ? tb.getBoundingClientRect().bottom : 0, aBot = sh && sh.classList.contains('on') ? sh.getBoundingClientRect().top : innerHeight;
+  const tb = $('.tabbar'), sg = $('.trtfseg'), aTop = (tb ? tb.getBoundingClientRect().bottom : 0) + (sg ? sg.offsetHeight : 0), aBot = sh && sh.classList.contains('on') ? sh.getBoundingClientRect().top : innerHeight;
   const pTop = r.top + pane[0], pBot = r.top + pane[1], room = aBot - aTop;
   const dy = pBot - pTop > room ? pTop - aTop - 4 : (pTop + pBot) / 2 - (aTop + aBot) / 2;
   scrollTo({top: Math.max(0, scrollY + dy), behavior: 'smooth'});
